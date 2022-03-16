@@ -13,9 +13,6 @@ def fc(df):
         df.xs('BASELINE', level=0).droplevel(0),
         level=2
     ).apply(np.log2)
-    #logfcdf.replace([np.inf, -np.inf], 0, inplace=True)
-    #logfcdf.dropna(inplace=True, axis=1)
-    #logfcdf.fillna(0, inplace=True)
     logfcdf = logfcdf.groupby(level=[0, 1]).median().T
     logfcdf = logfcdf.T.drop('BASELINE', level=0).T
     def appl(df, baseline):
@@ -29,12 +26,10 @@ def fc(df):
     pvaldf = notbaseline.groupby(level=[0, 1]).apply(appl, (baseline)).T
     pvaldf.replace([np.inf, -np.inf], np.nan, inplace=True)
     pvaldf.dropna(inplace=True)
-    '''
     qvaldf = pd.DataFrame(
         fdrcorrection(pvaldf.values.flatten())[0].reshape(pvaldf.shape),
         index = pvaldf.index,
         columns = pvaldf.columns)
-    '''
     return logfcdf, pvaldf
 
 def corr(df1, df2):
@@ -78,4 +73,21 @@ def clustermap(df):
         xticklabels=True,
         linewidths=0.1,
         linecolor='gray'
+    )
+
+def PCOA(df):
+    import seaborn as sns
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import skbio
+    from scipy.spatial import distance
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+    Ar_dist = distance.squareform(distance.pdist(samples_taxonomy, metric="braycurtis"))
+    DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
+    PCoA = skbio.stats.ordination.pcoa(DM_dist, number_of_dimensions=2)
+    results = PCoA.samples.copy()
+    samples_taxonomy['PC1'], samples_taxonomy['PC2'] = results.iloc[:,0].values, results.iloc[:,1].values
+    samples_taxonomyMetadata = samples_taxonomy.join(samples_metadata, how='inner')
     )
