@@ -84,10 +84,77 @@ def PCOA(df):
     from scipy.spatial import distance
     from sklearn.cluster import KMeans
     from sklearn.metrics import silhouette_score
-    Ar_dist = distance.squareform(distance.pdist(samples_taxonomy, metric="braycurtis"))
+    Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
     DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
     PCoA = skbio.stats.ordination.pcoa(DM_dist, number_of_dimensions=2)
     results = PCoA.samples.copy()
-    samples_taxonomy['PC1'], samples_taxonomy['PC2'] = results.iloc[:,0].values, results.iloc[:,1].values
-    samples_taxonomyMetadata = samples_taxonomy.join(samples_metadata, how='inner')
+    df['PC1'], df['PC2'] = results.iloc[:,0].values, results.iloc[:,1].values
+    return df[['PC1','PC2']]
+    )
+
+def PCA(df):
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import numpy as np
+    import plotly.express as px
+    from sklearn import datasets
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import silhouette_score
+    from sklearn.cluster import KMeans
+    scaledDf = StandardScaler().fit_transform(df.T)
+    pca = PCA()
+    results = pca.fit_transform(scaledDf)
+    df['PC1'], df['PC2'] = results[0,:], results[1,:]
+    return df[['PC1','PC2']]
+    )
+
+def rfr(df, var):
+    from sklearn import metrics
+    from sklearn.decomposition import PCA
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import (accuracy_score, confusion_matrix, classification_report)
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+    import pandas as pd
+    model = ExtraTreesRegressor(n_estimators=500, n_jobs=-1,random_state=1)
+    X = testdf.drop(var, axis=1)
+    y = testdf.xs(var, axis=1)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    r2_score(y_true=y_test, y_pred=y_pred)
+    explainer = shap.TreeExplainer(model)
+    shaps_values = explainer(X)
+    meanabsshap = pd.Series( np.abs(shaps_values.values).mean(axis=0), index=X.columns)
+    corrs = [spearmanr(shaps_values.values[:,x], X.iloc[:,x])[0] for x in range(len(X.columns))]
+    final = meanabsshap * np.sign(corrs)
+    final.fillna(0, inplace=True)
+    return df[['PC1','PC2']]
+    )
+
+def rfc(df, var):
+    from sklearn import metrics
+    from sklearn.decomposition import PCA
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import (accuracy_score, confusion_matrix, classification_report)
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import roc_auc_score
+    from sklearn.metrics import roc_curve
+    import pandas as pd
+    model = RandomForestClassifier(n_estimators=500, random_state=1)
+    X = testdf.drop(var, axis=1)
+    y = testdf.xs(var, axis=1)
+    X_train, X_test, y_train, y_test = train_test_split(X, y)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    explainer = shap.TreeExplainer(model)
+    shaps_values = explainer(X)
+    meanabsshap = pd.Series( np.abs(shaps_values.values).mean(axis=0), index=X.columns)
+    corrs = [spearmanr(shaps_values.values[:,x], X.iloc[:,x])[0] for x in range(len(X.columns))]
+    final = meanabsshap * np.sign(corrs)
+    final.fillna(0, inplace=True)
+    return df[['PC1','PC2']]
     )
