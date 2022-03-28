@@ -3,8 +3,8 @@
 '''
 Scripts for metagenomics analysis
 '''
+import pandas as pd
 def fc(df, basename):
-    import pandas as pd
     import numpy as np
     from scipy.stats import mannwhitneyu
     from statsmodels.stats.multitest import fdrcorrection
@@ -17,7 +17,7 @@ def fc(df, basename):
     logfcdf = logfcdf.T.drop(basename, level=0).T
     def appl(df, baseline):
         result = pd.Series(dtype='float64')
-        baselinevar = df.reset_index()['ARM'].unique()[0]
+        baselinevar = df.reset_index()['Group'].unique()[0]
         for i in df.columns:
             result[i] = mannwhitneyu(baseline.loc[baselinevar,i],df[i])[1]
         return result
@@ -45,14 +45,20 @@ def corr(df1, df2):
     cordf = cordf.loc[df1.columns, df2.columns]
     pvaldf = pvaldf.loc[df1.columns, df2.columns]
     qvaldf = pd.DataFrame(
-        fdrcorrection(pvaldf.values.flatten())[0].reshape(pvaldf.shape),
+        fdrcorrection(pvaldf.values.flatten())[1].reshape(pvaldf.shape),
         index = pvaldf.index,
         columns = pvaldf.columns)
     return cordf, qvaldf
 
-def heatmap(df, sig=pd.Series(dtype='float64'):
+def heatmap(df, sig=None):
     import seaborn as sns
-    sns.heatmap(
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    pd.set_option("use_inf_as_na", True)
+    plt.rcParams["figure.figsize"] = (4,4)
+    if not sig is None: df = df[(sig < 0.05).sum(axis=1) > 0]
+    sig = sig.loc[df.index]
+    g = sns.heatmap(
         data=df,
         square=True,
         cmap="vlag",
@@ -62,10 +68,37 @@ def heatmap(df, sig=pd.Series(dtype='float64'):
         linewidths=0.1,
         linecolor='gray'
     )
+    for tick in g.get_yticklabels(): tick.set_rotation(0)
+    annot=pd.DataFrame(index=sig.index, columns=sig.columns)
+    annot[(sig < 0.0005) & (df > 0)] = '+++'
+    annot[(sig < 0.005) & (df > 0)] = '++'
+    annot[(sig < 0.05) & (df > 0)] = '+'
+    annot[(sig < 0.0005) & (df < 0)] = '---'
+    annot[(sig < 0.005) & (df < 0)] = '--'
+    annot[(sig < 0.05) & (df < 0)] = '-'
+    annot[sig >= 0.05] = ''
+    for i, ix in enumerate(df.index):
+        for j, jx in enumerate(df.columns):
+            text = g.text(
+                j + 0.5,
+                i + 0.5,
+                annot.values[i,j],
+                ha="center",
+                va="center",
+                color="black",
+            )
+            #text.set_fontsize(8)
+    plt.tight_layout()
 
-def clustermap(df, sig=pd.Series(dtype='float64')):
+def clustermap(df, sig=None):
     import seaborn as sns
-    sns.clustermap(
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    pd.set_option("use_inf_as_na", True)
+    df.dropna(inplace=True)
+    if not sig is None: df = df[(sig < 0.05).sum(axis=1) > 0]
+    sig = sig.loc[df.index]
+    g = sns.clustermap(
         data=df,
         cmap="vlag",
         center=0,
@@ -74,6 +107,26 @@ def clustermap(df, sig=pd.Series(dtype='float64')):
         linewidths=0.1,
         linecolor='gray'
     )
+    for tick in g.ax_heatmap.get_yticklabels(): tick.set_rotation(0)
+    annot=pd.DataFrame(index=sig.index, columns=sig.columns)
+    annot[(sig < 0.0005) & (df > 0)] = '+++'
+    annot[(sig < 0.005) & (df > 0)] = '++'
+    annot[(sig < 0.05) & (df > 0)] = '+'
+    annot[(sig < 0.0005) & (df < 0)] = '---'
+    annot[(sig < 0.005) & (df < 0)] = '--'
+    annot[(sig < 0.05) & (df < 0)] = '-'
+    annot[sig >= 0.05] = ''
+    for i, ix in enumerate(df.index):
+        for j, jx in enumerate(df.columns):
+            text = g.ax_heatmap.text(
+                j + 0.5,
+                i + 0.5,
+                annot.values[i, j],
+                ha="center",
+                va="center",
+                color="black",
+            )
+            #text.set_fontsize(8)
 
 def PCOA(df):
     import seaborn as sns
@@ -82,14 +135,13 @@ def PCOA(df):
     import numpy as np
     import skbio
     from scipy.spatial import distance
-    from sklearn.cluster import KMeans
-    from sklearn.metrics import silhouette_score
+    df = df.loc[:, df.sum() != 0]
     Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
     DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
     PCoA = skbio.stats.ordination.pcoa(DM_dist, number_of_dimensions=2)
     results = PCoA.samples.copy()
     df['PC1'], df['PC2'] = results.iloc[:,0].values, results.iloc[:,1].values
-    return df[['PC1','PC2']]
+    return df
 
 def PCA(df):
     import pandas as pd
@@ -106,7 +158,7 @@ def PCA(df):
     pca = PCA()
     results = pca.fit_transform(scaledDf)
     df['PC1'], df['PC2'] = results[0,:], results[1,:]
-    return df[['PC1','PC2']]
+    return df
 
 def PCplot(df, var):
     import seaborn as sns
@@ -137,10 +189,17 @@ def PCplot(df, var):
         x='PC1',
         y='PC2',
         hue=var,
-        palette='colorblind'
+        #palette='colorblind'
     )
-    for i in df.var.unique():
-        confidence_ellipse(df.loc['PC1', var], df['PC2', var], ax)
+    for j,i in enumerate(df[var].unique()):
+        confidence_ellipse(
+            df.loc[df[var] == i]['PC1'],
+            df[df[var] == i]['PC2'],
+            ax,
+            #edgecolor=sns.color_palette()[j],
+            #edgecolor='auto',
+            linestyle='--')
+    return ax
 
 def rfr(df, var):
     from sklearn.ensemble import RandomForestRegressor
@@ -187,3 +246,134 @@ def rfc(df, var):
     final = meanabsshap * np.sign(corrs)
     final.fillna(0, inplace=True)
     return model, final
+
+def circos(df):
+    import pandas as pd
+    import rpy2.robjects as robjects
+    from rpy2.robjects import pandas2ri
+    robjects.r('''
+    require(RColorBrewer)
+    require(circlize)
+    require(ggplot2)
+    circosInput <- read.csv('fsnewedges.csv')
+    changes <- read.csv('nnnnodes.csv', row.names=1)
+    elements = (unique(c(circosInput$from, circosInput$to)))
+    set.seed(1)
+    gridcol = colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
+    grid.col = gridcol(changes$X2)
+    names(grid.col) = rownames(changes)
+    col_fun = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+    col = col_fun(circosInput$value)
+    names(col) = rownames(circosInput)
+    svg('../results/fstmp.svg',width=12,height=12)
+    circos.par(circle.margin=c(1,1,1,1))
+    chordDiagram(circosInput,
+        col = col,
+        grid.col=grid.col,
+        annotationTrack = "grid",
+        preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(circosInput))))))
+    circos.track(track.index = 1, panel.fun = function(x, y) {
+        circos.text(CELL_META$xcenter,
+            CELL_META$ylim[1],
+            CELL_META$sector.index,
+            facing = "clockwise",
+            niceFacing = TRUE,
+            adj = c(0, 0.5))
+            },
+        bg.border = NA)
+    circos.clear() 
+    dev.off()
+    ''')
+
+def venn(df1, df2, df3):
+    from matplotlib_venn import venn3
+    from itertools import combinations
+    def combs(x): return [c for i in range(1, len(x)+1) for c in combinations(x,i)]
+    comb = combs([df1, df2, df3])
+    result = []
+    for i in comb:
+        if len(i) > 1:
+            result.append(len(set.intersection(*(set(j.columns) for j in i))))
+        else:
+            result.append(len(i[0].columns))
+    venn3(subsets = result)
+
+def relabund(df):
+    import matplotlib.pyplot as plt
+    plt.rcParams["figure.figsize"] = (12,4)
+    #df.sort_index(axis=1, inplace=True)
+    unclass = df[df.index.str.contains("unclassified")].sum()
+    df = df[~df.index.str.contains("unclassified")]
+    df.loc['unclassified'] = unclass
+    if df.shape[0] > 20:
+        df.loc['other'] = df.loc[df.T.sum().sort_values().iloc[21:].index].sum()
+    df = df.loc[df.T.sum().sort_values().tail(20).index]
+    norm = df.T.div(df.sum(axis=0), axis=0)
+    norm.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ylim=(0,1))
+    plt.legend(title='Taxonomy', bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
+    plt.ylabel('Relative abundance')
+    plt.tight_layout()
+
+def abund(df):
+    import matplotlib.pyplot as plt
+    plt.rcParams["figure.figsize"] = (12,4)
+    unclass = df[df.index.str.contains("unclassified")].sum()
+    df = df[~df.index.str.contains("unclassified")]
+    #df.sort_index(axis=1, inplace=True)
+    if df.shape[0] > 20:
+        df.loc['other'] = df.loc[df.T.sum().sort_values().iloc[21:].index].sum()
+    df = df.loc[df.T.sum().sort_values().tail(20).index].T
+    df.plot(kind='bar',stacked=True, width=0.9, cmap='tab20')
+    plt.legend(title='Gene', bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
+    plt.ylabel('Relative abundance')
+    plt.tight_layout()
+
+def shannon(df):
+    from skbio.diversity.alpha import shannon
+    df = pd.DataFrame(df.agg(shannon, axis=1), columns=['Shannon Diversity Index'])
+    return df
+
+def richness(df):
+    import numpy as np
+    df = pd.DataFrame(df.agg(np.count_nonzero, axis=1), columns=['Species Richness'])
+    return df
+
+def beta(df):
+    return None
+
+def volcano(df):
+    from bioinfokit import analys, visuz
+    visuz.gene_exp.volcano(df=df.reset_index(), lfc='logFC', pv='P-value', geneid='index', sign_line=True, show=True, plotlegend=True, legendpos='upper right', genenames='deg')
+
+def comparebar(df):
+    return None
+
+def bar(df):
+    import numpy as np
+    import seaborn as sns
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    plt.rcParams["figure.figsize"] = (5,5)
+    unclass = df[df.index.str.contains("unclassified")].sum()
+    df = df[~df.index.str.contains("unclassified")]
+    df.loc['unclassified'] = unclass
+    if df.shape[0] > 20:
+        df.loc['other'] = df.loc[df.T.sum().sort_values().iloc[21:].index].sum()
+    df = df.loc[df.T.sum().sort_values().tail(20).index].T.sort_index(axis=1)
+    df = df.apply(np.log1p).melt()
+    ax = sns.boxplot(data=df, x=df.columns[0], y='value', showfliers=False)
+    sns.stripplot(data=df, x=df.columns[0], y='value', size=2, color=".3", ax=ax)
+    plt.xlabel(df.columns[0])
+    plt.ylabel('Log(Relative abundance)')
+    plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
+    plt.tight_layout()
+
+def to_network(df):
+    import numpy as np
+    import seaborn as sns
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    edges = taxoMspMetaFc.stack().stack().to_frame()
+    sigedges = taxoMspMetaPval.stack().to_frame()
+    fin = edges[sigedges < 0.2].dropna()
+    #fin = edges.loc[np.abs(cor.stack()) > 0.4].dropna()
