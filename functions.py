@@ -49,6 +49,21 @@ def fc(df, basename):
     pvaldf = notbaseline.groupby(level=[0, 1]).apply(appl, (baseline)).T
     return logfcdf.T, pvaldf.T
 
+def ANCOM(df, grouping):
+    """
+    a, b= ancom(df.VALUE.to_frame(), df.VISIT == 'BASELINE')
+    """
+    from skbio.stats.composition import ancom
+    from scipy.stats import mannwhitneyu
+    from skbio.stats.composition import multiplicative_replacement as mult
+    df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
+    ancomdf, percentdf = ancom(
+            df,
+            grouping,
+            significance_test=mannwhitneyu,
+            multiple_comparisons_correction=None
+    )
+
 def nfc(df, basename):
     ''' Visit, Arm, Subject'''
     import numpy as np
@@ -253,12 +268,14 @@ def PCA(df):
 def TSNE(df):
     import numpy as np
     from sklearn.manifold import TSNE
-    ndf = TSNE(n_components=2, learning_rate='auto', init='random').fit_transform(df)
-    return df
+    results = TSNE(n_components=2, learning_rate='auto', init='random').fit_transform(df)
+    df['PC1'], df['PC2'] = results[:,0], results[:,1]
+    return df[['PC1', 'PC2']]
 
 def UMAP(df):
     import umap
-    scaledDf = StandardScaler().fit_transform(df.T)
+    from sklearn.preprocessing import StandardScaler
+    scaledDf = StandardScaler().fit_transform(df)
     reducer = umap.UMAP()
     embedding = reducer.fit_transform(scaledDf)
     return df
@@ -268,6 +285,14 @@ def SOM(df):
     som = SOM(m=3, n=1, dim=2)
     som.fit(df)
     return df
+
+def NMDS(df):
+    ''' Needs to be a beta diveristy or correlation matrix (square) '''
+    import pandas as pd
+    from sklearn.manifold import MDS
+    mds = MDS(n_components = 2, metric = False, max_iter = 500, eps = 1e-12, dissimilarity = 'precomputed')
+    mX_transformed = mds.fit_transform(df)
+    return pd.DataFrame(mX_transformed, index=df.index, columns=["NMDS1", "NMDS2"])
 
 def PCAplot(df):
     from pca import pca
@@ -284,22 +309,26 @@ def PCplot(df, var):
     import matplotlib.transforms as transforms
     plt.rcParams["figure.figsize"] = (8,8)
     def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', edgecolor='none', **kwargs):
-        if x.size != y.size:
-            raise ValueError("x and y must be the same size")
         cov = np.cov(x, y)
         pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
         ell_radius_x = np.sqrt(1 + pearson)
         ell_radius_y = np.sqrt(1 - pearson)
-        ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2,
-                          facecolor=facecolor, **kwargs)
+        ellipse = Ellipse(
+            (0, 0),
+            width=ell_radius_x * 2,
+            height=ell_radius_y * 2,
+            facecolor=facecolor, **kwargs
+        )
         scale_x = np.sqrt(cov[0, 0]) * n_std
         mean_x = np.mean(x)
         scale_y = np.sqrt(cov[1, 1]) * n_std
         mean_y = np.mean(y)
-        transf = transforms.Affine2D() \
-            .rotate_deg(45) \
-            .scale(scale_x, scale_y) \
+        transf = (
+            transforms.Affine2D()
+            .rotate_deg(45)
+            .scale(scale_x, scale_y)
             .translate(mean_x, mean_y)
+        )
         ellipse.set_transform(transf + ax.transData)
         ellipse.set_edgecolor(edgecolor)
         return ax.add_patch(ellipse)
@@ -307,33 +336,38 @@ def PCplot(df, var):
         x='PC1',
         y='PC2',
         hue=var,
-        palette='colorblind'
+        palette=sns.color_palette("husl", df[var].nunique()),
+        linewidth=0.1,
+        size=0.5
     )
     for j,i in enumerate(df[var].unique()):
         confidence_ellipse(
             df.loc[df[var] == i]['PC1'],
             df[df[var] == i]['PC2'],
             ax,
-            edgecolor=sns.color_palette()[j],
+            edgecolor=sns.color_palette("husl", df[var].nunique())[j],
             linestyle='--')
+    plt.legend(
+        title="Species", bbox_to_anchor=(1.001, 1), loc="upper left", fontsize="small"
+    )
     return ax
 
 def rfr(df, var):
+    from scipy.stats import spearmanr
     from sklearn.ensemble import RandomForestRegressor
-    from sklearn.metrics import r2_score
+    from sklearn.metrics import mean_absolute_error
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import StandardScaler
-    import pandas as pd
-    from scipy.stats import spearmanr
-    import shap
     import numpy as np
+    import pandas as pd
+    import shap
     model = RandomForestRegressor(n_estimators=500, n_jobs=-1,random_state=1)
     X = df.drop(var, axis=1)
     y = df.xs(var, axis=1)
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
-    print(r2_score(y_true=y_test, y_pred=y_pred))
+    print(mean_absolute_error(y_true=y_test, y_pred=y_pred))
     explainer = shap.TreeExplainer(model)
     shaps_values = explainer(X)
     meanabsshap = pd.Series( np.abs(shaps_values.values).mean(axis=0), index=X.columns)
@@ -343,17 +377,15 @@ def rfr(df, var):
     return final
 
 def rfc(df, var):
-    from sklearn import metrics
     from sklearn.decomposition import PCA
-    import shap
     from sklearn.ensemble import RandomForestClassifier
-    from sklearn.metrics import (accuracy_score, confusion_matrix, classification_report)
+    from sklearn.metrics import classification_report
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import StandardScaler
-    from sklearn.metrics import roc_auc_score
-    from sklearn.metrics import roc_curve
+    import numpy as np
     import pandas as pd
-    model = RandomForestClassifier(n_estimators=500, random_state=1)
+    import shap
+    model = RandomForestClassifier(n_estimators=500, n_jobs=-1, random_state=1)
     X = df.drop(var, axis=1)
     y = df.xs(var, axis=1)
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1)
@@ -368,43 +400,146 @@ def rfc(df, var):
     final.fillna(0, inplace=True)
     return final
 
-def circos(fc, pval):
+def circos(nodes, edges):
     import pandas as pd
-    import rpy2.robjects as robjects
+    import rpy2.robjects as ro
     from rpy2.robjects import pandas2ri
-    robjects.r('''
-    require(RColorBrewer)
-    require(circlize)
-    require(ggplot2)
-    circosInput <- read.csv('fsnewedges.csv')
-    changes <- read.csv('nnnnodes.csv', row.names=1)
-    elements = (unique(c(circosInput$from, circosInput$to)))
-    set.seed(1)
-    gridcol = colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
-    grid.col = gridcol(changes$X2)
-    names(grid.col) = rownames(changes)
-    col_fun = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
-    col = col_fun(circosInput$value)
-    names(col) = rownames(circosInput)
-    svg('../results/fstmp.svg',width=12,height=12)
-    circos.par(circle.margin=c(1,1,1,1))
-    chordDiagram(circosInput,
-        col = col,
-        grid.col=grid.col,
-        annotationTrack = "grid",
-        preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(circosInput))))))
-    circos.track(track.index = 1, panel.fun = function(x, y) {
-        circos.text(CELL_META$xcenter,
-            CELL_META$ylim[1],
-            CELL_META$sector.index,
-            facing = "clockwise",
-            niceFacing = TRUE,
-            adj = c(0, 0.5))
-            },
-        bg.border = NA)
-    circos.clear() 
-    dev.off()
-    ''')
+    pandas2ri.activate()
+    ro.globalenv["nodes"] = nodes
+    ro.globalenv["edges"] = edges
+    ro.r(
+    '''
+        require(RColorBrewer)
+        require(circlize)
+        require(ggplot2)
+        elements = (unique(c(edges$from, edges$to)))
+        set.seed(1)
+        gridcol = colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
+        grid.col = gridcol(nodes$X2)
+        names(grid.col) = rownames(nodes)
+        col_fun = colorRamp2(c(-0.5, 0, 0.5), c("blue", "white", "red"))
+        col = col_fun(edges$value)
+        names(col) = rownames(edges)
+        #svg('../results/fstmp.svg',width=12,height=12)
+        circos.par(circle.margin=c(1,1,1,1))
+        chordDiagram(edges,
+            col = col,
+            grid.col=grid.col,
+            annotationTrack = "grid",
+            preAllocateTracks = list(track.height = max(strwidth(unlist(dimnames(edges))))))
+        circos.track(track.index = 1, panel.fun = function(x, y) {
+            circos.text(CELL_META$xcenter,
+                CELL_META$ylim[1],
+                CELL_META$sector.index,
+                facing = "clockwise",
+                niceFacing = TRUE,
+                adj = c(0, 0.5))
+                },
+            bg.border = NA)
+        circos.clear() 
+        dev.off()
+    '''
+    )
+    #print(robjects.globalenv["dataR"])
+
+def enterotypes(m, t):
+    import pandas as pd
+    import rpy2.robjects as ro
+    from rpy2.robjects import pandas2ri
+    from rpy2.robjects.vectors import StrVector
+    from rpy2.robjects.packages import importr
+    #utils = importr('utils')
+    #package_names = ('DirichletMultinomial', 'dplyr')
+    #utils.chooseCRANmirror(ind=70)
+    #utils.install_packages(StrVector(package_names))
+    mT = m.T.join(t['genus']).groupby('genus').sum()
+    unclass = mT[mT.index.str.contains("unclassified")].sum()
+    mT = mT[~mT.index.str.contains("unclassified")].T
+    mT[-1] = unclass
+    df = mT.div(mT.sum(axis=1), axis=0)
+    pandas2ri.activate()
+    ro.globalenv["df"] = df
+    ro.r(
+    '''
+        if (!require("BiocManager", quietly = TRUE))
+            install.packages("BiocManager")
+        BiocManager::install(version = "3.15")
+        BiocManager::install("DirichletMultinomial")
+        require(DirichletMultinomial)
+        require(dplyr)
+        library(parallel)
+        genusMat = df
+        genusMatT = round(genusMat*10^9)
+        genusMatT <- genusMatT[,0:(ncol(genusMatT)-1)]
+        set.seed(1)
+        #genusFit <- mclapply(1:3, dmn, count=as.matrix(genusMatT), verbose=TRUE)
+        genusFit <- sapply(as.matrix(genusMatT), DirichletMultinomial::dmn)
+        lplc <- sapply(genusFit, laplace)
+        plot(lplc, type="b", xlab="Number of Dirichlet Components",ylab="Model Fit")
+        best <- genusFit[[which.min(lplc)]]
+        p0 <- fitted(genusFit[[1]], scale=TRUE)
+        p3 <- fitted(best, scale=TRUE)
+        colnames(p3) <- paste("m", 1:3, sep="")
+        (meandiff <- colSums(abs(p3 - as.vector(p0))))
+        diff <- rowSums(abs(p3 - as.vector(p0)))
+        o <- order(diff, decreasing=TRUE)
+        cdiff <- cumsum(diff[o]) / sum(diff)
+        df <- head(cbind(Mean=p0[o], p3[o,], diff=diff[o], cdiff), 10)
+        heatmapdmn(genusMatT, genusFit[[1]], best, 10, lblwidth = 4000)
+        clusterAssigned = apply(genusFit[[3]]@group, 1, function(x) which.max(x))
+        clusterAssignedList = split(names(clusterAssigned), clusterAssigned)
+        names(clusterAssignedList) = c("ET-Firmicutes","ET-Bacteroides","ET-Prevotella")
+        write.csv(stack(clusterAssignedList), 'enterotypes.csv', quote=F)
+    '''
+    )
+    #return ro.globalenv["clusterAssignedList"]
+    print(ro.globalenv["clusterAssignedList"])
+    print(ro.globalenv["genusMatT"])
+
+def entero(df):
+    import pandas as pd
+    import rpy2.robjects as ro
+    from rpy2.robjects import pandas2ri
+    from rpy2.robjects.vectors import StrVector
+    from rpy2.robjects.packages import importr
+    df = df.div(df.sum(axis=1), axis=0)
+    pandas2ri.activate()
+    ro.globalenv["df"] = df
+    ro.r(
+    '''
+        if (!require("BiocManager", quietly = TRUE))
+            install.packages("BiocManager")
+        BiocManager::install(version = "3.15")
+        BiocManager::install("DirichletMultinomial")
+        require(DirichletMultinomial)
+        require(dplyr)
+        library(parallel)
+        genusMat = df
+        genusMatT = round(genusMat*10^9)
+        genusMatT <- genusMatT[,0:(ncol(genusMatT)-1)]
+        set.seed(1)
+        #genusFit <- mclapply(1:3, dmn, count=as.matrix(genusMatT), verbose=TRUE)
+        genusFit <- sapply(as.matrix(genusMatT), DirichletMultinomial::dmn)
+        lplc <- sapply(genusFit, laplace)
+        plot(lplc, type="b", xlab="Number of Dirichlet Components",ylab="Model Fit")
+        best <- genusFit[[which.min(lplc)]]
+        p0 <- fitted(genusFit[[1]], scale=TRUE)
+        p3 <- fitted(best, scale=TRUE)
+        colnames(p3) <- paste("m", 1:3, sep="")
+        (meandiff <- colSums(abs(p3 - as.vector(p0))))
+        diff <- rowSums(abs(p3 - as.vector(p0)))
+        o <- order(diff, decreasing=TRUE)
+        cdiff <- cumsum(diff[o]) / sum(diff)
+        df <- head(cbind(Mean=p0[o], p3[o,], diff=diff[o], cdiff), 10)
+        heatmapdmn(genusMatT, genusFit[[1]], best, 10, lblwidth = 4000)
+        clusterAssigned = apply(genusFit[[3]]@group, 1, function(x) which.max(x))
+        clusterAssignedList = split(names(clusterAssigned), clusterAssigned)
+        names(clusterAssignedList) = c("ET-Firmicutes","ET-Bacteroides","ET-Prevotella")
+        write.csv(stack(clusterAssignedList), 'enterotypes.csv', quote=F)
+    '''
+    )
+    print(ro.globalenv["clusterAssignedList"])
+    print(ro.globalenv["genusMatT"])
 
 def venn(df1, df2, df3):
     from matplotlib_venn import venn3
@@ -436,6 +571,7 @@ def relabund(df):
     plt.ylabel('Relative abundance')
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
+    return ax
 
 def abund(df):
     import matplotlib.pyplot as plt
@@ -453,11 +589,18 @@ def abund(df):
     plt.ylabel('Relative abundance')
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
+    return ax
 
 def shannon(df):
     import pandas as pd
     from skbio.diversity.alpha import shannon
-    df = pd.DataFrame(df.agg(shannon, axis=1), columns=['Shannon Diversity Index'])
+    df = pd.DataFrame(df.agg(shannon, axis=1), columns=['Shannon Diversity'])
+    return df
+
+def evenness(df):
+    import pandas as pd
+    from skbio.diversity.alpha import pielou_e
+    df = pd.DataFrame(df.agg(pielou_e, axis=1), columns=['Pielou Evenness'])
     return df
 
 def richness(df):
@@ -533,15 +676,11 @@ def box(df,x,y):
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
 
-def to_network(df):
-    import numpy as np
-    import seaborn as sns
+def to_edges(df, thresh=0.4):
     import pandas as pd
-    import matplotlib.pyplot as plt
-    edges = taxoMspMetaFc.stack().stack().to_frame()
-    sigedges = taxoMspMetaPval.stack().to_frame()
-    fin = edges[sigedges < 0.2].dropna()
-    #fin = edges.loc[np.abs(cor.stack()) > 0.4].dropna()
+    edges = df.corr().stack().to_frame()[0]
+    fin = edges.loc[(edges < 0.99) & (edges.abs() > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}) 
+    return fin
 
 def joseplot(fc, t1, t2, pval=None):
     import seaborn as sns
@@ -563,6 +702,7 @@ def scatterplot(df1, df2, cor):
     import pandas as pd
     import matplotlib.pyplot as plt
     import plotly.express as px
+    import numpy as np
     df = df1.join(df2, how='inner')
     for i in cor.index:
         for j in cor.columns:
@@ -603,6 +743,40 @@ def curve(df):
     plt.ylabel("Log(Relative abundance)")
     plt.tight_layout()
 
+def newcurve(df, mapping):
+    from scipy import stats
+    import seaborn as sns
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    '''
+    df, mapping = df1.drop("ID", axis=1), mapping
+    '''
+    fig, ax = plt.subplots(figsize=(10, 7))
+    df = df.apply(np.log1p).T
+    df.loc['other'] = df[~df.index.isin(mapping.index)].sum()
+    df = df.drop(df[~df.index.isin(mapping.index)].index).T
+    grid = np.linspace(df.index.min(), df.index.max(), num=500)
+    df1poly = df.apply(lambda x: np.polyfit(x.index, x.values, 3), axis=0).T
+    df1polyfit = df1poly.apply(lambda x: np.poly1d(x)(grid), axis=1)
+    griddf = pd.DataFrame( np.row_stack(df1polyfit), index=df1polyfit.index, columns=grid)
+    griddf.clip(lower=0, inplace=True)
+    if griddf.shape[0] > 20:
+        griddf.loc["other"] = griddf.loc[
+            griddf.T.sum().sort_values(ascending=False).iloc[21:].index
+        ].sum()
+    griddf = griddf.loc[griddf.T.sum().sort_values().tail(20).index].T
+    ax = griddf.sort_index(axis=1).plot.area(stacked=True, color=mapping.to_dict(), figsize=(9, 2))
+    plt.xlim(0, 35)
+    plt.legend(
+        title="Species", bbox_to_anchor=(1.001, 1), loc="upper left", fontsize="small"
+    )
+    plt.ylabel("Log(Relative abundance)")
+    plt.tight_layout()
+    plotdf = df.cumsum(axis=1).stack().reset_index()
+    #sns.scatterplot(data=plotdf.sort_values(0), x='Days after birth', y=0, hue=plotdf.columns[1], palette=mapping.to_dict(), size=0.5, linewidth=0, ax=ax)
+    sns.scatterplot(data=plotdf.sort_values(0), x='Days after birth', y=0, size=0.5, linewidth=0, ax=ax)
+
 def nocurve(df, mapping):
     from scipy import stats
     import pandas as pd
@@ -630,8 +804,9 @@ def nocurve(df, mapping):
     plt.ylabel("Log(Relative abundance)")
     #plt.tight_layout()
 
-def taxofunc(msp, taxo):
+def taxofunc(msp, taxo, short=False):
     import pandas as pd
+    from skbio.stats.composition import multiplicative_replacement as mult
     taxolevels = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     taxo['superkingdom'] = 'k_' + taxo['superkingdom']
     taxo['phylum'] = taxo[['superkingdom', 'phylum']].apply(lambda x: '|p_'.join(x.dropna().astype(str).values), axis=1)
@@ -644,6 +819,10 @@ def taxofunc(msp, taxo):
     msptaxo = msp.join(taxo[taxolevels])
     df = pd.concat([msptaxo.groupby(taxolevels[i]).sum() for i in range(len(taxolevels))])
     df = df.loc[~df.index.str.contains('unclassified')]
+    if short:
+        df.index = df.T.add_prefix("|").T.index.str.extract(".*\|([a-z]_.*$)", expand=True)[0]
+    df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
+    df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
     return df
 
 def density(df):
@@ -652,10 +831,142 @@ def density(df):
     df.T.plot.density()
     plt.ylim(bottom = 0)
 
+def crossval(model, X, y):
+    from sklearn.datasets import make_classification
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import auc
+    from sklearn.metrics import roc_curve
+    from sklearn.model_selection import KFold
+    from sklearn.model_selection import LeaveOneOut 
+    from sklearn.model_selection import cross_validate
+    import matplotlib.pyplot as plt
+    import numpy as np
+    kf = KFold(10)
+    tprs = []
+    aucs = []
+    base_fpr = np.linspace(0, 1, 101)
+    plt.figure(figsize=(5, 5))
+    plt.axes().set_aspect('equal', 'datalim')
+    for i, (train, test) in enumerate(kf.split(X,y)):
+        results = model.fit(X.iloc[train], y.iloc[train])
+        y_score = model.predict_proba(X.iloc[test])
+        fpr, tpr, _ = roc_curve(y.iloc[test], y_score[:, 1])
+        aucs.append(auc(fpr, tpr))
+        plt.plot(fpr, tpr, 'b', alpha=0.15)
+        tpr = np.interp(base_fpr, fpr, tpr)
+        tpr[0] = 0.0
+        tprs.append(tpr)
+    tprs = np.array(tprs)
+    mean_tprs = tprs.mean(axis=0)
+    std = tprs.std(axis=0)
+    mean_auc = auc(base_fpr, mean_tprs)
+    std_auc = np.std(aucs)
+    tprs_upper = np.minimum(mean_tprs + std, 1)
+    tprs_lower = mean_tprs - std
+    plt.plot(base_fpr, mean_tprs, 'b', label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc))
+    plt.fill_between(base_fpr, tprs_lower, tprs_upper, color='grey', alpha=0.3, label=r"$\pm$ 1 std. dev.",)
+    plt.plot([0, 1], [0, 1],'r--')
+    plt.xlim([-0.01, 1.01])
+    plt.ylim([-0.01, 1.01])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.legend(loc="lower right")
+
 def plotextremes(df):
     import matplotlib.pyplot as plt
     from scipy.stats import zscore
     df[zscore(df.abs()) > 1].sort_values().plot.bar()
+
+def extremes(series):
+    from scipy.stats import zscore
+    series = series[zscore(series.abs()) > 2].sort_values()
+    return series
+
+def network(corr, thresh=0.5):
+    import networkx as nx
+    corr.index.name, corr.columns.name = 'source', 'target'
+    edges = (
+        corr.stack()
+        .reset_index()
+        .rename(columns={0: "weight"})
+        .sort_values("weight")
+    )
+    filt = edges.loc[edges.weight.le(0.95) & edges.weight.ge(thresh)]
+    G = nx.from_pandas_edgelist(filt)
+    return G
+
+def cluster(G):
+    from networkx.algorithms.community.centrality import girvan_newman as cluster
+    import pandas as pd
+    #clust = nx.clustering(G)
+    communities = cluster(G)
+    node_groups = []
+    for com in next(communities):
+        node_groups.append(list(com))
+    df = pd.DataFrame(index=G.nodes, columns=['Group'])
+    for i in range(pd.DataFrame(node_groups).shape[0]):
+        tmp = pd.DataFrame(node_groups).T[i].to_frame().dropna()
+        df.loc[tmp[i], 'Group'] = i
+    return df.Group
+
+def clusterplot(G):
+    import networkx as nx
+    nx.draw(G, with_labels=True, node_color="b", node_size=50)
+    
+def annotateplot(G, group):
+    import matplotlib.pyplot as plt
+    from itertools import count
+    import networkx as nx
+    nx.set_node_attributes(G, group, "group")
+    #nx.set_node_attributes(G, pd.Series(labeler.labels_, index=G.nodes), "group")
+    groups = set(nx.get_node_attributes(G, 'group').values())
+    mapping = dict(zip(sorted(groups),count()))
+    nodes = G.nodes()
+    colors = [mapping[G.nodes[n]['group']] for n in nodes]
+    pos = nx.spring_layout(G)
+    #pos= nx.spring_layout(G, with_labels=True, node_size=50)
+    ax = nx.draw_networkx_edges(G, pos, alpha=0.2)
+    #nc = nx.draw_networkx_nodes(G, pos, nodelist=nodes, node_color=colors, node_size=100, cmap=plt.cm.jet)
+    ax = nx.draw_networkx_nodes(G, pos, node_color=group, node_size=20, cmap=plt.cm.jet)
+    #nx.draw_networkx_labels(G, pos=nx.spring_layout(G))
+    plt.colorbar(ax)
+    return ax
+    
+def clusterdendrogram(G):
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    from scipy.cluster.hierarchy import dendrogram
+    d           = { 0: [1, 'd'], 1: ['a', 'b', 'c'], 'a': [], 'b': [], 'c': [], 'd': []}
+    G           = nx.DiGraph(d)
+    nodes       = G.nodes()
+    leaves      = set( n for n in nodes if G.out_degree(n) == 0 )
+    inner_nodes = [ n for n in nodes if G.out_degree(n) > 0 ]
+    subtree = dict( (n, [n]) for n in leaves )
+    for u in inner_nodes:
+        children = set()
+        node_list = list(d[u])
+        while len(node_list) > 0:
+            v = node_list.pop(0)
+            children.add( v )
+            node_list += d[v]
+        subtree[u] = sorted(children & leaves)
+    inner_nodes.sort(key=lambda n: len(subtree[n]))
+    leaves = sorted(leaves)
+    index  = dict( (tuple([n]), i) for i, n in enumerate(leaves) )
+    Z = []
+    k = len(leaves)
+    for i, n in enumerate(inner_nodes):
+        children = d[n]
+        x = children[0]
+        for y in children[1:]:
+            z = tuple(subtree[x] + subtree[y])
+            i, j = index[tuple(subtree[x])], index[tuple(subtree[y])]
+            Z.append([i, j, float(len(subtree[n])), len(z)]) # <-- float is required by the dendrogram function
+            index[z] = k
+            subtree[z] = list(z)
+            x = z
+            k += 1
+    dendrogram(Z, labels=leaves)
 
 if __name__ == '__main__':
     import doctest

@@ -1,17 +1,18 @@
 require(DirichletMultinomial)
 require(dplyr)
-library(parallel)
+require(parallel)
 
 #### converting MGS matrix to genus matrix and scaling data ###
-genusMat = read.table("data/genusMergedMsp.txt", header=T, row.names=1, dec=".", sep="\t")
-genusMatT = round(genusMat*10^9)
+#genusMat <- read.table("../results/genusAbund.csv", header=T, row.names=1, dec=".", sep=",")
+genusMat <- read.table("../results/genusAbund.csv", header=T, row.names=1, dec=".", sep=",")
+genusMatT <- round(genusMat*10^9)
 genusMatT <- genusMatT[,0:(ncol(genusMatT)-1)]
 
 #### DMN clustering ###
 set.seed(1)
 genusFit <- mclapply(1:3, dmn, count=as.matrix(genusMatT), verbose=TRUE)
 lplc <- sapply(genusFit, laplace)
-plot(lplc, type="b", xlab="Number of Dirichlet Components",ylab="Model Fit")
+plot(lplc, type="b", xlab="Number of Dirichlet Components" ,ylab="Model Fit")
 best <- genusFit[[which.min(lplc)]]
 p0 <- fitted(genusFit[[1]], scale=TRUE)
 p3 <- fitted(best, scale=TRUE)
@@ -32,4 +33,4 @@ heatmapdmn(genusMatT, genusFit[[1]], best, 10, lblwidth = 4000)
 clusterAssigned = apply(genusFit[[3]]@group, 1, function(x) which.max(x))
 clusterAssignedList = split(names(clusterAssigned), clusterAssigned)
 names(clusterAssignedList) = c("ET-Firmicutes","ET-Bacteroides","ET-Prevotella")
-write.csv(stack(clusterAssignedList), 'enterotypes.csv', quote=F)
+write.csv(stack(clusterAssignedList), '../results/enterotypes.csv', quote=F)
