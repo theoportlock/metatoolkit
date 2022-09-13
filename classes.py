@@ -112,9 +112,10 @@ class model:
         self.votearray = []
 
     def __repr__(self):
-        return f"inp:{bin(self.inp)[:1:-1]}\nmem:{bin(self.mem)[:1:-1]}\npre:{bin(self.pre)[:1:-1]}\nact:{bin(self.act)[:1:-1]}"
+        return None
 
     def io(self, files={}, mode='in'):
+        import pickle
         self.files = dict()
         def parse(obj=0, mode='in', filename=''):
             if mode == "in":
@@ -143,6 +144,19 @@ class model:
         inv_xtx = np.linalg.inv(xtx) ## inverse of x-transpose times x
         xty = np.dot(X.T, y) ## x-transpose times y
         return np.dot(inv_xtx, xty)
+
+    def rfr(self)
+        from sklearn.ensemble import RandomForestRegressor
+        self.model = RandomForestRegressor()
+
+    def rfr(self)
+        from sklearn.ensemble import RandomForestRegressor
+        self.model = RandomForestRegressor(n_estimators=500, n_jobs=-1,random_state=1)
+
+    def tts(self, X, y):
+        from sklearn.model_selection import train_test_split
+        '''returns parameters based on Ordinary Least Squares.'''
+        self.data = 
 
 if __name__ == '__main__':
     import doctest

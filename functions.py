@@ -12,7 +12,7 @@ def setupplot():
     matplotlib.rcParams["svg.fonttype"] = "none"
     matplotlib.rcParams["font.family"] = "Arial"
     matplotlib.rcParams["font.size"] = 12
-    sns.set_style("whitegrid")
+    #sns.set_style("whitegrid")
     plt.rcParams["figure.figsize"] = (4, 4)
 
 def fc(df, basename):
@@ -53,6 +53,7 @@ def ANCOM(df, grouping):
     """
     a, b= ancom(df.VALUE.to_frame(), df.VISIT == 'BASELINE')
     """
+    import pandas as pd
     from skbio.stats.composition import ancom
     from scipy.stats import mannwhitneyu
     from skbio.stats.composition import multiplicative_replacement as mult
@@ -63,6 +64,44 @@ def ANCOM(df, grouping):
             significance_test=mannwhitneyu,
             multiple_comparisons_correction=None
     )
+
+def PERMANOVA(df, meta):
+    import pandas as pd
+    from skbio.stats.distance import permanova
+    from skbio import DistanceMatrix
+    from scipy.spatial import distance
+    beta = pd.DataFrame(
+        distance.squareform(distance.pdist(df, metric="braycurtis")),
+        columns=df.index,
+        index=df.index) 
+    pvals = permanova(DistanceMatrix(beta, beta.index), meta)
+    return pvals
+
+def MANNWHIT(df, grouping):
+    """
+    a, b = MANNWHIT(df.VALUE.to_frame(), df.VISIT == 'BASELINE')
+    Has to be between two groups
+    """
+    import pandas as pd
+    from scipy.stats import mannwhitneyu
+    from statsmodels.stats.multitest import fdrcorrection
+    #from skbio.stats.composition import multiplicative_replacement as mult
+    #df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
+    group1 = df.groupby(grouping).get_group(df[grouping].unique()[0]).drop(grouping, axis=1)
+    group2 = df.groupby(grouping).get_group(df[grouping].unique()[1]).drop(grouping, axis=1)
+    pvals = []
+    for column in df.drop('westernised', axis=1).columns:
+        stat , pval = mannwhitneyu(
+                group1.loc[:,column],
+                group2.loc[:,column],
+        )
+        pvals.append(pval)
+    pvaldf = pd.Series(pvals, index=group1.columns)
+    qvaldf = pd.Series(
+        fdrcorrection(pvaldf.values.flatten())[1].reshape(pvaldf.shape),
+        index = pvaldf.index
+        )
+    return qvaldf
 
 def nfc(df, basename):
     ''' Visit, Arm, Subject'''
@@ -162,7 +201,6 @@ def heatmap(df, sig=None):
         center=0,
         yticklabels=True,
         xticklabels=True,
-        linewidths=0.1,
         linecolor='gray'
     )
     for tick in g.get_yticklabels(): tick.set_rotation(0)
@@ -246,7 +284,7 @@ def PCOA(df):
     PCoA = skbio.stats.ordination.pcoa(DM_dist, number_of_dimensions=2)
     results = PCoA.samples.copy()
     df['PC1'], df['PC2'] = results.iloc[:,0].values, results.iloc[:,1].values
-    return df
+    return df[['PC1', 'PC2']]
 
 def PCA(df):
     import pandas as pd
@@ -263,7 +301,7 @@ def PCA(df):
     pca = PCA()
     results = pca.fit_transform(scaledDf).T
     df['PC1'], df['PC2'] = results[0,:], results[1,:]
-    return df
+    return df[['PC1', 'PC2']]
 
 def TSNE(df):
     import numpy as np
@@ -277,22 +315,29 @@ def UMAP(df):
     from sklearn.preprocessing import StandardScaler
     scaledDf = StandardScaler().fit_transform(df)
     reducer = umap.UMAP()
-    embedding = reducer.fit_transform(scaledDf)
-    return df
+    results = reducer.fit_transform(scaledDf)
+    df['PC1'], df['PC2'] = results[:,0], results[:,1]
+    return df[['PC1', 'PC2']]
 
 def SOM(df):
     from sklearn_som.som import SOM
     som = SOM(m=3, n=1, dim=2)
     som.fit(df)
-    return df
+    return som
 
 def NMDS(df):
     ''' Needs to be a beta diveristy or correlation matrix (square) '''
     import pandas as pd
     from sklearn.manifold import MDS
+    from scipy.spatial import distance
+    BC_dist = pd.DataFrame(
+        distance.squareform(distance.pdist(df, metric="braycurtis")),
+        columns=df.index,
+        index=df.index) 
     mds = MDS(n_components = 2, metric = False, max_iter = 500, eps = 1e-12, dissimilarity = 'precomputed')
-    mX_transformed = mds.fit_transform(df)
-    return pd.DataFrame(mX_transformed, index=df.index, columns=["NMDS1", "NMDS2"])
+    results = mds.fit_transform(BC_dist)
+    df['PC1'], df['PC2'] = results[:,0], results[:,1]
+    return df[['PC1', 'PC2']]
 
 def PCAplot(df):
     from pca import pca
@@ -301,13 +346,12 @@ def PCAplot(df):
     results = model.fit_transform(df)
     fig, ax = model.biplot(n_feat=1)
 
-def PCplot(df, var):
+def PCplot(df, var,x='PC1', y='PC2', ax=None):
     import seaborn as sns
     import numpy as np
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
     import matplotlib.transforms as transforms
-    plt.rcParams["figure.figsize"] = (8,8)
     def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', edgecolor='none', **kwargs):
         cov = np.cov(x, y)
         pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
@@ -332,18 +376,19 @@ def PCplot(df, var):
         ellipse.set_transform(transf + ax.transData)
         ellipse.set_edgecolor(edgecolor)
         return ax.add_patch(ellipse)
+    if not ax: fig, ax= plt.subplots()
     ax = sns.scatterplot(data = df,
-        x='PC1',
-        y='PC2',
+        x=x,
+        y=y,
         hue=var,
         palette=sns.color_palette("husl", df[var].nunique()),
-        linewidth=0.1,
-        size=0.5
+        linewidth=0,
+        s=5
     )
     for j,i in enumerate(df[var].unique()):
         confidence_ellipse(
-            df.loc[df[var] == i]['PC1'],
-            df[df[var] == i]['PC2'],
+            df.loc[df[var] == i][x],
+            df[df[var] == i][y],
             ax,
             edgecolor=sns.color_palette("husl", df[var].nunique())[j],
             linestyle='--')
@@ -392,6 +437,47 @@ def rfc(df, var):
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     print(classification_report(y_true=y_test, y_pred=y_pred))
+    explainer = shap.TreeExplainer(model)
+    shaps_values = explainer(X)
+    meanabsshap = pd.Series( np.abs(shaps_values.values).mean(axis=0), index=X.columns)
+    corrs = [spearmanr(shaps_values.values[:,x], X.iloc[:,x])[0] for x in range(len(X.columns))]
+    final = meanabsshap * np.sign(corrs)
+    final.fillna(0, inplace=True)
+    return final
+
+def RFC(X, y):
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import classification_report
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+    import numpy as np
+    import pandas as pd
+    X = StandardScaler().fit_transform(X)
+    model = RandomForestClassifier(n_estimators=500, n_jobs=-1, random_state=1)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    print(classification_report(y_true=y_test, y_pred=y_pred))
+    return model
+
+def SHAP_bin(X,model):
+    import numpy as np
+    from scipy.stats import spearmanr
+    import pandas as pd
+    import shap
+    explainer = shap.TreeExplainer(model)
+    shaps_values = explainer(X)
+    meanabsshap = pd.Series(
+            np.abs(shaps_values.values[:,:,0]).mean(axis=0),
+            index=X.columns
+            )
+    #corrs = [spearmanr(shaps_values.values[:,x,0], X.iloc[:,x])[0] for x in range(len(X.columns))]
+    corrs = [spearmanr(shaps_values.values[:,x,1], X.iloc[:,x])[0] for x in range(len(X.columns))]
+    final = meanabsshap * np.sign(corrs)
+    final.fillna(0, inplace=True)
+    return final
+
+def SHAP_multi(X,y,model):
     explainer = shap.TreeExplainer(model)
     shaps_values = explainer(X)
     meanabsshap = pd.Series( np.abs(shaps_values.values).mean(axis=0), index=X.columns)
@@ -658,7 +744,25 @@ def bar(df):
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
 
-def box(df,x,y):
+def box(df,x,y, ax=None):
+    import numpy as np
+    import seaborn as sns
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import matplotlib
+    if not ax: fig, ax= plt.subplots()
+    sns.boxplot(data=df, x=x,y=y,  showfliers=False, ax=ax)
+    sns.stripplot(data=df, x=x,y=y, size=2, color=".3", ax=ax)
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+    plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
+    return ax
+
+def fancybox(df,x,y,p):
+    """
+    df = dataframe
+    p = patient
+    """
     import numpy as np
     import seaborn as sns
     import pandas as pd
@@ -671,14 +775,19 @@ def box(df,x,y):
     plt.rcParams["figure.figsize"] = (5,5)
     ax = sns.boxplot(data=df, x=x,y=y,  showfliers=False)
     sns.stripplot(data=df, x=x,y=y, size=2, color=".3", ax=ax)
+    sns.pointplot(data=df, x=x, y=y, hue=p, ax=ax)
     plt.xlabel(x)
     plt.ylabel(y)
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
 
-def to_edges(df, thresh=0.4):
+
+def to_edges(df, thresh=0.1):
     import pandas as pd
-    edges = df.corr().stack().to_frame()[0]
+    #edges = df.corr().stack().to_frame()[0]
+    edges = df.stack().to_frame()[0]
+    nedges = edges.reset_index()
+    edges = nedges[nedges.b != nedges.a].set_index(['a','b']).drop_duplicates()[0]
     fin = edges.loc[(edges < 0.99) & (edges.abs() > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}) 
     return fin
 
@@ -804,9 +913,11 @@ def nocurve(df, mapping):
     plt.ylabel("Log(Relative abundance)")
     #plt.tight_layout()
 
-def taxofunc(msp, taxo, short=False):
+def taxofunc(msp, taxo, short=False, mult=False):
     import pandas as pd
     from skbio.stats.composition import multiplicative_replacement as mult
+    if mult:
+        msp = pd.DataFrame(mult(msp), index=msp.index, columns=msp.columns)
     taxolevels = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     taxo['superkingdom'] = 'k_' + taxo['superkingdom']
     taxo['phylum'] = taxo[['superkingdom', 'phylum']].apply(lambda x: '|p_'.join(x.dropna().astype(str).values), axis=1)
@@ -821,8 +932,7 @@ def taxofunc(msp, taxo, short=False):
     df = df.loc[~df.index.str.contains('unclassified')]
     if short:
         df.index = df.T.add_prefix("|").T.index.str.extract(".*\|([a-z]_.*$)", expand=True)[0]
-    df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
-    df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
+    #df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
     return df
 
 def density(df):
@@ -872,27 +982,9 @@ def crossval(model, X, y):
     plt.xlabel('False Positive Rate')
     plt.legend(loc="lower right")
 
-def plotextremes(df):
-    import matplotlib.pyplot as plt
-    from scipy.stats import zscore
-    df[zscore(df.abs()) > 1].sort_values().plot.bar()
-
-def extremes(series):
-    from scipy.stats import zscore
-    series = series[zscore(series.abs()) > 2].sort_values()
-    return series
-
-def network(corr, thresh=0.5):
+def to_network(edges):
     import networkx as nx
-    corr.index.name, corr.columns.name = 'source', 'target'
-    edges = (
-        corr.stack()
-        .reset_index()
-        .rename(columns={0: "weight"})
-        .sort_values("weight")
-    )
-    filt = edges.loc[edges.weight.le(0.95) & edges.weight.ge(thresh)]
-    G = nx.from_pandas_edgelist(filt)
+    G = nx.from_pandas_edgelist(edges)
     return G
 
 def cluster(G):
@@ -967,6 +1059,48 @@ def clusterdendrogram(G):
             x = z
             k += 1
     dendrogram(Z, labels=leaves)
+
+def sig(df, mult=False):
+    ''' index needs to be grouping element '''
+    import pandas as pd
+    import numpy as np
+    from scipy.stats import mannwhitneyu
+    import itertools
+    from statsmodels.stats.multitest import fdrcorrection 
+    combs = list(itertools.combinations(df.index.unique(), 2))
+    i = combs[0]
+    outdf = pd.DataFrame(
+        [mannwhitneyu(df.loc[i[0]], df.loc[i[1]])[1] for i in combs],
+        columns = df.columns,
+        index = combs
+        ).T
+    if mult:
+        outdf = pd.DataFrame(
+            fdrcorrection(outdf.values.flatten())[1].reshape(outdf.shape),
+            columns = outdf.columns,
+            index = outdf.index
+            )
+    return outdf
+
+def lfc(df, mult=False):
+    ''' index needs to be grouping element '''
+    import pandas as pd
+    import numpy as np
+    from scipy.stats import mannwhitneyu
+    import itertools
+    from statsmodels.stats.multitest import fdrcorrection 
+    from skbio.stats.composition import multiplicative_replacement as mult
+    if mult:
+        df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
+    combs = list(itertools.combinations(df.index.unique(), 2))
+    i = combs[0]
+    outdf = pd.DataFrame(np.array(
+        [df.loc[i[1]].mean().div(df.loc[i[0]].mean()) for i in combs]),
+        columns = df.columns,
+        index = combs
+        ).T.apply(np.log2)
+    return outdf
+
 
 if __name__ == '__main__':
     import doctest

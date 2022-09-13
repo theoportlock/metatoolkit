@@ -1,18 +1,20 @@
+#!/bin/Rscript
 require(DirichletMultinomial)
 require(dplyr)
 require(parallel)
 
 #### converting MGS matrix to genus matrix and scaling data ###
 #genusMat <- read.table("../results/genusAbund.csv", header=T, row.names=1, dec=".", sep=",")
-genusMat <- read.table("../results/genusAbund.csv", header=T, row.names=1, dec=".", sep=",")
+genusMat <- read.table("../data/genusrelabund.csv", header=T, row.names=1, dec=".", sep=",")
+genusMat <- sample_n(genusMat, 400)
 genusMatT <- round(genusMat*10^9)
-genusMatT <- genusMatT[,0:(ncol(genusMatT)-1)]
+#genusMatT <- genusMatT[,0:(ncol(genusMatT)-1)]
 
 #### DMN clustering ###
 set.seed(1)
 genusFit <- mclapply(1:3, dmn, count=as.matrix(genusMatT), verbose=TRUE)
 lplc <- sapply(genusFit, laplace)
-plot(lplc, type="b", xlab="Number of Dirichlet Components" ,ylab="Model Fit")
+#plot(lplc, type="b", xlab="Number of Dirichlet Components" ,ylab="Model Fit")
 best <- genusFit[[which.min(lplc)]]
 p0 <- fitted(genusFit[[1]], scale=TRUE)
 p3 <- fitted(best, scale=TRUE)
@@ -27,7 +29,7 @@ df <- head(cbind(Mean=p0[o], p3[o,], diff=diff[o], cdiff), 10)
 #m3 --> prevotella
 
 ### plotting heatmap ###
-heatmapdmn(genusMatT, genusFit[[1]], best, 10, lblwidth = 4000)
+#heatmapdmn(genusMatT, genusFit[[1]], best, 10, lblwidth = 4000)
 
 ### assigning cluster names ####
 clusterAssigned = apply(genusFit[[3]]@group, 1, function(x) which.max(x))

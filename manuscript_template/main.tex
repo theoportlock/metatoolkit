@@ -1,0 +1,100 @@
+\documentclass{article}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nonumberlist]{glossaries}
+\usepackage{apacite}
+\let\cite\shortcite
+\usepackage{authblk}
+\usepackage{graphicx}
+\usepackage{a4wide}
+\setlength\parindent{0pt}
+
+\bibliographystyle{apacite}
+\makeglossaries
+\newacronym{PD}{PD}{Parkinson's Disease}
+\newacronym{FMT}{FMT}{Faecal Microbiome Transplant}
+\newacronym{FDR}{FDR}{False Discovery rate}
+\newacronym{IGC2}{IGC2}{Integrated Gut Catalogue 2}
+
+% For drafts
+\usepackage{setspace}
+\doublespacing
+\usepackage{lineno}
+\linenumbers
+
+\title{Oral and Gut Dysbiosis are Strong Predictors of Parkinson's Disease}
+\author[1]{Theo Portlock}
+\author[1,2]{Saeed Shoaie}
+\affil[1]{Science for Life Laboratory, Royal Institute of Technology (KTH), Stockholm, Sweden.}
+\affil[2]{Centre for Host Microbiome Interactions, Faculty of Dentistry, Oral \& Craniofacial Sciences, King’s College London, London, UK.}
+
+%\author{\vspace{-5ex}}
+\date{\vspace{-5ex}}
+\begin{document}
+\maketitle
+\tableofcontents
+\printglossaries
+
+\section{Abstract}
+
+\section{Background}
+Oral and Gut dysbiosis and functional alterations have been observed before in Parkinsons disease \cite{jo2022oral}. Oral Lactobacillus was more abundant and functions involving glutamate and arginine biosynthesis were downregulated in \gls{PD}. 
+Another study observed oral dysbiosis in early stage \gls{PD} with no changes in alpha or beta diversity \cite{mihaila2019oral}. They also observed correlations between species and cognition, balance, and disease duration.
+Microbioal dysbiosis affecting lipid metabolism, including an upregulation of bacteria responsible for secondary bile acid synthesis. Also looked at bile acid concentration changes and showed an increase in hydrophobic, secondary bile acids: deoxycholic adic (DCA) and lithocholic acid (LCA) - disruption in Bile acid control could lead to \gls{PD} pathogenesis \cite{Li2021GutMD}.
+There has been an interest in using \gls{FMT} to treat \gls{PD}, as reviewed in \cite{Jena2021RoleOG}
+Although there have been meta-analysis of gut dysbiosis in \gls{PD} using 16S sequencing \cite{Nishiwaki2020MetaAnalysisOG} that has shown increase in \emph{Akkermansia} mucin degrading species, no such meta-analysis has been done using shotgun sequencing.
+Intestinal bacteria are likely to be involved in the formation of intestinal alpha synuclin fibrils \cite{Hirayama2021ParkinsonsDA}. A nonparametric meta-analysis of intestinal microbiota in \gls{PD} in 5 countries, as well as scrutinization of the other reports from the other countries, indicates that mucin-degrading Akkermansia is increased in \gls{PD} and that short-chain fatty acid (SCFA)-producing bacteria are decreased in \gls{PD}. Both dysbiosis should increase the intestinal permeability, which subsequently facilitates exposure of the intestinal neural plexus to toxins like lipopolysaccharide and pesticide, which should lead to abnormal aggregation of alpha-synuclein fibrils. Decreased SCFA also downregulates regulatory T cells and fails to suppress neuronal inflammation.
+
+\section{Results}
+\begin{figure}
+\centering
+\includegraphics[scale=0.8]{figures/composition.pdf}
+\caption[Compositional changes]{
+	Compositional changes. Species change with the disease}
+\label{Fcomposition}
+\end{figure}
+
+\autoref{Fcomposition}
+
+\section{Discussion}
+
+\section{Conclusion}
+
+\section{Methods}
+\subsection{Metagenomic sequence data}
+Samples from the UK, sequenced using Illumina HiSeq 2000, were analysed.
+All metagenomes passed over half the quality metrics in FastQC 0.11.3 with pass rates calculated in MultiQC.
+
+\subsection{Gene abundance profiling}
+The raw reads for all samples were trimmed using AlienTrimmer 0.4.0 with parameters -k 10 -l 45 -m 5 -p 40 -q 20 and Illumina contaminant oligonucleotides \cite{criscuolo2013alientrimmer}.
+Trimmed samples were mapped against the \gls{IGC2} using Bowtie integrated into the METEOR pipeline \cite{meteor} against a catalog that contains \glspl{MSP} of the human gastrointestinal microbiota built by binning co-abundant genes of the \gls{IGC2} catalog \cite{FLANUP_2021} with MSPminer \cite{plaza2019mspminer}.
+Human contaminant sequences were removed from all samples by discarding reads that mapped agains a human reference genome.
+Downsizing of the gene count tables was done using the MOMR downsizeMatrix function to eliminate the sequencing depth fluctuations.
+Normalization of the downsized gene count tables was done using the MOMR normFreqRPKM function and according to the FPKM strategy.
+MSPs were then binned according to the catalog...
+
+\subsection{MSPs taxonomic annotation}
+\subsection{MSPs functional annotation}
+\gls{IGC2} catalog was annotated for the Antibiotic Resistant Determinants (ARD) described in the Mustard database.
+Protein sequences were alingned against 9462 ARD sequences using blastp 2.7.1+ (option -evalue = 10\^-5).
+Best-hit alignments were filtered for identity \textgreater{} 95\% and bidirectional alignment coverage \textgreater{} 90\% (at query and subject level), giving a list of ARD candidates belonging to 30 families.
+Annotation of the carbohydrate-active enzymes (CAZymes) of the IGC2 catalog was performed by comparing the predicted protein sequences to those in the CAZy database and to Hidden Markov Models (HMMS) built from each CAZy family, following a procedure previously described for other metagenomics analysis.
+Proteins of IGC2 catalog were also annotated to KEGG orthologs using Diamond agains KEGG database.
+Best-hit alignments with e-value \textgreater{} 10\^-5.
+
+\subsection{Correlation analysis}
+The rho and p-vlalues were calculated using the python scipy package, and the p-values were adjusted to q-values with Benjamini-Hochberg where \gls{FDR} \textless{} 5\% .
+
+\section{Data availability}
+Metagenomic sequencing data can be found at INCLUDE.
+
+\section{Code availability}
+The scripts used for the analysis of in study is freely available at \url{https://github.com/theoportlock/PD_analysis}
+
+\section{Author Contributions}
+\section{Acknowledgments}
+
+\bibliography{library}
+
+\section{Supplimentary material}
+
+\end{document}

@@ -14,7 +14,7 @@ client
 # Load data
 gene_info = dd.read_csv('../data/oralGene.tsv', sep='\t')
 gct_data = dd.read_csv("../data/oralgct.tsv", sep='\t', assume_missing=True)
-gut_msp_data['#gene_id'] = gut_msp_data['#gene_id'].astype(np.int64) 
+#gut_msp_data['#gene_id'] = gut_msp_data['#gene_id'].astype(np.int64) 
 
 # Map to catalogues
 ## KEGG
@@ -30,10 +30,10 @@ gc.collect()
 sumofsm.to_csv("oralkegg.csv", single_file=True)
 del sumofsm
 
-pfam = dd.read_csv('../data/oralPfamAllTab.csv' assume_missing=True)
+pfam = dd.read_csv('../data/oralPfamAllTab.csv', assume_missing=True)
 replacedbygenename = gct_data.merge(gene_info, how='inner', left_on='#gene_id', right_on='gene_id')
 replacedbypfam = replacedbygenename.merge(pfam, how='inner', left_on='gene_name', right_on='gene_name')
-fmtcols = replacedbykegg.columns[replacedbykegg.columns.isin(gct_data.columns)].to_list()
+fmtcols = replacedbypfam.columns[replacedbypfam.columns.isin(gct_data.columns)].to_list()
 fmtcols.append('pfam_name')
 sumofsm = replacedbypfam[fmtcols].groupby('pfam_name').sum()
 del replacedbypfam, pfam
@@ -48,7 +48,7 @@ card["gene_name"] = card["gene_name"].str[0:-2]
 replacedbygenename = gct_data.merge(gene_info, how='inner', left_on='#gene_id', right_on='gene_id')
 replacedbycard = replacedbygenename.merge(card, how='inner', left_on='gene_name', right_on='gene_name')
 del replacedbygenename
-fmtcols = replacedbykegg.columns[replacedbykegg.columns.isin(gct_data.columns)].to_list()
+fmtcols = replacedbycard.columns[replacedbycard.columns.isin(gct_data.columns)].to_list()
 fmtcols.append('Best_Hit_ARO')
 sumofsm = replacedbycard[fmtcols].groupby('Best_Hit_ARO').sum()
 del replacedbycard, card
