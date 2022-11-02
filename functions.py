@@ -3,17 +3,19 @@
 '''
 Scripts for metagenomics analysis
 '''
-#matplotlib.use('Agg')
-#sns.set_context("paper", rc={"font.size":24,"axes.titlesize":24,"axes.labelsize":24, "axes.ticklabelssize": 24})
 def setupplot():
-    import seaborn as sns
-    import matplotlib.pyplot as plt
     import matplotlib
+    #matplotlib.use('Agg')
     matplotlib.rcParams["svg.fonttype"] = "none"
-    matplotlib.rcParams["font.family"] = "Arial"
-    matplotlib.rcParams["font.size"] = 12
-    #sns.set_style("whitegrid")
-    plt.rcParams["figure.figsize"] = (4, 4)
+    matplotlib.rcParams["font.size"] = 7
+    matplotlib.rcParams["lines.linewidth"] = 0.3
+    matplotlib.rcParams["figure.figsize"] = (4, 4)
+    matplotlib.rcParams["axes.linewidth"] = 0.3
+    matplotlib.rcParams['axes.facecolor'] = 'none'
+    matplotlib.rcParams['xtick.major.width'] = 0.3
+    matplotlib.rcParams['ytick.major.width'] = 0.3
+    matplotlib.rcParams['font.family'] = 'Arial'
+    
 
 def fc(df, basename):
     """
@@ -233,43 +235,26 @@ def clustermap(df, sig=None):
     import seaborn as sns
     import matplotlib.pyplot as plt
     import pandas as pd
-    pd.set_option("use_inf_as_na", True)
-    df.dropna(inplace=True)
-    df = df.T
-    if not sig is None:
-        sig = sig.T
-        df = df[(sig < 0.05).sum(axis=1) > 0]
-        sig = sig.loc[df.index]
-    g = sns.clustermap(
+    ax = sns.clustermap(
         data=df,
         cmap="vlag",
         center=0,
         yticklabels=True,
-        xticklabels=True,
-        #linewidths=0.1,
-        #linecolor='gray'
+        xticklabels=True
     )
     if not sig is None:
-        for tick in g.ax_heatmap.get_yticklabels(): tick.set_rotation(0)
-        annot=pd.DataFrame(index=sig.index, columns=sig.columns)
-        annot[(sig < 0.0005) & (df > 0)] = '+++'
-        annot[(sig < 0.005) & (df > 0)] = '++'
-        annot[(sig < 0.05) & (df > 0)] = '+'
-        annot[(sig < 0.0005) & (df < 0)] = '---'
-        annot[(sig < 0.005) & (df < 0)] = '--'
-        annot[(sig < 0.05) & (df < 0)] = '-'
-        annot[sig >= 0.05] = ''
-        for i, ix in enumerate(df.index):
-            for j, jx in enumerate(df.columns):
-                text = g.ax_heatmap.text(
+        for i, ix in enumerate(ax.dendrogram_row.reordered_ind):
+            for j, jx in enumerate(ax.dendrogram_col.reordered_ind):
+                text = ax.ax_heatmap.text(
                     j + 0.5,
                     i + 0.5,
-                    annot.values[i, j],
+                    "*" if sig.iloc[ix, jx] else "",
                     ha="center",
                     va="center",
                     color="black",
                 )
                 text.set_fontsize(8)
+    return ax
 
 def PCOA(df):
     import seaborn as sns
@@ -346,9 +331,87 @@ def PCAplot(df):
     results = model.fit_transform(df)
     fig, ax = model.biplot(n_feat=1)
 
-def PCplot(df, var,x='PC1', y='PC2', ax=None):
+def spindleplot(df, x='PC1', y='PC2', ax=None):
+    import pandas as pd
     import seaborn as sns
     import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Ellipse
+    import matplotlib.transforms as transforms
+    if not ax: fig, ax= plt.subplots()
+    colours = pd.Series(sns.color_palette("husl", df.index.nunique()), index=df.index.unique()).to_frame()
+    colours.columns = ['colours']
+    centers = df.groupby(level=0).mean().sort_index()
+    centers.columns=['nPC1','nPC2']
+    j = df.join(centers)
+    j = j.join(colours)
+    i = j.reset_index().index[0]
+    for i in j.reset_index().index:
+        ax.plot(
+                j[['PC1','nPC1']].iloc[i],
+                j[['PC2','nPC2']].iloc[i],
+                linewidth = 1,
+                color = j['colours'].iloc[i],
+                zorder=1,
+                alpha=0.3
+                )
+        ax.scatter(j.PC1.iloc[i], j.PC2.iloc[i], color = j['colours'].iloc[i], s=3)
+    for i in centers.index:
+        ax.text(centers.loc[i,'nPC1']+0.01,centers.loc[i,'nPC2'], s=i, zorder=3)
+    ax.scatter(centers.nPC1, centers.nPC2, c='black', zorder=2, s=20, marker='+')
+    return ax
+
+def PCspindleplot(df, x='PC1', y='PC2', ax=None):
+    import seaborn as sns
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Ellipse
+    import matplotlib.transforms as transforms
+    def confidence_ellipse(x, y, ax, n_std=3.0, facecolor='none', edgecolor='none', **kwargs):
+        cov = np.cov(x, y)
+        pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
+        ell_radius_x = np.sqrt(1 + pearson)
+        ell_radius_y = np.sqrt(1 - pearson)
+        ellipse = Ellipse(
+            (0, 0),
+            width=ell_radius_x * 2,
+            height=ell_radius_y * 2,
+            facecolor=facecolor, **kwargs
+        )
+        scale_x = np.sqrt(cov[0, 0]) * n_std
+        mean_x = np.mean(x)
+        scale_y = np.sqrt(cov[1, 1]) * n_std
+        mean_y = np.mean(y)
+        transf = (
+            transforms.Affine2D()
+            .rotate_deg(45)
+            .scale(scale_x, scale_y)
+            .translate(mean_x, mean_y)
+        )
+        ellipse.set_transform(transf + ax.transData)
+        ellipse.set_edgecolor(edgecolor)
+        return ax.add_patch(ellipse)
+    if not ax: fig, ax= plt.subplots()
+    ax = sns.scatterplot(data = df,
+        x=x,
+        y=y,
+        hue=df.index,
+        palette=sns.color_palette("husl", df.index.nunique()),
+        linewidth=0,
+        s=7
+    )
+    for j, i in enumerate(df.index.unique()):
+        confidence_ellipse(
+            df.loc[i, x],
+            df.loc[i, y],
+            ax,
+            edgecolor=sns.color_palette("husl", df.index.nunique())[j],
+            linestyle='--')
+    plt.legend(
+        title="Species", bbox_to_anchor=(1.001, 1), loc="upper left", fontsize="small"
+    )
+    centers = df.groupby(level=0).mean().sort_index()
+    centers.columns=['nPC1','nPC2']
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
     import matplotlib.transforms as transforms
@@ -383,7 +446,7 @@ def PCplot(df, var,x='PC1', y='PC2', ax=None):
         hue=var,
         palette=sns.color_palette("husl", df[var].nunique()),
         linewidth=0,
-        s=5
+        s=7
     )
     for j,i in enumerate(df[var].unique()):
         confidence_ellipse(
@@ -448,16 +511,20 @@ def rfc(df, var):
 def RFC(X, y):
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.metrics import classification_report
+    from sklearn.metrics import confusion_matrix
+    from sklearn.metrics import roc_auc_score
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import StandardScaler
     import numpy as np
     import pandas as pd
-    X = StandardScaler().fit_transform(X)
     model = RandomForestClassifier(n_estimators=500, n_jobs=-1, random_state=1)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1)
+    #model = RandomForestClassifier()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state = 1)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     print(classification_report(y_true=y_test, y_pred=y_pred))
+    print('AUCROC =', roc_auc_score(y, model.predict_proba(X)[:, 1]))
+    print(confusion_matrix(y_test, y_pred))
     return model
 
 def SHAP_bin(X,model):
@@ -471,20 +538,65 @@ def SHAP_bin(X,model):
             np.abs(shaps_values.values[:,:,0]).mean(axis=0),
             index=X.columns
             )
-    #corrs = [spearmanr(shaps_values.values[:,x,0], X.iloc[:,x])[0] for x in range(len(X.columns))]
     corrs = [spearmanr(shaps_values.values[:,x,1], X.iloc[:,x])[0] for x in range(len(X.columns))]
     final = meanabsshap * np.sign(corrs)
     final.fillna(0, inplace=True)
     return final
 
-def SHAP_multi(X,y,model):
+def SHAP_interact(X,model):
+    import numpy as np
+    from scipy.stats import spearmanr
+    import pandas as pd
+    import shap
     explainer = shap.TreeExplainer(model)
-    shaps_values = explainer(X)
-    meanabsshap = pd.Series( np.abs(shaps_values.values).mean(axis=0), index=X.columns)
-    corrs = [spearmanr(shaps_values.values[:,x], X.iloc[:,x])[0] for x in range(len(X.columns))]
-    final = meanabsshap * np.sign(corrs)
-    final.fillna(0, inplace=True)
+    inter_shaps_values = explainer.shap_interaction_values(X)
+    vals = inter_shaps_values[0]
+    for i in range(1, vals.shape[0]):
+        vals[0] += vals[i]
+    final = pd.DataFrame(vals[0], index=X.columns, columns=X.columns)
     return final
+'''
+#Get model predictions
+y_pred = model.predict(X)
+
+#Calculate mean prediction 
+mean_pred = np.mean(y_pred)
+
+#Sum of interaction values for first employee
+sum_shap = np.sum(shap_interaction[0])
+
+#Values below should be the same
+print("Model prediction: {}".format(y_pred[0]))
+print("Mean prediction + interaction values: {}".format(mean_pred+sum_shap))
+
+# Get absolute mean of matrices
+mean_shap = np.abs(shap_interaction).mean(0)
+df = pd.DataFrame(mean_shap,index=X.columns,columns=X.columns)
+
+# times off diagonal by 2
+df.where(df.values == np.diagonal(df),df.values*2,inplace=True)
+
+# display 
+plt.figure(figsize=(10, 10), facecolor='w', edgecolor='k')
+sns.set(font_scale=1.5)
+sns.heatmap(df,cmap='coolwarm',annot=True,fmt='.3g',cbar=False)
+plt.yticks(rotation=0) 
+
+# Get SHAP values
+shap_values = explainer(X)
+
+#Display beeswarm plot
+shap.plots.beeswarm(shap_values)
+
+#Display summary plot
+shap.summary_plot(shap_interaction, X)
+
+# Experience-degree depenence plot
+shap.dependence_plot(
+    ("experience", "degree"),
+    shap_interaction, X,
+    display_features=X)
+'''
 
 def circos(nodes, edges):
     import pandas as pd
@@ -494,7 +606,7 @@ def circos(nodes, edges):
     ro.globalenv["nodes"] = nodes
     ro.globalenv["edges"] = edges
     ro.r(
-    '''
+        '''
         require(RColorBrewer)
         require(circlize)
         require(ggplot2)
@@ -524,7 +636,7 @@ def circos(nodes, edges):
             bg.border = NA)
         circos.clear() 
         dev.off()
-    '''
+        '''
     )
     #print(robjects.globalenv["dataR"])
 
@@ -704,24 +816,28 @@ def beta(df):
         index=df.index) 
     return BC_dist
 
-def volcano(fc, pval):
+def volcano(lfc, pval, fcthresh=1, pvalthresh=0.05, annot=False):
     import pandas as pd
-    from bioinfokit import analys, visuz
-    df = pd.merge(fc.to_frame(), pval.to_frame(), right_index=True, left_index=True)
-    df.columns = ['logFC', 'P-value']
-    visuz.GeneExpression.volcano(
-        df=df.dropna().reset_index(),
-        lfc="logFC",
-        pv="P-value",
-        pv_thr=(0.5, 0.5),
-        lfc_thr=(0.1, 0.1),
-        geneid="index",
-        sign_line=True,
-        show=True,
-        plotlegend=True,
-        legendpos="upper right",
-        genenames="deg",
-    )
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fig, ax = plt.subplots()
+    lpval = pval.apply(np.log10).mul(-1)
+    ax.scatter(lfc, lpval, c='black', s=2)
+    ax.axvline(0, color='gray', linestyle='--')
+    ax.axhline(-1 * np.log10(pvalthresh), color='red', linestyle='-')
+    ax.axhline(0, color='gray', linestyle='--')
+    ax.axvline(fcthresh, color='red', linestyle='-')
+    ax.axvline(-fcthresh, color='red', linestyle='-')
+    ax.set_ylabel('-log10 p-value')
+    ax.set_xlabel('log2 fold change')
+    ax.set_ylim(ymin=-0.1)
+    x_max = np.abs(ax.get_xlim()).max()
+    ax.set_xlim(xmin=-x_max, xmax=x_max)
+    sigspecies = lfc.abs().gt(fcthresh) & lpval.abs().gt(-1 * np.log10(pvalthresh))
+    sig = pd.concat([lfc.loc[sigspecies], lpval.loc[sigspecies]], axis=1) 
+    sig.columns=['x','y']
+    if annot: [ax.text(sig.loc[i,'x'], sig.loc[i,'y'], s=i) for i in sig.index]
+    return ax
 
 def bar(df):
     import numpy as np
@@ -729,14 +845,14 @@ def bar(df):
     import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib
-    plt.rcParams["figure.figsize"] = (5,5)
-    unclass = df[df.index.str.contains("unclassified")].sum()
-    df = df[~df.index.str.contains("unclassified")]
-    df.loc['unclassified'] = unclass
-    if df.shape[0] > 20:
+    #unclass = df[df.index.str.contains("unclassified")].sum()
+    #df = df[~df.index.str.contains("unclassified")]
+    #df.loc['unclassified'] = unclass
+    if df.index.unique().shape[0] > 20:
         df.loc['other'] = df.loc[df.T.sum().sort_values().iloc[21:].index].sum()
     df = df.loc[df.T.sum().sort_values().tail(20).index].T.sort_index(axis=1)
-    df = df.apply(np.log1p).melt()
+    #df = df.apply(np.log1p)
+    df = df.melt()
     ax = sns.boxplot(data=df, x=df.columns[0], y='value', showfliers=False, boxprops=dict(alpha=.25))
     sns.stripplot(data=df, x=df.columns[0], y='value', size=2, color=".3", ax=ax)
     plt.xlabel(df.columns[0])
@@ -769,7 +885,6 @@ def fancybox(df,x,y,p):
     import matplotlib.pyplot as plt
     import matplotlib
     matplotlib.rcParams["svg.fonttype"] = "none"
-    matplotlib.rcParams["font.family"] = "Arial"
     matplotlib.rcParams["font.size"] = 14
     sns.set_style("whitegrid")
     plt.rcParams["figure.figsize"] = (5,5)
@@ -784,11 +899,11 @@ def fancybox(df,x,y,p):
 
 def to_edges(df, thresh=0.1):
     import pandas as pd
-    #edges = df.corr().stack().to_frame()[0]
+    df = df.rename_axis('source', axis=0).rename_axis("target", axis=1)
     edges = df.stack().to_frame()[0]
     nedges = edges.reset_index()
-    edges = nedges[nedges.b != nedges.a].set_index(['a','b']).drop_duplicates()[0]
-    fin = edges.loc[(edges < 0.99) & (edges.abs() > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}) 
+    edges = nedges[nedges.target != nedges.source].set_index(['source','target']).drop_duplicates()[0]
+    fin = edges.loc[(edges < 0.99) & (edges.abs() > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}).set_index('source')
     return fin
 
 def joseplot(fc, t1, t2, pval=None):
@@ -804,6 +919,18 @@ def joseplot(fc, t1, t2, pval=None):
     data.columns=['t1', 't2']
     #sns.scatterplot(data=data, x='t1', y='t2', size=1)
     fig = px.scatter(data, x= 't1', y='t2', hover_name=data.index)
+    return fig
+
+def joseplot2(t1, s1, t2, s2):
+    import seaborn as sns
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import plotly.express as px
+    df = t1.join(s1).join(t2).join(s2)
+    df.columns=['t1','s1','t2','s2']
+    df['s'] = df['s1'] + df['s2']
+    sns.scatterplot(data=df, x='t1', y='t2', c='s', size=1)
+    #fig = px.scatter(data, x= 't1', y='t2', hover_name=data.index)
     return fig
 
 def scatterplot(df1, df2, cor):
@@ -913,23 +1040,30 @@ def nocurve(df, mapping):
     plt.ylabel("Log(Relative abundance)")
     #plt.tight_layout()
 
+def mult(df):
+    import pandas as pd
+    from skbio.stats.composition import multiplicative_replacement as mul
+    return pd.DataFrame(mul(df), index=df.index, columns=df.columns)
+
 def taxofunc(msp, taxo, short=False, mult=False):
     import pandas as pd
-    from skbio.stats.composition import multiplicative_replacement as mult
+    from skbio.stats.composition import multiplicative_replacement as mul
+    m, t = msp.copy(), taxo.copy()
+    m = m.loc[m.sum(axis=1) != 0, m.sum(axis=0) != 0]
     if mult:
-        msp = pd.DataFrame(mult(msp), index=msp.index, columns=msp.columns)
+        m = pd.DataFrame(mul(m), index=m.index, columns=m.columns)
     taxolevels = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
-    taxo['superkingdom'] = 'k_' + taxo['superkingdom']
-    taxo['phylum'] = taxo[['superkingdom', 'phylum']].apply(lambda x: '|p_'.join(x.dropna().astype(str).values), axis=1)
-    taxo['class'] = taxo[['phylum', 'class']].apply(lambda x: '|c_'.join(x.dropna().astype(str).values), axis=1)
-    taxo['order'] = taxo[['class', 'order']].apply(lambda x: '|o_'.join(x.dropna().astype(str).values), axis=1)
-    taxo['family'] = taxo[['order', 'family']].apply(lambda x: '|f_'.join(x.dropna().astype(str).values), axis=1)
-    taxo['genus'] = taxo[['family', 'genus']].apply(lambda x: '|g_'.join(x.dropna().astype(str).values), axis=1)
-    taxo['species'] = taxo[['genus', 'species']].apply(lambda x: '|s_'.join(x.dropna().astype(str).values), axis=1)
-    taxo["species"] = taxo["species"].str.replace(" ", "_")
-    msptaxo = msp.join(taxo[taxolevels])
-    df = pd.concat([msptaxo.groupby(taxolevels[i]).sum() for i in range(len(taxolevels))])
-    df = df.loc[~df.index.str.contains('unclassified')]
+    t['superkingdom'] = 'k_' + t['superkingdom']
+    t['phylum'] = t[['superkingdom', 'phylum']].apply(lambda x: '|p_'.join(x.dropna().astype(str).values), axis=1)
+    t['class'] = t[['phylum', 'class']].apply(lambda x: '|c_'.join(x.dropna().astype(str).values), axis=1)
+    t['order'] = t[['class', 'order']].apply(lambda x: '|o_'.join(x.dropna().astype(str).values), axis=1)
+    t['family'] = t[['order', 'family']].apply(lambda x: '|f_'.join(x.dropna().astype(str).values), axis=1)
+    t['genus'] = t[['family', 'genus']].apply(lambda x: '|g_'.join(x.dropna().astype(str).values), axis=1)
+    t['species'] = t[['genus', 'species']].apply(lambda x: '|s_'.join(x.dropna().astype(str).values), axis=1)
+    t["species"] = t["species"].str.replace(" ", "_").str.replace('/.*','')
+    mt = m.join(t[taxolevels])
+    df = pd.concat([mt.groupby(taxolevels[i]).sum() for i in range(len(taxolevels))])
+    #df = df.loc[~df.index.str.contains('unclassified')]
     if short:
         df.index = df.T.add_prefix("|").T.index.str.extract(".*\|([a-z]_.*$)", expand=True)[0]
     #df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
@@ -941,7 +1075,7 @@ def density(df):
     df.T.plot.density()
     plt.ylim(bottom = 0)
 
-def crossval(model, X, y):
+def crossval(model, X, y, fold=10):
     from sklearn.datasets import make_classification
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import auc
@@ -951,7 +1085,7 @@ def crossval(model, X, y):
     from sklearn.model_selection import cross_validate
     import matplotlib.pyplot as plt
     import numpy as np
-    kf = KFold(10)
+    kf = KFold(fold)
     tprs = []
     aucs = []
     base_fpr = np.linspace(0, 1, 101)
@@ -1003,7 +1137,12 @@ def cluster(G):
 
 def clusterplot(G):
     import networkx as nx
-    nx.draw(G, with_labels=True, node_color="b", node_size=50)
+    nx.draw(
+            G,
+            with_labels=True,
+            node_color="b",
+            node_size=50
+            )
     
 def annotateplot(G, group):
     import matplotlib.pyplot as plt
@@ -1060,15 +1199,15 @@ def clusterdendrogram(G):
             k += 1
     dendrogram(Z, labels=leaves)
 
-def sig(df, mult=False):
+def sig(df, mult=False, combs=False):
     ''' index needs to be grouping element '''
-    import pandas as pd
-    import numpy as np
     from scipy.stats import mannwhitneyu
-    import itertools
     from statsmodels.stats.multitest import fdrcorrection 
-    combs = list(itertools.combinations(df.index.unique(), 2))
-    i = combs[0]
+    from itertools import combinations as c
+    import numpy as np
+    import pandas as pd
+    if not combs:
+        combs = list(c(df.index.unique(), 2))
     outdf = pd.DataFrame(
         [mannwhitneyu(df.loc[i[0]], df.loc[i[1]])[1] for i in combs],
         columns = df.columns,
@@ -1082,25 +1221,95 @@ def sig(df, mult=False):
             )
     return outdf
 
-def lfc(df, mult=False):
+def mww(df, mult=False):
     ''' index needs to be grouping element '''
+    from scipy.stats import mannwhitneyu
+    from statsmodels.stats.multitest import fdrcorrection 
+    import itertools
+    import pandas as pd
+    combs = list(itertools.combinations(df.index.unique(), 2))
+    outdf = pd.DataFrame(
+        [mannwhitneyu(df.loc[i[0]], df.loc[i[1]])[1] for i in combs],
+        columns = df.columns,
+        index = combs
+        )
+    if mult:
+        outdf = pd.DataFrame(
+            fdrcorrection(outdf.values.flatten())[1].reshape(outdf.shape),
+            columns = outdf.columns,
+            index = outdf.index
+            )
+    return outdf
+
+def logfc(df):
+    ''' index needs to be grouping element, df needs to be zero free '''
+    from scipy.stats import mannwhitneyu
+    from statsmodels.stats.multitest import fdrcorrection 
+    import itertools.combinations as c
+    import pandas as pd
+    import numpy as np
+    combs = list(c(df.index.unique(), 2))
+    outdf = pd.DataFrame(np.array(
+        [df.loc[i[0]].mean().div(df.loc[i[1]].mean()) for i in combs]),
+        columns = df.columns,
+        index = combs
+        )
+    return outdf
+
+def lfc(df, mult=False):
+    ''' index needs to be grouping element, df needs to be zero free '''
     import pandas as pd
     import numpy as np
     from scipy.stats import mannwhitneyu
-    import itertools
+    from itertools import combinations as c
     from statsmodels.stats.multitest import fdrcorrection 
-    from skbio.stats.composition import multiplicative_replacement as mult
-    if mult:
-        df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
-    combs = list(itertools.combinations(df.index.unique(), 2))
+    from skbio.stats.composition import multiplicative_replacement as m
+    if mult: df = pd.DataFrame(m(df), index=df.index, columns=df.columns)
+    combs = list(c(df.index.unique(), 2))
     i = combs[0]
     outdf = pd.DataFrame(np.array(
-        [df.loc[i[1]].mean().div(df.loc[i[0]].mean()) for i in combs]),
+        [df.loc[i[0]].mean().div(df.loc[i[1]].mean()) for i in combs]),
         columns = df.columns,
         index = combs
         ).T.apply(np.log2)
     return outdf
 
+    import pandas as pd
+    import numpy as np
+    from scipy.stats import mannwhitneyu
+    from itertools import permutations
+    from statsmodels.stats.multitest import fdrcorrection 
+    from skbio.stats.composition import multiplicative_replacement as mult
+    if mult:
+        df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
+    if not combs:
+        combs = list(permutations(df.index.unique(), 2))
+    i = combs[0]
+    outdf = pd.DataFrame(np.array(
+        [df.loc[i[0]].mean().div(df.loc[i[1]].mean()) for i in combs]),
+        columns = df.columns,
+        index = combs
+        ).T.apply(np.log2)
+    return outdf
+
+def cv(X, y):
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import auc
+    from sklearn.metrics import roc_curve
+    from sklearn.model_selection import KFold
+    import matplotlib.pyplot as plt
+    import numpy as np
+    cv = KFold(n_splits=5, random_state=0, shuffle=True)
+    tprs, aucs = [],[]
+    base_fpr = np.linspace(0, 1, 101)
+    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+    cm = confusion_matrix(y_true, y_pred)
+    if not labels:
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    else:
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+    disp.plot()
+    return cm
 
 if __name__ == '__main__':
     import doctest

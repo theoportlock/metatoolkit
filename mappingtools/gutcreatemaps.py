@@ -8,11 +8,11 @@ import dask.dataframe as dd
 from dask.distributed import Client
 
 # set up cluster and workers
-client = Client(n_workers=4, threads_per_worker=1, memory_limit='64GB') 
+client = Client(n_workers=4, threads_per_worker=1, memory_limit='10GB') 
 client
 
 # Data location
-file_gut_gct_data="../data/gutgct.tsv"
+file_gut_gct_data="../data/gct.tsv"
 file_gene_info='../../data/gutGene.tsv'
 
 file_kegg='../../data/gutKegg.csv'
@@ -46,7 +46,7 @@ del sumofsm
 ## antismash
 antismash = pd.read_table(file_antismash)
 antismash.columns = ['gene_name','sm','id']
-replacedbygenename = gut_gct_data.merge(gene_info, how='inner', left_on='Unnamed: 0', right_on='gene_id')
+replacedbygenename = gut_gct_data.merge(gene_info, how='inner', left_on='#gene_id', right_on='gene_id')
 replacedbyantismash = replacedbygenename.merge(antismash, how='inner', left_on='gene_name', right_on='gene_name')
 fmtcols = replacedbykegg.columns[replacedbykegg.columns.isin(gut_gct_data.columns)].to_list()
 fmtcols.append('sm')
@@ -58,7 +58,7 @@ del sumofsm
 
 ## pfam 
 pfam = dd.read_csv(file_pfam, assume_missing=True)
-replacedbygenename = gut_gct_data.merge(gene_info, how='inner', left_on='Unnamed: 0', right_on='gene_id')
+replacedbygenename = gut_gct_data.merge(gene_info, how='inner', left_on='#gene_id', right_on='gene_id')
 replacedbypfam = replacedbygenename.merge(pfam, how='inner', left_on='gene_name', right_on='gene_name')
 fmtcols = replacedbykegg.columns[replacedbykegg.columns.isin(gut_gct_data.columns)].to_list()
 fmtcols.append('pfam_name')
@@ -70,16 +70,12 @@ del sumofsm
 
 ## patric 
 patric = dd.read_csv(file_patric)
-replacedbygenename = gut_gct_data.merge(gene_info, how='inner', left_on='Unnamed: 0', right_on='gene_id')
+replacedbygenename = gut_gct_data.merge(gene_info, how='inner', left_on='#gene_id', right_on='gene_id')
 replacedbypatric = replacedbygenename.merge(patric, how='inner', left_on='gene_name', right_on='igc2_id')
-del replacedbygenename
-fmtcols = [col for col in replacedbypatric.columns.values if 'FMT' in col]
-fmtcols.append('vf_id')
-sumofsm = replacedbypatric[fmtcols].groupby('vf_id').sum()
-del replacedbypatric, patric
+del replacedbygenename, patric
 gc.collect()
-sumofsm.to_csv("patric.csv",  single_file=True)
-del sumofsm
+replacedbypatric.to_csv("../data/gutPatricMapping.csv", single_file=True)
+del replacedbypatric
 
 ## CARD
 card = pd.read_csv(file_card, sep='\t')
@@ -93,12 +89,12 @@ fmtcols.append('Best_Hit_ARO')
 sumofsm = replacedbycard[fmtcols].groupby('Best_Hit_ARO').sum()
 del replacedbycard, card
 gc.collect()
-sumofsm.to_csv("card.csv",  single_file=True)
+sumofsm.to_csv("../data/gutCardMapping.csv",  single_file=True)
 del sumofsm
 
 ## CAzyme
 cazyme = pd.read_csv(file_cazyme, sep='\t')
-replacedbycazyme = gut_gct_data.merge(cazyme, how='inner', left_on='Unnamed: 0', right_on='gene_id')
+replacedbycazyme = gut_gct_data.merge(cazyme, how='inner', left_on='#gene_id', right_on='gene_id')
 fmtcols = [col for col in replacedbycazyme.columns.values if 'FMT' in col]
 fmtcols.append('CAZyme')
 sumofsm = replacedbycazyme[fmtcols].groupby('CAZyme').sum()
