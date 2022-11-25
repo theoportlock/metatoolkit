@@ -6,7 +6,7 @@ require(parallel)
 #### converting MGS matrix to genus matrix and scaling data ###
 #genusMat <- read.table("../results/genusAbund.csv", header=T, row.names=1, dec=".", sep=",")
 genusMat <- read.table("../data/genusrelabund.csv", header=T, row.names=1, dec=".", sep=",")
-genusMat <- sample_n(genusMat, 400)
+#genusMat <- sample_n(genusMat, 400)
 genusMatT <- round(genusMat*10^9)
 #genusMatT <- genusMatT[,0:(ncol(genusMatT)-1)]
 

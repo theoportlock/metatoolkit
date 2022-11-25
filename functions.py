@@ -8,12 +8,12 @@ def setupplot():
     #matplotlib.use('Agg')
     matplotlib.rcParams["svg.fonttype"] = "none"
     matplotlib.rcParams["font.size"] = 7
-    matplotlib.rcParams["lines.linewidth"] = 0.3
+    matplotlib.rcParams["lines.linewidth"] = 0.25
     matplotlib.rcParams["figure.figsize"] = (4, 4)
-    matplotlib.rcParams["axes.linewidth"] = 0.3
+    matplotlib.rcParams["axes.linewidth"] = 0.25
     matplotlib.rcParams['axes.facecolor'] = 'none'
-    matplotlib.rcParams['xtick.major.width'] = 0.3
-    matplotlib.rcParams['ytick.major.width'] = 0.3
+    matplotlib.rcParams['xtick.major.width'] = 0.25
+    matplotlib.rcParams['ytick.major.width'] = 0.25
     matplotlib.rcParams['font.family'] = 'Arial'
     
 
@@ -51,21 +51,23 @@ def fc(df, basename):
     pvaldf = notbaseline.groupby(level=[0, 1]).apply(appl, (baseline)).T
     return logfcdf.T, pvaldf.T
 
-def ANCOM(df, grouping):
+def ANCOM(df, perm=False):
     """
-    a, b= ancom(df.VALUE.to_frame(), df.VISIT == 'BASELINE')
+    sig = ancom(df)
     """
     import pandas as pd
     from skbio.stats.composition import ancom
     from scipy.stats import mannwhitneyu
-    from skbio.stats.composition import multiplicative_replacement as mult
-    df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
-    ancomdf, percentdf = ancom(
-            df,
-            grouping,
-            significance_test=mannwhitneyu,
-            multiple_comparisons_correction=None
-    )
+    from itertools import combinations
+    from itertools import permutations
+    combs = list(combinations(df.index.unique(), 2))
+    if perm: combs = list(permutations(df.index.unique(), 2))
+    outdf = pd.DataFrame(
+            [ancom(pd.concat([df.loc[i[0]], df.loc[i[1]]]), pd.concat([df.loc[i[0]], df.loc[i[1]]]).index.to_series())[0]['Reject null hypothesis'] for i in combs],
+            columns = df.columns,
+            index = combs,
+            )
+    return outdf
 
 def PERMANOVA(df, meta):
     import pandas as pd
@@ -150,8 +152,8 @@ def corr(df1, df2):
     import pandas as pd
     from scipy.stats import spearmanr
     from statsmodels.stats.multitest import fdrcorrection
-    df1 = df1.loc[:,df1.nunique() > 5]
-    df2 = df2.loc[:,df2.nunique() > 5]
+    #df1 = df1.loc[:,df1.nunique() > 5]
+    #df2 = df2.loc[:,df2.nunique() > 5]
     df = df1.join(df2, how='inner')
     cor, pval = spearmanr(df.values)
     cordf = pd.DataFrame(cor, index=df.columns, columns=df.columns)
@@ -231,21 +233,25 @@ def heatmap(df, sig=None):
     #plt.tight_layout()
     return g
 
-def clustermap(df, sig=None):
+def clustermap(df, sig=None, figsize=(4,5)):
     import seaborn as sns
     import matplotlib.pyplot as plt
+    import matplotlib
     import pandas as pd
-    ax = sns.clustermap(
+    #matplotlib.rcParams["font.size"] = 6
+    g = sns.clustermap(
         data=df,
         cmap="vlag",
         center=0,
+        figsize=figsize,
+        dendrogram_ratio=(0.25, 0.25),
         yticklabels=True,
-        xticklabels=True
+        xticklabels=True,
     )
     if not sig is None:
-        for i, ix in enumerate(ax.dendrogram_row.reordered_ind):
-            for j, jx in enumerate(ax.dendrogram_col.reordered_ind):
-                text = ax.ax_heatmap.text(
+        for i, ix in enumerate(g.dendrogram_row.reordered_ind):
+            for j, jx in enumerate(g.dendrogram_col.reordered_ind):
+                text = g.ax_heatmap.text(
                     j + 0.5,
                     i + 0.5,
                     "*" if sig.iloc[ix, jx] else "",
@@ -254,7 +260,7 @@ def clustermap(df, sig=None):
                     color="black",
                 )
                 text.set_fontsize(8)
-    return ax
+    return g
 
 def PCOA(df):
     import seaborn as sns
@@ -287,6 +293,15 @@ def PCA(df):
     results = pca.fit_transform(scaledDf).T
     df['PC1'], df['PC2'] = results[0,:], results[1,:]
     return df[['PC1', 'PC2']]
+
+def StandardScale(df):
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+    scaledDf = pd.DataFrame(
+            StandardScaler().fit_transform(df),
+            index=df.index,
+            columns=df.columns)
+    return scaledDf
 
 def TSNE(df):
     import numpy as np
@@ -331,20 +346,20 @@ def PCAplot(df):
     results = model.fit_transform(df)
     fig, ax = model.biplot(n_feat=1)
 
-def spindleplot(df, x='PC1', y='PC2', ax=None):
+def spindleplot(df, x='PC1', y='PC2', ax=None, palette=None):
+    #(df, x, y, palette) = pcoa,'PC1', 'PC2', None
     import pandas as pd
     import seaborn as sns
     import numpy as np
     import matplotlib.pyplot as plt
     from matplotlib.patches import Ellipse
     import matplotlib.transforms as transforms
-    if not ax: fig, ax= plt.subplots()
-    colours = pd.Series(sns.color_palette("husl", df.index.nunique()), index=df.index.unique()).to_frame()
-    colours.columns = ['colours']
-    centers = df.groupby(level=0).mean().sort_index()
+    if palette is None: palette = pd.Series(sns.color_palette("hls", df.index.nunique()).as_hex(), index=df.index.unique())
+    if ax is None: fig, ax= plt.subplots()
+    centers = df.reset_index().groupby(df.index.names).mean()
     centers.columns=['nPC1','nPC2']
     j = df.join(centers)
-    j = j.join(colours)
+    j['colours'] = palette
     i = j.reset_index().index[0]
     for i in j.reset_index().index:
         ax.plot(
@@ -518,8 +533,7 @@ def RFC(X, y):
     import numpy as np
     import pandas as pd
     model = RandomForestClassifier(n_estimators=500, n_jobs=-1, random_state=1)
-    #model = RandomForestClassifier()
-    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state = 1)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1, stratify=y)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     print(classification_report(y_true=y_test, y_pred=y_pred))
@@ -816,11 +830,11 @@ def beta(df):
         index=df.index) 
     return BC_dist
 
-def volcano(lfc, pval, fcthresh=1, pvalthresh=0.05, annot=False):
+def volcano(lfc, pval, fcthresh=1, pvalthresh=0.05, annot=False, ax=None):
     import pandas as pd
     import matplotlib.pyplot as plt
     import numpy as np
-    fig, ax = plt.subplots()
+    if not ax: fig, ax= plt.subplots()
     lpval = pval.apply(np.log10).mul(-1)
     ax.scatter(lfc, lpval, c='black', s=2)
     ax.axvline(0, color='gray', linestyle='--')
@@ -985,10 +999,7 @@ def newcurve(df, mapping):
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
-    '''
-    df, mapping = df1.drop("ID", axis=1), mapping
-    '''
-    fig, ax = plt.subplots(figsize=(10, 7))
+    fig, ax = plt.subplots()
     df = df.apply(np.log1p).T
     df.loc['other'] = df[~df.index.isin(mapping.index)].sum()
     df = df.drop(df[~df.index.isin(mapping.index)].index).T
@@ -1002,7 +1013,7 @@ def newcurve(df, mapping):
             griddf.T.sum().sort_values(ascending=False).iloc[21:].index
         ].sum()
     griddf = griddf.loc[griddf.T.sum().sort_values().tail(20).index].T
-    ax = griddf.sort_index(axis=1).plot.area(stacked=True, color=mapping.to_dict(), figsize=(9, 2))
+    griddf.sort_index(axis=1).plot.area(stacked=True, color=mapping.to_dict(), figsize=(9, 2), ax=ax)
     plt.xlim(0, 35)
     plt.legend(
         title="Species", bbox_to_anchor=(1.001, 1), loc="upper left", fontsize="small"
@@ -1010,8 +1021,7 @@ def newcurve(df, mapping):
     plt.ylabel("Log(Relative abundance)")
     plt.tight_layout()
     plotdf = df.cumsum(axis=1).stack().reset_index()
-    #sns.scatterplot(data=plotdf.sort_values(0), x='Days after birth', y=0, hue=plotdf.columns[1], palette=mapping.to_dict(), size=0.5, linewidth=0, ax=ax)
-    sns.scatterplot(data=plotdf.sort_values(0), x='Days after birth', y=0, size=0.5, linewidth=0, ax=ax)
+    sns.scatterplot(data=plotdf.sort_values(0), x='Days after birth', y=0, s=10, linewidth=0, ax=ax)
 
 def nocurve(df, mapping):
     from scipy import stats
@@ -1088,10 +1098,9 @@ def crossval(model, X, y, fold=10):
     kf = KFold(fold)
     tprs = []
     aucs = []
-    base_fpr = np.linspace(0, 1, 101)
     plt.figure(figsize=(5, 5))
     plt.axes().set_aspect('equal', 'datalim')
-    for i, (train, test) in enumerate(kf.split(X,y)):
+    for train, test in kf.split(X,y):
         results = model.fit(X.iloc[train], y.iloc[train])
         y_score = model.predict_proba(X.iloc[test])
         fpr, tpr, _ = roc_curve(y.iloc[test], y_score[:, 1])
@@ -1115,6 +1124,26 @@ def crossval(model, X, y, fold=10):
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
     plt.legend(loc="lower right")
+
+def aucroc(model, X, y, ax=None, colour=None):
+    from sklearn.metrics import auc
+    from sklearn.metrics import roc_curve
+    import matplotlib.pyplot as plt
+    if ax is None: fig, ax= plt.subplots(figsize=(4, 4))
+    y_score = model.predict_proba(X)[:,1]
+    fpr, tpr, _ = roc_curve(y, y_score)
+    AUC = auc(fpr, tpr)
+    if colour is None:
+        ax.plot(fpr, tpr, label=r"AUCROC = %0.2f" % AUC )
+    else:
+        ax.plot(fpr, tpr, color=colour, label=r"AUCROC = %0.2f" % AUC )
+    ax.plot([0, 1], [0, 1],'r--')
+    plt.xlim([-0.01, 1.01])
+    plt.ylim([-0.01, 1.01])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.legend(loc="lower right")
+    return ax
 
 def to_network(edges):
     import networkx as nx
@@ -1199,15 +1228,16 @@ def clusterdendrogram(G):
             k += 1
     dendrogram(Z, labels=leaves)
 
-def sig(df, mult=False, combs=False):
+def sig(df, mult=False, perm=False):
     ''' index needs to be grouping element '''
     from scipy.stats import mannwhitneyu
     from statsmodels.stats.multitest import fdrcorrection 
-    from itertools import combinations as c
+    from itertools import combinations
+    from itertools import permutations
     import numpy as np
     import pandas as pd
-    if not combs:
-        combs = list(c(df.index.unique(), 2))
+    combs = list(combinations(df.index.unique(), 2))
+    if perm: combs = list(permutations(df.index.unique(), 2))
     outdf = pd.DataFrame(
         [mannwhitneyu(df.loc[i[0]], df.loc[i[1]])[1] for i in combs],
         columns = df.columns,
@@ -1245,7 +1275,7 @@ def logfc(df):
     ''' index needs to be grouping element, df needs to be zero free '''
     from scipy.stats import mannwhitneyu
     from statsmodels.stats.multitest import fdrcorrection 
-    import itertools.combinations as c
+    from itertools import combinations as c
     import pandas as pd
     import numpy as np
     combs = list(c(df.index.unique(), 2))
@@ -1256,17 +1286,18 @@ def logfc(df):
         )
     return outdf
 
-def lfc(df, mult=False):
+def lfc(df, mult=False, perm=False):
     ''' index needs to be grouping element, df needs to be zero free '''
     import pandas as pd
     import numpy as np
     from scipy.stats import mannwhitneyu
-    from itertools import combinations as c
+    from itertools import combinations
+    from itertools import permutations
     from statsmodels.stats.multitest import fdrcorrection 
     from skbio.stats.composition import multiplicative_replacement as m
     if mult: df = pd.DataFrame(m(df), index=df.index, columns=df.columns)
-    combs = list(c(df.index.unique(), 2))
-    i = combs[0]
+    combs = list(combinations(df.index.unique(), 2))
+    if perm: combs = list(permutations(df.index.unique(), 2))
     outdf = pd.DataFrame(np.array(
         [df.loc[i[0]].mean().div(df.loc[i[1]].mean()) for i in combs]),
         columns = df.columns,
@@ -1274,25 +1305,35 @@ def lfc(df, mult=False):
         ).T.apply(np.log2)
     return outdf
 
-    import pandas as pd
-    import numpy as np
-    from scipy.stats import mannwhitneyu
-    from itertools import permutations
-    from statsmodels.stats.multitest import fdrcorrection 
-    from skbio.stats.composition import multiplicative_replacement as mult
-    if mult:
-        df = pd.DataFrame(mult(df), index=df.index, columns=df.columns)
-    if not combs:
-        combs = list(permutations(df.index.unique(), 2))
-    i = combs[0]
-    outdf = pd.DataFrame(np.array(
-        [df.loc[i[0]].mean().div(df.loc[i[1]].mean()) for i in combs]),
-        columns = df.columns,
-        index = combs
-        ).T.apply(np.log2)
-    return outdf
+def clr(df, axis=0):
+    '''
+    Centered Log Ratio
+    Aitchison, j. (1982)
+    '''
+    from numpy import log1p
+    tmp = log1p(df)
+    f = lambda x: x - x.mean()
+    z = tmp.apply(f, axis=1-axis)
+    return z
 
-def cv(X, y):
+def CLR_normalize(pd_dataframe):
+    """
+    Centered Log Ratio
+    Aitchison, J. (1982). 
+    The statistical analysis of compositional data. 
+    Journal of the Royal Statistical Society: 
+    Series B (Methodological), 44(2), 139-160.
+    """
+    d = pd_dataframe
+    d = d+1
+    step1_1 = d.apply(np.log, 0)
+    step1_2 = step1_1.apply(np.average, 0)
+    step1_3 = step1_2.apply(np.exp)
+    step2 = d.divide(step1_3, 1)
+    step3 = step2.apply(np.log, 0)
+    return(step3)
+
+def cm(X, y, labels=None):
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.metrics import auc
     from sklearn.metrics import roc_curve
@@ -1302,8 +1343,8 @@ def cv(X, y):
     cv = KFold(n_splits=5, random_state=0, shuffle=True)
     tprs, aucs = [],[]
     base_fpr = np.linspace(0, 1, 101)
-    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-    cm = confusion_matrix(y_true, y_pred)
+    #from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+    #cm = confusion_matrix(y_true, y_pred)
     if not labels:
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     else:
