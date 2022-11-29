@@ -569,48 +569,6 @@ def SHAP_interact(X,model):
         vals[0] += vals[i]
     final = pd.DataFrame(vals[0], index=X.columns, columns=X.columns)
     return final
-'''
-#Get model predictions
-y_pred = model.predict(X)
-
-#Calculate mean prediction 
-mean_pred = np.mean(y_pred)
-
-#Sum of interaction values for first employee
-sum_shap = np.sum(shap_interaction[0])
-
-#Values below should be the same
-print("Model prediction: {}".format(y_pred[0]))
-print("Mean prediction + interaction values: {}".format(mean_pred+sum_shap))
-
-# Get absolute mean of matrices
-mean_shap = np.abs(shap_interaction).mean(0)
-df = pd.DataFrame(mean_shap,index=X.columns,columns=X.columns)
-
-# times off diagonal by 2
-df.where(df.values == np.diagonal(df),df.values*2,inplace=True)
-
-# display 
-plt.figure(figsize=(10, 10), facecolor='w', edgecolor='k')
-sns.set(font_scale=1.5)
-sns.heatmap(df,cmap='coolwarm',annot=True,fmt='.3g',cbar=False)
-plt.yticks(rotation=0) 
-
-# Get SHAP values
-shap_values = explainer(X)
-
-#Display beeswarm plot
-shap.plots.beeswarm(shap_values)
-
-#Display summary plot
-shap.summary_plot(shap_interaction, X)
-
-# Experience-degree depenence plot
-shap.dependence_plot(
-    ("experience", "degree"),
-    shap_interaction, X,
-    display_features=X)
-'''
 
 def circos(nodes, edges):
     import pandas as pd
@@ -874,42 +832,44 @@ def bar(df):
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
 
-def box(df,x,y, ax=None):
-    import numpy as np
+def box(data = None, x=None, y=None, ax=None, palette=None, stats=None):
+    '''
+    Should test this!
+    '''
     import seaborn as sns
-    import pandas as pd
     import matplotlib.pyplot as plt
-    import matplotlib
-    if not ax: fig, ax= plt.subplots()
-    sns.boxplot(data=df, x=x,y=y,  showfliers=False, ax=ax)
+    import statannot
+    if ax is None: fig, ax=plt.subplots(figsize=(4, 4))
+    sns.boxplot(data=data, x=x,y=y, showfliers=False, ax=ax)
     sns.stripplot(data=df, x=x,y=y, size=2, color=".3", ax=ax)
-    ax.set_xlabel(x)
-    ax.set_ylabel(y)
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
+    if stats is not None:
+        statannot.add_stat_annotation(
+            ax,
+            data=data,
+            x=x,
+            y=y,
+            box_pairs=[stats.columns],
+            perform_stat_test=False,
+            pvalues=stats,
+            test_short_name='M.W.W',
+            text_format='full',
+            )
     return ax
 
-def fancybox(df,x,y,p):
-    """
-    df = dataframe
-    p = patient
-    """
+def fancybox(df,x,y,p, ax=None):
     import numpy as np
     import seaborn as sns
     import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib
-    matplotlib.rcParams["svg.fonttype"] = "none"
-    matplotlib.rcParams["font.size"] = 14
-    sns.set_style("whitegrid")
-    plt.rcParams["figure.figsize"] = (5,5)
+    if ax is None: fig, ax= plt.subplots(figsize=(4, 4))
     ax = sns.boxplot(data=df, x=x,y=y,  showfliers=False)
-    sns.stripplot(data=df, x=x,y=y, size=2, color=".3", ax=ax)
-    sns.pointplot(data=df, x=x, y=y, hue=p, ax=ax)
-    plt.xlabel(x)
-    plt.ylabel(y)
+    sns.stripplot(data=df, x=x,y=y, size=2, c=".3", jitter=False, ax=ax)
+    sns.pointplot(data=df, x=x, y=y, hue=p, c='.3', ax=ax)
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
-
+    return ax
 
 def to_edges(df, thresh=0.1):
     import pandas as pd
