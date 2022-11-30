@@ -5,7 +5,7 @@ Scripts for metagenomics analysis
 '''
 def setupplot():
     import matplotlib
-    #matplotlib.use('Agg')
+    matplotlib.use('Agg')
     matplotlib.rcParams["svg.fonttype"] = "none"
     matplotlib.rcParams["font.size"] = 7
     matplotlib.rcParams["lines.linewidth"] = 0.25
@@ -727,7 +727,7 @@ def venn(df1, df2, df3):
 def relabund(df):
     import matplotlib.pyplot as plt
     df = df.T
-    plt.rcParams["figure.figsize"] = (14,4)
+    plt.rcParams["figure.figsize"] = (2.6,4.3)
     #df.sort_index(axis=1, inplace=True)
     unclass = df[df.index.str.contains("unclassified")].sum()
     df = df[~df.index.str.contains("unclassified")]
@@ -832,18 +832,20 @@ def bar(df):
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
 
-def box(data = None, x=None, y=None, ax=None, palette=None, stats=None):
+def box(**kwargs):
     '''
     Should test this!
     '''
     import seaborn as sns
     import matplotlib.pyplot as plt
     import statannot
-    if ax is None: fig, ax=plt.subplots(figsize=(4, 4))
-    sns.boxplot(data=data, x=x,y=y, showfliers=False, ax=ax)
-    sns.stripplot(data=df, x=x,y=y, size=2, color=".3", ax=ax)
+    try: ax = kwargs['ax']
+    except: fig, ax = plt.subplots(figsize=(4, 4))
+    sns.boxplot(showfliers=False, **kwargs)
+    del kwargs['palette']
+    sns.stripplot(size=2, color=".3", **kwargs)
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
-    if stats is not None:
+    try:
         statannot.add_stat_annotation(
             ax,
             data=data,
@@ -851,10 +853,12 @@ def box(data = None, x=None, y=None, ax=None, palette=None, stats=None):
             y=y,
             box_pairs=[stats.columns],
             perform_stat_test=False,
-            pvalues=stats,
+            pvalues=kwargs['stats'],
             test_short_name='M.W.W',
             text_format='full',
             )
+    except:
+        pass
     return ax
 
 def fancybox(df,x,y,p, ax=None):
@@ -878,7 +882,6 @@ def to_edges(df, thresh=0.1):
     nedges = edges.reset_index()
     edges = nedges[nedges.target != nedges.source].set_index(['source','target']).drop_duplicates()[0]
     fin = edges.loc[(edges < 0.99) & (edges.abs() > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}).set_index('source')
-    return fin
 
 def joseplot(fc, t1, t2, pval=None):
     import seaborn as sns
