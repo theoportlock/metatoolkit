@@ -8,7 +8,8 @@ import dask.dataframe as dd
 from dask.distributed import Client
 
 # set up cluster and workers
-client = Client(n_workers=4, threads_per_worker=1, memory_limit='10GB') 
+client = Client(n_workers=8, threads_per_worker=1, memory_limit='1.5GB') 
+client = Client() 
 client
 
 # Data location
@@ -37,10 +38,14 @@ keggMapping = gut_gct_data.merge(kegg[['gene_id','ko']], how='inner', left_on='#
 #fmtcols.append('ko')
 #sumofsm = replacedbykegg[fmtcols].groupby('ko').sum()
 #del keggMapping
-del kegg
+#del kegg
 gc.collect()
 #sumofsm.to_csv("kegg.csv",  single_file=True)
-keggMapping.to_csv("../data/gutKeggMapping.tsv", sep='\t', single_file=True)
+keggMapping = keggMapping.drop(['#gene_id', 'gene_id'], axis=1)
+final = keggMapping.groupby('ko').sum()
+# still need to update this with the dask scheduler on 127.0.0.1:8787
+
+final.to_csv("../data/gutKeggMapping.tsv", sep='\t', single_file=True)
 del sumofsm
 
 ## antismash

@@ -34,12 +34,12 @@ def PERMANOVA(df, meta):
     pvals = permanova(DistanceMatrix(beta, beta.index), meta)
     return pvals
 
-def corr(df1, df2):
+def corr(df1, df2, FDR=True, min_unique=0):
     import pandas as pd
     from scipy.stats import spearmanr
     from statsmodels.stats.multitest import fdrcorrection
-    #df1 = df1.loc[:,df1.nunique() > 5]
-    #df2 = df2.loc[:,df2.nunique() > 5]
+    df1 = df1.loc[:,df1.nunique() > min_unique]
+    df2 = df2.loc[:,df2.nunique() > min_unique]
     df = df1.join(df2, how='inner')
     cor, pval = spearmanr(df.values)
     cordf = pd.DataFrame(cor, index=df.columns, columns=df.columns)
@@ -47,11 +47,12 @@ def corr(df1, df2):
     cordf = cordf.loc[df1.columns, df2.columns]
     pvaldf = pvaldf.loc[df1.columns, df2.columns]
     pvaldf.fillna(1, inplace=True)
-    qvaldf = pd.DataFrame(
-        fdrcorrection(pvaldf.values.flatten())[1].reshape(pvaldf.shape),
-        index = pvaldf.index,
-        columns = pvaldf.columns)
-    return cordf, qvaldf
+    if FDR:
+        pvaldf = pd.DataFrame(
+            fdrcorrection(pvaldf.values.flatten())[1].reshape(pvaldf.shape),
+            index = pvaldf.index,
+            columns = pvaldf.columns)
+    return cordf, pvaldf
 
 def PCOA(df):
     import pandas as pd
@@ -213,14 +214,9 @@ def mult(df):
     from skbio.stats.composition import multiplicative_replacement as mul
     return pd.DataFrame(mul(df), index=df.index, columns=df.columns)
 
-def taxofunc(msp, taxo, short=False, mult=False):
+def taxofunc(msp, taxo, short=False):
     import pandas as pd
-    from skbio.stats.composition import multiplicative_replacement as mul
     m, t = msp.copy(), taxo.copy()
-    m = m.loc[m.sum(axis=1) != 0, m.sum(axis=0) != 0]
-    if mult:
-        m = pd.DataFrame(mul(m), index=m.index, columns=m.columns)
-    taxolevels = ['superkingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
     t['superkingdom'] = 'k_' + t['superkingdom']
     t['phylum'] = t[['superkingdom', 'phylum']].apply(lambda x: '|p_'.join(x.dropna().astype(str).values), axis=1)
     t['class'] = t[['phylum', 'class']].apply(lambda x: '|c_'.join(x.dropna().astype(str).values), axis=1)
@@ -228,13 +224,12 @@ def taxofunc(msp, taxo, short=False, mult=False):
     t['family'] = t[['order', 'family']].apply(lambda x: '|f_'.join(x.dropna().astype(str).values), axis=1)
     t['genus'] = t[['family', 'genus']].apply(lambda x: '|g_'.join(x.dropna().astype(str).values), axis=1)
     t['species'] = t[['genus', 'species']].apply(lambda x: '|s_'.join(x.dropna().astype(str).values), axis=1)
-    t["species"] = t["species"].str.replace(" ", "_").str.replace('/.*','')
-    mt = m.join(t[taxolevels])
-    df = pd.concat([mt.groupby(taxolevels[i]).sum() for i in range(len(taxolevels))])
-    #df = df.loc[~df.index.str.contains('unclassified')]
+    mt = m.join(t, how='inner')
+    df = pd.concat([mt.set_index(t.columns[i])._get_numeric_data().groupby(level=0).sum() for i in range(len(t.columns))])
+    df.index = df.index.str.replace(" ", "_", regex=True).str.replace('/.*','', regex=True)
     if short:
         df.index = df.T.add_prefix("|").T.index.str.extract(".*\|([a-z]_.*$)", expand=True)[0]
-    #df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
+    df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
     return df
 
 def to_network(edges):

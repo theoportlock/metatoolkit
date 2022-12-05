@@ -21,7 +21,6 @@ def heatmap(df, sig=None):
     import matplotlib.pyplot as plt
     import pandas as pd
     pd.set_option("use_inf_as_na", True)
-    #plt.rcParams["figure.figsize"] = df.shape
     df = df.T
     if not sig is None:
         sig = sig.T
@@ -90,13 +89,6 @@ def clustermap(df, sig=None, figsize=(4,5)):
                 )
                 text.set_fontsize(8)
     return g
-
-def PCAplot(df):
-    from pca import pca
-    model = pca(normalize=True,n_components=0.95)
-    model = pca(n_components=0.95)
-    results = model.fit_transform(df)
-    fig, ax = model.biplot(n_feat=1)
 
 def spindleplot(df, x='PC1', y='PC2', ax=None, palette=None):
     #(df, x, y, palette) = pcoa,'PC1', 'PC2', None
@@ -168,7 +160,6 @@ def circos(nodes, edges):
         dev.off()
         '''
     )
-    #print(robjects.globalenv["dataR"])
 
 def venn(df1, df2, df3):
     from matplotlib_venn import venn3
@@ -187,16 +178,12 @@ def relabund(df):
     import matplotlib.pyplot as plt
     df = df.T
     plt.rcParams["figure.figsize"] = (2.6,4.3)
-    #df.sort_index(axis=1, inplace=True)
-    unclass = df[df.index.str.contains("unclassified")].sum()
-    df = df[~df.index.str.contains("unclassified")]
-    df.loc['unclassified'] = unclass
     if df.shape[0] > 20:
         df.loc['other'] = df.loc[df.T.sum().sort_values(ascending=False).iloc[21:].index].sum()
     df = df.loc[df.T.sum().sort_values().tail(20).index]
     norm = df.T.div(df.sum(axis=0), axis=0)
     ax = norm.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ylim=(0,1))
-    plt.legend(title='Taxonomy', bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
+    plt.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
     plt.ylabel('Relative abundance')
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     plt.tight_layout()
@@ -205,11 +192,6 @@ def relabund(df):
 def abund(df):
     import matplotlib.pyplot as plt
     df = df.T
-    plt.rcParams["figure.figsize"] = (14,4)
-    unclass = df[df.index.str.contains("unclassified")].sum()
-    df = df[~df.index.str.contains("unclassified")]
-    #df.sort_index(axis=1, inplace=True)
-    df.loc['unclassified'] = unclass
     if df.shape[0] > 20:
         df.loc['other'] = df.loc[df.T.sum().sort_values(ascending=False).iloc[21:].index].sum()
     df = df.loc[df.T.sum().sort_values().tail(20).index].T
@@ -249,9 +231,6 @@ def bar(df):
     import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib
-    #unclass = df[df.index.str.contains("unclassified")].sum()
-    #df = df[~df.index.str.contains("unclassified")]
-    #df.loc['unclassified'] = unclass
     if df.index.unique().shape[0] > 20:
         df.loc['other'] = df.loc[df.T.sum().sort_values().iloc[21:].index].sum()
     df = df.loc[df.T.sum().sort_values().tail(20).index].T.sort_index(axis=1)
@@ -265,9 +244,6 @@ def bar(df):
     plt.tight_layout()
 
 def box(**kwargs):
-    '''
-    Should test this!
-    '''
     import seaborn as sns
     import matplotlib.pyplot as plt
     import statannot
@@ -346,8 +322,6 @@ def scatterplot(df1, df2, cor):
             sns.lmplot(data=np.log1p(metaData.join(taxoMspMeta)), x=i, y=j)
             plt.tight_layout()
             plt.show()
-    #fig = px.scatter(data, x= 't1', y='t2', hover_name=data.index)
-    #return fig
 
 def pairgrid(df):
     g = sns.PairGrid(df)
@@ -416,26 +390,13 @@ def nocurve(df, mapping):
     import numpy as np
     import matplotlib.pyplot as plt
     mapping = mapping.sort_index()
-    #fig, ax = plt.subplots(figsize=(5, 7))
     df = df.apply(np.log1p).T
-    #if df.shape[0] > 20:
-    #    df.loc["other"] = df.loc[
-    #        df.T.sum().sort_values(ascending=False).iloc[21:].index
-    #    ].sum()
-    #df = df.loc[df.T.sum().sort_values().tail(20).index]
     df.loc['other'] = df[~df.index.isin(mapping.index)].sum()
     df = df.drop(df[~df.index.isin(mapping.index)].index)
-    #df = df.loc[df.sum(axis=1).sort_values().index]
     df.T.plot.area(stacked=True, color=mapping, figsize=(9, 2))
-    #plt.legend(
-        #title="Species", bbox_to_anchor=(1.001, 1), loc="upper left", fontsize="small"
-    #)
     plt.legend(loc='center left', bbox_to_anchor=(0, -0.1))
-    #plt.ylim(0, 0.0008)
     plt.xlim(0, 35)
-    #plt.legend('',frameon=False)
     plt.ylabel("Log(Relative abundance)")
-    #plt.tight_layout()
 
 def aucroc(model, X, y, ax=None, colour=None):
     from sklearn.metrics import auc
@@ -443,7 +404,7 @@ def aucroc(model, X, y, ax=None, colour=None):
     import matplotlib.pyplot as plt
     if ax is None: fig, ax= plt.subplots(figsize=(4, 4))
     y_score = model.predict_proba(X)[:,1]
-    fpr, tpr, _ = roc_curve(y, y_score)
+    fpr, tpr, _ = roc_curve(y_test, y_score)
     AUC = auc(fpr, tpr)
     if colour is None:
         ax.plot(fpr, tpr, label=r"AUCROC = %0.2f" % AUC )
