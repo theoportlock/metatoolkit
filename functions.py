@@ -5,7 +5,7 @@ Scripts for metagenomics plotting
 '''
 def setupplot():
     import matplotlib
-    matplotlib.use('Agg')
+    #matplotlib.use('Agg')
     matplotlib.rcParams["svg.fonttype"] = "none"
     matplotlib.rcParams["font.size"] = 7
     matplotlib.rcParams["lines.linewidth"] = 0.25
@@ -16,14 +16,13 @@ def setupplot():
     matplotlib.rcParams['ytick.major.width'] = 0.25
     matplotlib.rcParams['font.family'] = 'Arial'
     
-def heatmap(df, sig=None):
+def heatmap(df, sig=None, ax=None):
     import seaborn as sns
     import matplotlib.pyplot as plt
     import pandas as pd
+    if ax is None: fig, ax= plt.subplots()
     pd.set_option("use_inf_as_na", True)
-    df = df.T
     if not sig is None:
-        sig = sig.T
         df = df[(sig < 0.05).sum(axis=1) > 0]
         sig = sig.loc[df.index]
     g = sns.heatmap(
@@ -174,19 +173,18 @@ def venn(df1, df2, df3):
             result.append(len(i[0].columns))
     venn3(subsets = result)
 
-def relabund(df):
+def relabund(df, ax=None, figsize=(3,3)):
     import matplotlib.pyplot as plt
-    df = df.T
-    plt.rcParams["figure.figsize"] = (2.6,4.3)
+    try: ax = kwargs['ax']
+    except: fig, ax = plt.subplots(figsize=(4, 4))
     if df.shape[0] > 20:
         df.loc['other'] = df.loc[df.T.sum().sort_values(ascending=False).iloc[21:].index].sum()
     df = df.loc[df.T.sum().sort_values().tail(20).index]
     norm = df.T.div(df.sum(axis=0), axis=0)
-    ax = norm.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ylim=(0,1))
+    ax = norm.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ylim=(0,1), ax=ax)
     plt.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
     plt.ylabel('Relative abundance')
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
-    plt.tight_layout()
     return ax
 
 def abund(df):
@@ -208,7 +206,7 @@ def volcano(lfc, pval, fcthresh=1, pvalthresh=0.05, annot=False, ax=None):
     import numpy as np
     if not ax: fig, ax= plt.subplots()
     lpval = pval.apply(np.log10).mul(-1)
-    ax.scatter(lfc, lpval, c='black', s=2)
+    ax.scatter(lfc, lpval, c='black', s=0.5)
     ax.axvline(0, color='gray', linestyle='--')
     ax.axhline(-1 * np.log10(pvalthresh), color='red', linestyle='-')
     ax.axhline(0, color='gray', linestyle='--')
@@ -247,26 +245,31 @@ def box(**kwargs):
     import seaborn as sns
     import matplotlib.pyplot as plt
     import statannot
+    try:
+        stats = kwargs['stats'].loc[kwargs['stats']]
+        stats.loc[stats] = 0.05
+        del kwargs['stats']
+    except: pass
     try: ax = kwargs['ax']
     except: fig, ax = plt.subplots(figsize=(4, 4))
     sns.boxplot(showfliers=False, **kwargs)
-    del kwargs['palette']
-    sns.stripplot(size=2, color=".3", **kwargs)
+    try: del kwargs['palette']
+    except: pass
+    sns.stripplot(s=1, color=".3", **kwargs)
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     try:
         statannot.add_stat_annotation(
             ax,
-            data=data,
-            x=x,
-            y=y,
-            box_pairs=[stats.columns],
+            data=kwargs['data'],
+            x=kwargs['x'],
+            y=kwargs['y'],
+            box_pairs=stats.index,
             perform_stat_test=False,
-            pvalues=kwargs['stats'],
-            test_short_name='M.W.W',
-            text_format='full',
+            pvalues=stats,
+            text_format='star',
+            verbose=0,
             )
-    except:
-        pass
+    except: pass
     return ax
 
 def fancybox(df,x,y,p, ax=None):
@@ -578,34 +581,6 @@ def lfc(df, mult=False, perm=False):
         ).T.apply(np.log2)
     return outdf
 
-def clr(df, axis=0):
-    '''
-    Centered Log Ratio
-    Aitchison, j. (1982)
-    '''
-    from numpy import log1p
-    tmp = log1p(df)
-    f = lambda x: x - x.mean()
-    z = tmp.apply(f, axis=1-axis)
-    return z
-
-def CLR_normalize(pd_dataframe):
-    """
-    Centered Log Ratio
-    Aitchison, J. (1982). 
-    The statistical analysis of compositional data. 
-    Journal of the Royal Statistical Society: 
-    Series B (Methodological), 44(2), 139-160.
-    """
-    d = pd_dataframe
-    d = d+1
-    step1_1 = d.apply(np.log, 0)
-    step1_2 = step1_1.apply(np.average, 0)
-    step1_3 = step1_2.apply(np.exp)
-    step2 = d.divide(step1_3, 1)
-    step3 = step2.apply(np.log, 0)
-    return(step3)
-
 def cm(X, y, labels=None):
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.metrics import auc
@@ -915,15 +890,9 @@ def lfc(df, mult=False, perm=False):
     return outdf
 
 def clr(df, axis=0):
-    '''
-    Centered Log Ratio
-    Aitchison, j. (1982)
-    '''
-    from numpy import log1p
-    tmp = log1p(df)
-    f = lambda x: x - x.mean()
-    z = tmp.apply(f, axis=1-axis)
-    return z
+    import pandas as pd
+    from skbio.stats.composition import clr
+    return pd.DataFrame(clr(df), index=df.index, columns=df.columns)
 
 def CLR_normalize(pd_dataframe):
     """
