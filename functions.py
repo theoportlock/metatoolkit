@@ -99,7 +99,7 @@ def spindleplot(df, x='PC1', y='PC2', ax=None, palette=None):
     import matplotlib.transforms as transforms
     if palette is None: palette = pd.Series(sns.color_palette("hls", df.index.nunique()).as_hex(), index=df.index.unique())
     if ax is None: fig, ax= plt.subplots()
-    centers = df.reset_index().groupby(df.index.names).mean()
+    centers = df.groupby(df.index).mean()
     centers.columns=['nPC1','nPC2']
     j = df.join(centers)
     j['colours'] = palette
@@ -357,13 +357,13 @@ def curve(df):
     plt.ylabel("Log(Relative abundance)")
     plt.tight_layout()
 
-def newcurve(df, mapping):
+def newcurve(df, mapping, ax=None):
     from scipy import stats
     import seaborn as sns
     import pandas as pd
     import numpy as np
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
+    if ax is None: fig, ax= plt.subplots(figsize=(4, 4))
     df = df.apply(np.log1p).T
     df.loc['other'] = df[~df.index.isin(mapping.index)].sum()
     df = df.drop(df[~df.index.isin(mapping.index)].index).T
@@ -377,15 +377,14 @@ def newcurve(df, mapping):
             griddf.T.sum().sort_values(ascending=False).iloc[21:].index
         ].sum()
     griddf = griddf.loc[griddf.T.sum().sort_values().tail(20).index].T
-    griddf.sort_index(axis=1).plot.area(stacked=True, color=mapping.to_dict(), figsize=(9, 2), ax=ax)
-    plt.xlim(0, 35)
-    plt.legend(
-        title="Species", bbox_to_anchor=(1.001, 1), loc="upper left", fontsize="small"
-    )
-    plt.ylabel("Log(Relative abundance)")
-    plt.tight_layout()
-    plotdf = df.cumsum(axis=1).stack().reset_index()
-    sns.scatterplot(data=plotdf.sort_values(0), x='Days after birth', y=0, s=10, linewidth=0, ax=ax)
+    griddf.sort_index(axis=1).plot.area(stacked=True, color=mapping.to_dict(), ax=ax)
+    plt.tick_params(bottom = False)
+    #plt.xlim(0, 35)
+    #plt.legend( title="Species", bbox_to_anchor=(1.001, 1), loc="upper left", fontsize="small")
+    #plt.ylabel("Log(Relative abundance)")
+    #plotdf = df.cumsum(axis=1).stack().reset_index()
+    #sns.scatterplot(data=plotdf.sort_values(0), x='Days after birth', y=0, s=10, linewidth=0, ax=ax)
+    return ax
 
 def nocurve(df, mapping):
     from scipy import stats
