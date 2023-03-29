@@ -32,7 +32,7 @@ def heatmap(df, sig=None, ax=None):
         center=0,
         yticklabels=True,
         xticklabels=True,
-        linecolor='gray'
+        linecolor='black'
     )
     for tick in g.get_yticklabels(): tick.set_rotation(0)
     if not sig is None:
@@ -60,12 +60,11 @@ def heatmap(df, sig=None, ax=None):
     #plt.tight_layout()
     return g
 
-def clustermap(df, sig=None, figsize=(4,5)):
+def clustermap(df, sig=None, figsize=(4,5), **kwargs):
     import seaborn as sns
     import matplotlib.pyplot as plt
     import matplotlib
     import pandas as pd
-    #matplotlib.rcParams["font.size"] = 6
     g = sns.clustermap(
         data=df,
         cmap="vlag",
@@ -74,6 +73,7 @@ def clustermap(df, sig=None, figsize=(4,5)):
         dendrogram_ratio=(0.25, 0.25),
         yticklabels=True,
         xticklabels=True,
+        **kwargs,
     )
     if not sig is None:
         for i, ix in enumerate(g.dendrogram_row.reordered_ind):
@@ -87,6 +87,7 @@ def clustermap(df, sig=None, figsize=(4,5)):
                     color="black",
                 )
                 text.set_fontsize(8)
+    plt.setp(g.ax_heatmap.get_xticklabels(), rotation=40, ha="right")
     return g
 
 def spindleplot(df, x='PC1', y='PC2', ax=None, palette=None):
@@ -173,31 +174,48 @@ def venn(df1, df2, df3):
             result.append(len(i[0].columns))
     venn3(subsets = result)
 
-def relabund(df, ax=None, figsize=(3,3)):
+def upset(dfdict):
+    from upsetplot import UpSet, from_contents
+    intersections = from_contents(dfdict) 
+    upset = UpSet(intersections)
+    upset.plot()
+
+def sigCorrPlot(corr, thresh=0.5, **kwargs):
+    import pandas as pd
+    sigcorrs = pd.concat(
+            [cor.gt(thresh).sum(),
+             cor.lt(-thresh).sum()],
+            axis=1,
+            keys=['gt','lt']
+            )
+    sigcorrs['no_change'] = sigcorrs['gt'].add(sigcorrs['lt']).sub(cor.shape[0]).abs()
+    f.abund(sigcorrs)
+
+def relabund(df, **kwargs):
     import matplotlib.pyplot as plt
     try: ax = kwargs['ax']
     except: fig, ax = plt.subplots(figsize=(4, 4))
-    if df.shape[0] > 20:
-        df.loc['other'] = df.loc[df.T.sum().sort_values(ascending=False).iloc[21:].index].sum()
-    df = df.loc[df.T.sum().sort_values().tail(20).index]
-    norm = df.T.div(df.sum(axis=0), axis=0)
-    ax = norm.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ylim=(0,1), ax=ax)
+    if df.shape[1] > 20:
+        df['other'] = df[df.sum().sort_values(ascending=False).iloc[19:].index].sum(axis=1)
+    df = df[df.sum().sort_values().tail(20).index]
+    df = df.T.div(df.sum(axis=1), axis=1).T
+    df.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ylim=(0,1), ax=ax)
     plt.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
     plt.ylabel('Relative abundance')
-    plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     return ax
 
-def abund(df):
+def abund(df, **kwargs):
     import matplotlib.pyplot as plt
-    df = df.T
-    if df.shape[0] > 20:
-        df.loc['other'] = df.loc[df.T.sum().sort_values(ascending=False).iloc[21:].index].sum()
-    df = df.loc[df.T.sum().sort_values().tail(20).index].T
-    ax = df.plot(kind='bar',stacked=True, width=0.9, cmap='tab20')
-    plt.legend(title='Gene', bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
+    try: ax = kwargs['ax']
+    except: fig, ax = plt.subplots(figsize=(4, 4))
+    if df.shape[1] > 20:
+        df['other'] = df[df.sum().sort_values(ascending=False).iloc[19:].index].sum(axis=1)
+    df = df[df.sum().sort_values().tail(20).index]
+    df.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ax=ax, **kwargs)
+    plt.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
     plt.ylabel('Relative abundance')
-    plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
-    plt.tight_layout()
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     return ax
 
 def volcano(lfc, pval, fcthresh=1, pvalthresh=0.05, annot=False, ax=None):
@@ -246,16 +264,23 @@ def box(**kwargs):
     import matplotlib.pyplot as plt
     import statannot
     try:
-        stats = kwargs['stats'].loc[kwargs['stats']]
-        stats.loc[stats] = 0.05
+        stats = kwargs['stats']
         del kwargs['stats']
-    except: pass
+        stats = stats.loc[stats]
+        if stats.sum() > 0:
+            stats.loc[stats] = 0.05
+    except:
+        pass
     try: ax = kwargs['ax']
     except: fig, ax = plt.subplots(figsize=(4, 4))
-    sns.boxplot(showfliers=False, **kwargs)
+    sns.boxplot(showfliers=False, showcaps=False, **kwargs)
     try: del kwargs['palette']
     except: pass
-    sns.stripplot(s=1, color=".3", **kwargs)
+    try:
+        if kwargs['hue']:
+            kwargs['dodge'] = True
+    except: pass
+    sns.stripplot(s=2, color="0.2", **kwargs)
     plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
     try:
         statannot.add_stat_annotation(
@@ -270,20 +295,6 @@ def box(**kwargs):
             verbose=0,
             )
     except: pass
-    return ax
-
-def fancybox(df,x,y,p, ax=None):
-    import numpy as np
-    import seaborn as sns
-    import pandas as pd
-    import matplotlib.pyplot as plt
-    import matplotlib
-    if ax is None: fig, ax= plt.subplots(figsize=(4, 4))
-    ax = sns.boxplot(data=df, x=x,y=y,  showfliers=False)
-    sns.stripplot(data=df, x=x,y=y, size=2, c=".3", jitter=False, ax=ax)
-    sns.pointplot(data=df, x=x, y=y, hue=p, c='.3', ax=ax)
-    plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
-    plt.tight_layout()
     return ax
 
 def joseplot(fc, t1, t2, pval=None):
@@ -422,7 +433,7 @@ def aucroc(model, X, y, ax=None, colour=None):
 
 def to_network(edges):
     import networkx as nx
-    G = nx.from_pandas_edgelist(edges)
+    G = nx.from_pandas_edgelist(edges.reset_index())
     return G
 
 def cluster(G):
@@ -448,16 +459,16 @@ def clusterplot(G):
             node_size=50
             )
     
-def annotateplot(G, group):
+def networkplot(G, group=None):
     import matplotlib.pyplot as plt
     from itertools import count
     import networkx as nx
-    nx.set_node_attributes(G, group, "group")
-    #nx.set_node_attributes(G, pd.Series(labeler.labels_, index=G.nodes), "group")
-    groups = set(nx.get_node_attributes(G, 'group').values())
-    mapping = dict(zip(sorted(groups),count()))
-    nodes = G.nodes()
-    colors = [mapping[G.nodes[n]['group']] for n in nodes]
+    if group:
+        nx.set_node_attributes(G, group, "group")
+        groups = set(nx.get_node_attributes(G, 'group').values())
+        mapping = dict(zip(sorted(groups),count()))
+        nodes = G.nodes()
+        colors = [mapping[G.nodes[n]['group']] for n in nodes]
     pos = nx.spring_layout(G)
     #pos= nx.spring_layout(G, with_labels=True, node_size=50)
     ax = nx.draw_networkx_edges(G, pos, alpha=0.2)
@@ -524,41 +535,6 @@ def sig(df, mult=False, perm=False):
             columns = outdf.columns,
             index = outdf.index
             )
-    return outdf
-
-def mww(df, mult=False):
-    ''' index needs to be grouping element '''
-    from scipy.stats import mannwhitneyu
-    from statsmodels.stats.multitest import fdrcorrection 
-    import itertools
-    import pandas as pd
-    combs = list(itertools.combinations(df.index.unique(), 2))
-    outdf = pd.DataFrame(
-        [mannwhitneyu(df.loc[i[0]], df.loc[i[1]])[1] for i in combs],
-        columns = df.columns,
-        index = combs
-        )
-    if mult:
-        outdf = pd.DataFrame(
-            fdrcorrection(outdf.values.flatten())[1].reshape(outdf.shape),
-            columns = outdf.columns,
-            index = outdf.index
-            )
-    return outdf
-
-def logfc(df):
-    ''' index needs to be grouping element, df needs to be zero free '''
-    from scipy.stats import mannwhitneyu
-    from statsmodels.stats.multitest import fdrcorrection 
-    from itertools import combinations as c
-    import pandas as pd
-    import numpy as np
-    combs = list(c(df.index.unique(), 2))
-    outdf = pd.DataFrame(np.array(
-        [df.loc[i[0]].mean().div(df.loc[i[1]].mean()) for i in combs]),
-        columns = df.columns,
-        index = combs
-        )
     return outdf
 
 def lfc(df, mult=False, perm=False):
@@ -634,7 +610,7 @@ def corr(df1, df2, FDR=True, min_unique=0):
     from scipy.stats import spearmanr
     from statsmodels.stats.multitest import fdrcorrection
     df1 = df1.loc[:,df1.nunique() > min_unique]
-    df2 = df2.loc[:,df2.nunique() > min_unique]
+    #df2 = df2.loc[:,df2.nunique() > min_unique]
     df = df1.join(df2, how='inner')
     cor, pval = spearmanr(df.values)
     cordf = pd.DataFrame(cor, index=df.columns, columns=df.columns)
@@ -664,13 +640,8 @@ def PCOA(df):
 
 def PCA(df):
     import pandas as pd
-    import numpy as np
-    import plotly.express as px
-    from sklearn import datasets
     from sklearn.decomposition import PCA
     from sklearn.preprocessing import StandardScaler
-    from sklearn.metrics import silhouette_score
-    from sklearn.cluster import KMeans
     scaledDf = StandardScaler().fit_transform(df)
     pca = PCA()
     results = pca.fit_transform(scaledDf).T
@@ -796,13 +767,17 @@ def beta(df):
         index=df.index) 
     return BC_dist
 
-def to_edges(df, thresh=0.1):
+def to_edges(df, thresh=0.5, directional=True):
     import pandas as pd
     df = df.rename_axis('source', axis=0).rename_axis("target", axis=1)
     edges = df.stack().to_frame()[0]
     nedges = edges.reset_index()
     edges = nedges[nedges.target != nedges.source].set_index(['source','target']).drop_duplicates()[0]
-    fin = edges.loc[(edges < 0.99) & (edges.abs() > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}).set_index('source')
+    if directional:
+        fin = edges.loc[(edges < 0.99) & (edges.abs() > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}).set_index('source').sort_values('weight')
+    else:
+        fin = edges.loc[(edges < 0.99) & (edges > thresh)].dropna().reset_index().rename(columns={'level_0': 'source', 'level_1':'target', 0:'weight'}).set_index('source').sort_values('weight')
+    return fin
 
 def mult(df):
     import pandas as pd
@@ -835,7 +810,6 @@ def to_network(edges):
 def cluster(G):
     from networkx.algorithms.community.centrality import girvan_newman as cluster
     import pandas as pd
-    #clust = nx.clustering(G)
     communities = cluster(G)
     node_groups = []
     for com in next(communities):
@@ -928,6 +902,109 @@ def cm(X, y, labels=None):
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
     disp.plot()
     return cm
+
+### Workflows
+def diversityanalysis(df, subject):
+    import pandas as pd
+    import numpy as np
+    diversity = pd.concat(
+            [f.evenness(df),
+             f.richness(df),
+             f.shannon(df)],
+            axis=1).sort_index().sort_index(ascending=False)
+    diversity.droplevel(1).to_csv(f'../results/{subject}Diversity.csv')
+    diversity = diversity.droplevel(0)
+    fc = f.lfc(diversity)
+    fc.columns = fc.columns.str.join('/')
+    fc.T.to_csv(f'../results/{subject}FCdiversity.csv')
+    sig = f.sig(diversity)
+    sig.columns = sig.columns.str.join('/')
+    sig.T.to_csv(f'../results/{subject}MWWdiversity.csv')
+    pcoa = f.PCOA(df.droplevel(0).sort_index())
+    pcoa.to_csv(f'../results/{subject}PCOA.csv')
+    permanova = f.PERMANOVA(df.reset_index(drop=True), df.index)
+    with open(f'../results/{subject}permanova.txt','w') as of: of.write(permanova.to_string())
+    # pairwise
+    comb = list(itertools.combinations(df.index.unique(), 2))
+    out= pd.DataFrame()
+    i = comb[0]
+    for i in comb: 
+        out[i] = f.PERMANOVA(df.loc[list(i)].reset_index(drop=True), df.loc[list(i)].index)
+    out.to_csv(f'../results/{subject}pairwiseANOVA.csv')
+
+def differentialAbundance(df, subject):
+    import numpy as np 
+    fc = lfc(df, perm=True)
+    fc.columns = fc.columns.str.join('/')
+    fc = fc.replace([np.inf, -np.inf], np.nan).dropna()
+    pval = sig(df, mult=True, perm=True)
+    #pval = ANCOM(df, perm=True).T
+    pval.columns = pval.columns.str.join('/')
+    pval = pval.loc[fc.index]
+    fc.to_csv(f'../results/{subject}FCabundance.csv')
+    pval.to_csv(f'../results/{subject}MWWabundance.csv')
+
+def differentialAbundance_plot(subject):
+    fc = pd.read_csv('../results/{subject}FCabundance.csv', index_col=0)
+    sig = pd.read_csv('../results/{subject}MWWabundance.csv', index_col=0)
+    fc.columns = fc.columns.str.split('/', expand=True)
+    sig.columns = sig.columns.str.split('/', expand=True)
+    val = 0.05
+    fcthresh = 1
+    hfc = fc.xs('Healthy', axis=1, level=1)
+    hsig = sig.xs('Healthy', axis=1, level=1)
+    ffc = hfc.loc[hfc.abs().gt(fcthresh).any(axis=1) & hsig.lt(val).any(axis=1)]
+    fsig = hsig.loc[hfc.abs().gt(fcthresh).any(axis=1) & hsig.lt(val).any(axis=1)]
+    f.clustermap(ffc, fsig.lt(val), figsize=(3,7))
+    plt.savefig(f'../results/{subject}ClusterFC_HvD.svg')
+
+def differentialAbundance_vennplot(var1,var2,var3, subject, val=0.05, fcthresh=1):
+    d1 = hfc[var1].loc[hsig.lt(val) & hfc.lt(-fcthresh).AML].index
+    d2 = hfc.MDS.loc[hsig.lt(val).MDS & hfc.lt(-fcthresh).MDS].index
+    d3 = hfc.MPN.loc[hsig.lt(val).MPN & ffc.lt(-fcthresh).MPN].index
+    fig, ax = plt.subplots(figsize=(2,2))
+    venn3(subsets=[set(d1),set(d2),set(d3)], set_labels=[var1,var2,var3], ax=ax)
+    plt.savefig(f'../results/{subject}VennDep.svg')
+    uaml = hfc.AML.loc[hsig.lt(val).AML & hfc.gt(fcthresh).AML].index
+    umds = hfc.MDS.loc[hsig.lt(val).MDS & hfc.gt(fcthresh).MDS].index
+    umpn = hfc.MPN.loc[hsig.lt(val).MPN & hfc.gt(fcthresh).MPN].index
+    fig, ax = plt.subplots(figsize=(2,2))
+    venn3(subsets=[set(umds),set(uaml),set(umpn)], set_labels=['MDS','AML','MPN'], set_colors=colours, ax=ax)
+    plt.savefig(f'../results/{subject}mspVennEnrich.svg')
+
+def fbratio(metamsp, taxo):
+    var='phylum'
+    metaPhylumMsp = metamsp.T.join(taxo[var]).groupby(var).sum().T
+    metaPhylumMsp = metaPhylumMsp.loc[metaPhylumMsp.sum(axis=1) != 0, metaPhylumMsp.sum(axis=0) !=0]
+    FB = metaPhylumMsp.Firmicutes.div(metaPhylumMsp.Bacteroidota)
+    FB.replace([np.inf, -np.inf], np.nan, inplace=True)
+    FB.dropna(inplace=True)
+    FB = FB.reset_index().set_axis(['Host Phenotype', 'F/B Ratio'], axis=1).set_index('Host Phenotype')
+    FB = FB.sort_index()
+    FB.to_csv('../results/FBratio.csv')
+    lfc = f.lfc(FB).T.set_axis(['F/B_FC'], axis=1)
+    sig = f.sig(FB).T.set_axis(['F/B_M.W.W'], axis=1)
+    joined = lfc.join(sig)
+    joined.index = joined.index.str.join('/')
+    joined.to_csv('../results/FBratioFC.csv')
+
+def fbratio_plot():
+    FB = pd.read_csv('../results/FBratio.csv', index_col=0).sort_index()
+    stats = pd.read_csv('../results/FBratioFC.csv', index_col=0)
+    stats.index = stats.index.str.split('/')
+    fig, ax = plt.subplots(figsize=(1.5,1.5))
+    f.box(data=FB, x=FB.index, y='F/B Ratio', palette=colours.to_dict(), stats=stats['F/B_M.W.W'].lt(0.05), ax=ax)
+    ax.set_yscale('log')
+    plt.legend([],[], frameon=False)
+    plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
+    plt.ylim([0.1,1000])
+    plt.savefig(f'../results/FBratiobox.svg')
+
+def phylumRelabundance(metamsp, taxo):
+    phy = metamsp.T.join(taxo['phylum']).groupby('phylum').sum().T
+    ndf = phy.groupby(phy.index).mean()
+    nndf = ndf[ndf.sum().sort_values().tail(8).index]
+    nndf.to_csv('../results/phylumRelabund.csv')
 
 if __name__ == '__main__':
     import doctest
