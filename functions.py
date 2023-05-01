@@ -6,15 +6,45 @@ Scripts for metagenomics plotting
 def setupplot():
     import matplotlib
     #matplotlib.use('Agg')
+    linewidth = 0.25
+    matplotlib.rcParams['grid.color'] = 'lightgray'
     matplotlib.rcParams["svg.fonttype"] = "none"
     matplotlib.rcParams["font.size"] = 7
-    matplotlib.rcParams["lines.linewidth"] = 0.25
+    matplotlib.rcParams["lines.linewidth"] = linewidth
     matplotlib.rcParams["figure.figsize"] = (4, 4)
-    matplotlib.rcParams["axes.linewidth"] = 0.25
+    matplotlib.rcParams["axes.linewidth"] = linewidth
     matplotlib.rcParams['axes.facecolor'] = 'none'
-    matplotlib.rcParams['xtick.major.width'] = 0.25
-    matplotlib.rcParams['ytick.major.width'] = 0.25
+    matplotlib.rcParams['xtick.major.width'] = linewidth
+    matplotlib.rcParams['ytick.major.width'] = linewidth
     matplotlib.rcParams['font.family'] = 'Arial'
+    matplotlib.rcParams['axes.axisbelow'] = True
+
+def pointheatmap(df, ax=None, size_scale=300):
+    import matplotlib.pyplot as plt
+    df.columns.name='x'
+    df.index.name='y'
+    vals = df.unstack()
+    vals.name='size'
+    fvals = vals.to_frame().reset_index()
+    x, y, size= fvals.x, fvals.y, fvals['size']
+    if ax is None: fig, ax= plt.subplots()
+    #x_labels = [v for v in sorted(x.unique())]
+    #y_labels = [v for v in sorted(y.unique())]
+    x_labels = x.unique()
+    y_labels = y.unique()
+    x_to_num = {p[1]:p[0] for p in enumerate(x_labels)} 
+    y_to_num = {p[1]:p[0] for p in enumerate(y_labels)} 
+    ax.scatter(
+        x=x.map(x_to_num),
+        y=y.map(y_to_num),
+        s=size * size_scale,
+    )
+    ax.set_xticks([x_to_num[v] for v in x_labels])
+    ax.set_xticklabels(x_labels, rotation=45, horizontalalignment='right')
+    ax.set_yticks([y_to_num[v] for v in y_labels])
+    ax.set_yticklabels(y_labels)
+    plt.grid()
+    return ax
     
 def heatmap(df, sig=None, ax=None):
     import seaborn as sns
@@ -32,7 +62,6 @@ def heatmap(df, sig=None, ax=None):
         center=0,
         yticklabels=True,
         xticklabels=True,
-        linecolor='black'
     )
     for tick in g.get_yticklabels(): tick.set_rotation(0)
     if not sig is None:
@@ -90,8 +119,28 @@ def clustermap(df, sig=None, figsize=(4,5), **kwargs):
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=40, ha="right")
     return g
 
+def extremes(df, n=50):
+    import pandas as pd
+    return pd.concat([df.iloc[:,0].sort_values().head(n),df.iloc[:,0].sort_values().tail(n)])
+
+def levene(df):
+    import pandas as pd
+    from scipy.stats import levene
+    output = pd.Series()
+    for col in df.columns: 
+        output[col] = levene(*[df.loc[cat,col] for cat in df.index.unique()])[1]
+    return output
+
+def shapiro(df):
+    import pandas as pd
+    from scipy.stats import shapiro
+    output = pd.DataFrame()
+    for col in df.columns: 
+        for cat in df.index.unique():
+            output.loc[col,cat] = shapiro(df.loc[cat,col])[1]
+    return output
+
 def spindleplot(df, x='PC1', y='PC2', ax=None, palette=None):
-    #(df, x, y, palette) = pcoa,'PC1', 'PC2', None
     import pandas as pd
     import seaborn as sns
     import numpy as np
@@ -127,8 +176,7 @@ def circos(nodes, edges):
     pandas2ri.activate()
     ro.globalenv["nodes"] = nodes
     ro.globalenv["edges"] = edges
-    ro.r(
-        '''
+    ro.r('''
         require(RColorBrewer)
         require(circlize)
         require(ggplot2)
@@ -190,6 +238,27 @@ def sigCorrPlot(corr, thresh=0.5, **kwargs):
             )
     sigcorrs['no_change'] = sigcorrs['gt'].add(sigcorrs['lt']).sub(cor.shape[0]).abs()
     f.abund(sigcorrs)
+
+def vsnnorm(df):
+    import rpy2.robjects.packages as rpackages
+    import rpy2.robjects as robjects
+    from rpy2.robjects import numpy2ri
+    # import the 'vsn' package from Bioconductor
+    r_data_matrix = numpy2ri.numpy2ri(df)
+    utils = rpackages.importr('utils')
+    utils.chooseCRANmirror(ind=1)
+    utils.install_packages('vsn')
+    vsn = rpackages.importr('vsn')
+    # convert the data matrix to an R matrix object
+    r_data_matrix = robjects.r['matrix'](robjects.FloatVector(df.flatten()), nrow=len(data_matrix), ncol=len(data_matrix[0]))
+    # perform VSN normalization
+    vsn_normalized_matrix = vsn.vsn(r_data_matrix)
+    # convert the normalized matrix back to a Python numpy array
+    normalized_matrix = np.array(vsn_normalized_matrix)
+    return(normalized_matrix)
+
+def norm(df):
+    return df.T.div(df.sum(axis=1), axis=1).T
 
 def relabund(df, **kwargs):
     import matplotlib.pyplot as plt
@@ -273,6 +342,11 @@ def box(**kwargs):
         pass
     try: ax = kwargs['ax']
     except: fig, ax = plt.subplots(figsize=(4, 4))
+    try:
+        s = kwargs['s']
+        del kwargs['s']
+    except:
+        pass
     sns.boxplot(showfliers=False, showcaps=False, **kwargs)
     try: del kwargs['palette']
     except: pass
@@ -431,10 +505,15 @@ def aucroc(model, X, y, ax=None, colour=None):
     plt.legend(loc="lower right")
     return ax
 
-def to_network(edges):
+def plot_network(edges):
     import networkx as nx
     G = nx.from_pandas_edgelist(edges.reset_index())
-    return G
+    nx.draw(
+            G,
+            with_labels=True,
+            node_color="b",
+            node_size=50
+            )
 
 def cluster(G):
     from networkx.algorithms.community.centrality import girvan_newman as cluster
@@ -605,14 +684,14 @@ def PERMANOVA(df, meta):
     pvals = permanova(DistanceMatrix(beta, beta.index), meta)
     return pvals
 
-def corr(df1, df2, FDR=True, min_unique=0):
+def corr(df1, df2, FDR=True, min_unique=10):
     import pandas as pd
     from scipy.stats import spearmanr
     from statsmodels.stats.multitest import fdrcorrection
     df1 = df1.loc[:,df1.nunique() > min_unique]
-    #df2 = df2.loc[:,df2.nunique() > min_unique]
+    df2 = df2.loc[:,df2.nunique() > min_unique]
     df = df1.join(df2, how='inner')
-    cor, pval = spearmanr(df.values)
+    cor, pval = spearmanr(df)
     cordf = pd.DataFrame(cor, index=df.columns, columns=df.columns)
     pvaldf = pd.DataFrame(pval, index=df.columns, columns=df.columns)
     cordf = cordf.loc[df1.columns, df2.columns]
@@ -624,6 +703,18 @@ def corr(df1, df2, FDR=True, min_unique=0):
             index = pvaldf.index,
             columns = pvaldf.columns)
     return cordf, pvaldf
+
+def varianceexplained(df):
+    import pandas as pd
+    from skbio.stats.distance import permanova
+    import numpy as np
+    import skbio
+    from scipy.spatial import distance
+    df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
+    Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
+    DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
+    result = permanova(DM_dist, df.index).T
+    return result.T['p-value']
 
 def PCOA(df):
     import pandas as pd
@@ -647,6 +738,15 @@ def PCA(df):
     results = pca.fit_transform(scaledDf).T
     df['PC1'], df['PC2'] = results[0,:], results[1,:]
     return df[['PC1', 'PC2']]
+
+def minmaxscale(df):
+    import pandas as pd
+    from sklearn.preprocessing import MinMaxScaler
+    scaledDf = pd.DataFrame(
+            MinMaxScaler().fit_transform(df),
+            index=df.index,
+            columns=df.columns)
+    return scaledDf
 
 def StandardScale(df):
     import pandas as pd
@@ -801,11 +901,6 @@ def taxofunc(msp, taxo, short=False):
         df.index = df.T.add_prefix("|").T.index.str.extract(".*\|([a-z]_.*$)", expand=True)[0]
     df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
     return df
-
-def to_network(edges):
-    import networkx as nx
-    G = nx.from_pandas_edgelist(edges)
-    return G
 
 def cluster(G):
     from networkx.algorithms.community.centrality import girvan_newman as cluster
@@ -1005,6 +1100,16 @@ def phylumRelabundance(metamsp, taxo):
     ndf = phy.groupby(phy.index).mean()
     nndf = ndf[ndf.sum().sort_values().tail(8).index]
     nndf.to_csv('../results/phylumRelabund.csv')
+
+def convtoRGBA(df):
+    import seaborn as sns
+    import pandas as pd
+    for col in df.columns:
+        lut = pd.Series(
+                sns.color_palette("hls", df[col].sort_values().nunique()).as_hex(),
+                index=df[col].sort_values().unique())
+        df[col] = df[col].map(lut)
+    return df
 
 if __name__ == '__main__':
     import doctest
