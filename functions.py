@@ -121,7 +121,8 @@ def clustermap(df, sig=None, figsize=(4,5), **kwargs):
 
 def extremes(df, n=50):
     import pandas as pd
-    return pd.concat([df.iloc[:,0].sort_values().head(n),df.iloc[:,0].sort_values().tail(n)])
+    return pd.concat([df.sort_values().head(n),
+                      df.sort_values().tail(n)])
 
 def levene(df):
     import pandas as pd
@@ -704,6 +705,15 @@ def corr(df1, df2, FDR=True, min_unique=10):
             columns = pvaldf.columns)
     return cordf, pvaldf
 
+def filter(df, min_unique=0, thresh=None):
+    import numpy as np
+    df = df.loc[
+            df.agg(np.count_nonzero, axis=1) > min_unique,
+            df.agg(np.count_nonzero, axis=0) > min_unique]
+    if thresh:
+        df = df.loc[:, df.abs().gt(thresh).any(axis=0)]
+    return df
+
 def varianceexplained(df):
     import pandas as pd
     from skbio.stats.distance import permanova
@@ -713,8 +723,9 @@ def varianceexplained(df):
     df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
     Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
     DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
-    result = permanova(DM_dist, df.index).T
-    return result.T['p-value']
+    result = permanova(DM_dist, df.index, permutations=10000)
+    #return result['p-value']
+    return result['test statistic']
 
 def PCOA(df):
     import pandas as pd
@@ -1019,7 +1030,6 @@ def diversityanalysis(df, subject):
     pcoa.to_csv(f'../results/{subject}PCOA.csv')
     permanova = f.PERMANOVA(df.reset_index(drop=True), df.index)
     with open(f'../results/{subject}permanova.txt','w') as of: of.write(permanova.to_string())
-    # pairwise
     comb = list(itertools.combinations(df.index.unique(), 2))
     out= pd.DataFrame()
     i = comb[0]
