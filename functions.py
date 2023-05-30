@@ -277,16 +277,15 @@ def relabund(df, **kwargs):
 
 def abund(df, **kwargs):
     import matplotlib.pyplot as plt
-    try: ax = kwargs['ax']
-    except: fig, ax = plt.subplots(figsize=(4, 4))
+    kwargs['ax'] = plt.subplots()[1] if not kwargs.get('ax') else kwargs.get('ax')
     if df.shape[1] > 20:
         df['other'] = df[df.sum().sort_values(ascending=False).iloc[19:].index].sum(axis=1)
     df = df[df.sum().sort_values().tail(20).index]
-    df.plot(kind='bar',stacked=True, width=0.9, cmap='tab20', ax=ax, **kwargs)
+    df.plot(kind='bar', stacked=True, width=0.9, cmap='tab20', **kwargs)
     plt.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
     plt.ylabel('Relative abundance')
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
-    return ax
+    plt.setp(kwargs['ax'].get_xticklabels(), rotation=45, ha="right")
+    return kwargs['ax']
 
 def volcano(lfc, pval, fcthresh=1, pvalthresh=0.05, annot=False, ax=None):
     import pandas as pd
@@ -311,23 +310,24 @@ def volcano(lfc, pval, fcthresh=1, pvalthresh=0.05, annot=False, ax=None):
     if annot: [ax.text(sig.loc[i,'x'], sig.loc[i,'y'], s=i) for i in sig.index]
     return ax
 
-def bar(df):
+def bar(*args, **kwargs):
     import numpy as np
     import seaborn as sns
     import pandas as pd
     import matplotlib.pyplot as plt
     import matplotlib
-    if df.index.unique().shape[0] > 20:
-        df.loc['other'] = df.loc[df.T.sum().sort_values().iloc[21:].index].sum()
-    df = df.loc[df.T.sum().sort_values().tail(20).index].T.sort_index(axis=1)
-    #df = df.apply(np.log1p)
-    df = df.melt()
-    ax = sns.boxplot(data=df, x=df.columns[0], y='value', showfliers=False, boxprops=dict(alpha=.25))
-    sns.stripplot(data=df, x=df.columns[0], y='value', size=2, color=".3", ax=ax)
-    plt.xlabel(df.columns[0])
-    plt.ylabel('Log(Relative abundance)')
-    plt.setp(ax.get_xticklabels(), rotation=40, ha="right")
-    plt.tight_layout()
+    kwargs['ax'] = plt.subplots()[1] if not kwargs.get('ax') else kwargs.get('ax')
+    df = args[0].copy()
+    if df.columns.shape[0] > 20:
+        df['other'] = df[df.mean().sort_values().iloc[21:].index].sum(axis=1)
+    df = df[df.median().sort_values(ascending=False).head(20).index]
+    mdf = df.melt()
+    kwargs['ax'] = sns.boxplot(data=mdf, x=mdf.columns[0], y='value', showfliers=False, boxprops=dict(alpha=.25))
+    sns.stripplot(data=mdf, x=mdf.columns[0], y='value', size=2, color=".3", ax=kwargs['ax'])
+    kwargs['ax'].set_xlabel(mdf.columns[0])
+    kwargs['ax'].set_ylabel('Relative abundance')
+    plt.setp(kwargs['ax'].get_xticklabels(), rotation=45, ha="right")
+    return kwargs['ax']
 
 def box(**kwargs):
     import seaborn as sns
@@ -594,6 +594,45 @@ def clusterdendrogram(G):
             k += 1
     dendrogram(Z, labels=leaves)
 
+def dendrogram(df):
+    from scipy.cluster.hierarchy import linkage, dendrogram
+    import matplotlib.pyplot as plt
+    distance_matrix = np.array([[0, 1, 2, 3],
+                                [1, 0, 4, 5],
+                                [2, 4, 0, 6],
+                                [3, 5, 6, 0]])
+    Z = linkage(distance_matrix, method='average')
+    plt.figure(figsize=(10, 5))
+    dendrogram(Z)
+    plt.xlabel('Data Points')
+    plt.ylabel('Distance')
+    plt.title('Dendrogram')
+    return ax
+
+def polar(df):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    palette = pd.Series(sns.color_palette("hls", df.index.nunique()).as_hex(), index=df.index.unique())
+    ndf = df.loc[~df.index.str.contains('36'), df.columns.str.contains('Raw')].groupby(level=0).mean()
+    data = ndf.T.copy().to_numpy()
+    angles = np.linspace(0, 2*np.pi, len(ndf.columns), endpoint=False)
+    data = np.concatenate((data, [data[0]]))
+    angles = np.concatenate((angles, [angles[0]]))
+    categories = ndf.columns.to_list()
+    loopcategories = ndf.columns.to_list()
+    loopcategories.append(df.columns[0])
+    alldf = pd.DataFrame(data=data, index = loopcategories, columns=ndf.index).T
+    allangles = pd.Series(data=angles, index=loopcategories)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, polar=True)
+    for color in alldf.index.unique():
+        plotdf = alldf.loc[alldf.index==color]
+        ax.plot(allangles, plotdf.T, linewidth=1, color = palette[color])
+    plt.title('Radial Line Graph')
+    ax.set_xticks(allangles[:-1])
+    ax.set_xticklabels(categories)
+    ax.grid(True)
+
 def sig(df, mult=False, perm=False):
     ''' index needs to be grouping element '''
     from scipy.stats import mannwhitneyu
@@ -724,8 +763,8 @@ def varianceexplained(df):
     Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
     DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
     result = permanova(DM_dist, df.index, permutations=10000)
-    #return result['p-value']
-    return result['test statistic']
+    return result['p-value']
+    #return result['test statistic']
 
 def PCOA(df):
     import pandas as pd
@@ -839,8 +878,8 @@ def SHAP_bin(X,model):
     return final
 
 def SHAP_interact(X,model):
-    import numpy as np
     from scipy.stats import spearmanr
+    import numpy as np
     import pandas as pd
     import shap
     explainer = shap.TreeExplainer(model)
@@ -851,23 +890,17 @@ def SHAP_interact(X,model):
     final = pd.DataFrame(vals[0], index=X.columns, columns=X.columns)
     return final
 
-def shannon(df):
-    import pandas as pd
+def shannon(df, axis=1):
     from skbio.diversity.alpha import shannon
-    df = pd.DataFrame(df.agg(shannon, axis=1), columns=['Shannon Diversity'])
-    return df
+    return df.agg(shannon, axis=axis)
 
-def evenness(df):
-    import pandas as pd
+def evenness(df, axis=1):
     from skbio.diversity.alpha import pielou_e
-    df = pd.DataFrame(df.agg(pielou_e, axis=1), columns=['Pielou Evenness'])
-    return df
+    return df.agg(pielou_e, axis=axis)
 
-def richness(df):
-    import pandas as pd
+def richness(df, axis=1):
     import numpy as np
-    df = pd.DataFrame(df.agg(np.count_nonzero, axis=1), columns=['Richness'])
-    return df
+    return df.agg(np.count_nonzero, axis=axis)
 
 def beta(df):
     import pandas as pd
