@@ -28,8 +28,6 @@ def pointheatmap(df, ax=None, size_scale=300):
     fvals = vals.to_frame().reset_index()
     x, y, size= fvals.x, fvals.y, fvals['size']
     if ax is None: fig, ax= plt.subplots()
-    #x_labels = [v for v in sorted(x.unique())]
-    #y_labels = [v for v in sorted(y.unique())]
     x_labels = x.unique()
     y_labels = y.unique()
     x_to_num = {p[1]:p[0] for p in enumerate(x_labels)} 
@@ -84,9 +82,7 @@ def heatmap(df, sig=None, ax=None):
                     color="black",
                 )
                 text.set_fontsize(8)
-    #g.set_aspect(1)
     plt.setp(g.get_xticklabels(), rotation=40, ha="right")
-    #plt.tight_layout()
     return g
 
 def clustermap(df, sig=None, figsize=(4,5), **kwargs):
@@ -258,9 +254,6 @@ def vsnnorm(df):
     normalized_matrix = np.array(vsn_normalized_matrix)
     return(normalized_matrix)
 
-def norm(df):
-    return df.T.div(df.sum(axis=1), axis=1).T
-
 def relabund(df, **kwargs):
     import matplotlib.pyplot as plt
     try: ax = kwargs['ax']
@@ -276,6 +269,7 @@ def relabund(df, **kwargs):
     return ax
 
 def abund(df, **kwargs):
+    # Merge with relabund
     import matplotlib.pyplot as plt
     kwargs['ax'] = plt.subplots()[1] if not kwargs.get('ax') else kwargs.get('ax')
     if df.shape[1] > 20:
@@ -509,12 +503,13 @@ def aucroc(model, X, y, ax=None, colour=None):
 def plot_network(edges):
     import networkx as nx
     G = nx.from_pandas_edgelist(edges.reset_index())
-    nx.draw(
+    ax = nx.draw(
             G,
             with_labels=True,
             node_color="b",
             node_size=50
             )
+    return ax
 
 def cluster(G):
     from networkx.algorithms.community.centrality import girvan_newman as cluster
@@ -530,14 +525,15 @@ def cluster(G):
         df.loc[tmp[i], 'Group'] = i
     return df.Group
 
-def clusterplot(G):
+def clusterplotnetwork(G):
     import networkx as nx
-    nx.draw(
+    ax = nx.draw(
             G,
             with_labels=True,
             node_color="b",
             node_size=50
             )
+    return ax
     
 def networkplot(G, group=None):
     import matplotlib.pyplot as plt
@@ -558,42 +554,6 @@ def networkplot(G, group=None):
     plt.colorbar(ax)
     return ax
     
-def clusterdendrogram(G):
-    import networkx as nx
-    import matplotlib.pyplot as plt
-    from scipy.cluster.hierarchy import dendrogram
-    d           = { 0: [1, 'd'], 1: ['a', 'b', 'c'], 'a': [], 'b': [], 'c': [], 'd': []}
-    G           = nx.DiGraph(d)
-    nodes       = G.nodes()
-    leaves      = set( n for n in nodes if G.out_degree(n) == 0 )
-    inner_nodes = [ n for n in nodes if G.out_degree(n) > 0 ]
-    subtree = dict( (n, [n]) for n in leaves )
-    for u in inner_nodes:
-        children = set()
-        node_list = list(d[u])
-        while len(node_list) > 0:
-            v = node_list.pop(0)
-            children.add( v )
-            node_list += d[v]
-        subtree[u] = sorted(children & leaves)
-    inner_nodes.sort(key=lambda n: len(subtree[n]))
-    leaves = sorted(leaves)
-    index  = dict( (tuple([n]), i) for i, n in enumerate(leaves) )
-    Z = []
-    k = len(leaves)
-    for i, n in enumerate(inner_nodes):
-        children = d[n]
-        x = children[0]
-        for y in children[1:]:
-            z = tuple(subtree[x] + subtree[y])
-            i, j = index[tuple(subtree[x])], index[tuple(subtree[y])]
-            Z.append([i, j, float(len(subtree[n])), len(z)]) # <-- float is required by the dendrogram function
-            index[z] = k
-            subtree[z] = list(z)
-            x = z
-            k += 1
-    dendrogram(Z, labels=leaves)
-
 def dendrogram(df):
     from scipy.cluster.hierarchy import linkage, dendrogram
     import matplotlib.pyplot as plt
@@ -634,7 +594,6 @@ def polar(df):
     ax.grid(True)
 
 def sig(df, mult=False, perm=False):
-    ''' index needs to be grouping element '''
     from scipy.stats import mannwhitneyu
     from statsmodels.stats.multitest import fdrcorrection 
     from itertools import combinations
@@ -657,7 +616,6 @@ def sig(df, mult=False, perm=False):
     return outdf
 
 def lfc(df, mult=False, perm=False):
-    ''' index needs to be grouping element, df needs to be zero free '''
     import pandas as pd
     import numpy as np
     from scipy.stats import mannwhitneyu
@@ -675,7 +633,7 @@ def lfc(df, mult=False, perm=False):
         ).T.apply(np.log2)
     return outdf
 
-def cm(X, y, labels=None):
+def confusionmatrix(X, y, labels=None):
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.metrics import auc
     from sklearn.metrics import roc_curve
@@ -685,8 +643,6 @@ def cm(X, y, labels=None):
     cv = KFold(n_splits=5, random_state=0, shuffle=True)
     tprs, aucs = [],[]
     base_fpr = np.linspace(0, 1, 101)
-    #from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-    #cm = confusion_matrix(y_true, y_pred)
     if not labels:
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     else:
@@ -695,9 +651,6 @@ def cm(X, y, labels=None):
     return cm
 
 def ANCOM(df, perm=False):
-    """
-    sig = ancom(df)
-    """
     import pandas as pd
     from skbio.stats.composition import ancom
     from scipy.stats import mannwhitneyu
@@ -766,28 +719,8 @@ def varianceexplained(df):
     return result['p-value']
     #return result['test statistic']
 
-def PCOA(df):
-    import pandas as pd
-    import numpy as np
-    import skbio
-    from scipy.spatial import distance
-    df = df.loc[:, df.sum() != 0]
-    Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
-    DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
-    PCoA = skbio.stats.ordination.pcoa(DM_dist, number_of_dimensions=2)
-    results = PCoA.samples.copy()
-    df['PC1'], df['PC2'] = results.iloc[:,0].values, results.iloc[:,1].values
-    return df[['PC1', 'PC2']]
-
-def PCA(df):
-    import pandas as pd
-    from sklearn.decomposition import PCA
-    from sklearn.preprocessing import StandardScaler
-    scaledDf = StandardScaler().fit_transform(df)
-    pca = PCA()
-    results = pca.fit_transform(scaledDf).T
-    df['PC1'], df['PC2'] = results[0,:], results[1,:]
-    return df[['PC1', 'PC2']]
+def norm(df):
+    return df.T.div(df.sum(axis=1), axis=1).T
 
 def minmaxscale(df):
     import pandas as pd
@@ -806,6 +739,28 @@ def StandardScale(df):
             index=df.index,
             columns=df.columns)
     return scaledDf
+
+def clr(df, axis=0):
+    import pandas as pd
+    from skbio.stats.composition import clr
+    return pd.DataFrame(clr(df), index=df.index, columns=df.columns)
+
+def CLR_normalize(pd_dataframe):
+    """
+    Centered Log Ratio
+    Aitchison, J. (1982). 
+    The statistical analysis of compositional data. 
+    Journal of the Royal Statistical Society: 
+    Series B (Methodological), 44(2), 139-160.
+    """
+    d = pd_dataframe
+    d = d+1
+    step1_1 = d.apply(np.log, 0)
+    step1_2 = step1_1.apply(np.average, 0)
+    step1_3 = step1_2.apply(np.exp)
+    step2 = d.divide(step1_3, 1)
+    step3 = step2.apply(np.log, 0)
+    return(step3)
 
 def TSNE(df):
     import numpy as np
@@ -830,7 +785,6 @@ def SOM(df):
     return som
 
 def NMDS(df):
-    ''' Needs to be a beta diveristy or correlation matrix (square) '''
     import pandas as pd
     from sklearn.manifold import MDS
     from scipy.spatial import distance
@@ -841,6 +795,29 @@ def NMDS(df):
     mds = MDS(n_components = 2, metric = False, max_iter = 500, eps = 1e-12, dissimilarity = 'precomputed')
     results = mds.fit_transform(BC_dist)
     df['PC1'], df['PC2'] = results[:,0], results[:,1]
+    return df[['PC1', 'PC2']]
+
+def PCOA(df):
+    import pandas as pd
+    import numpy as np
+    import skbio
+    from scipy.spatial import distance
+    df = df.loc[:, df.sum() != 0]
+    Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
+    DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
+    PCoA = skbio.stats.ordination.pcoa(DM_dist, number_of_dimensions=2)
+    results = PCoA.samples.copy()
+    df['PC1'], df['PC2'] = results.iloc[:,0].values, results.iloc[:,1].values
+    return df[['PC1', 'PC2']]
+
+def PCA(df):
+    import pandas as pd
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+    scaledDf = StandardScaler().fit_transform(df)
+    pca = PCA()
+    results = pca.fit_transform(scaledDf).T
+    df['PC1'], df['PC2'] = results[0,:], results[1,:]
     return df[['PC1', 'PC2']]
 
 def RFC(X, y):
@@ -1001,28 +978,6 @@ def lfc(df, mult=False, perm=False):
         ).T.apply(np.log2)
     return outdf
 
-def clr(df, axis=0):
-    import pandas as pd
-    from skbio.stats.composition import clr
-    return pd.DataFrame(clr(df), index=df.index, columns=df.columns)
-
-def CLR_normalize(pd_dataframe):
-    """
-    Centered Log Ratio
-    Aitchison, J. (1982). 
-    The statistical analysis of compositional data. 
-    Journal of the Royal Statistical Society: 
-    Series B (Methodological), 44(2), 139-160.
-    """
-    d = pd_dataframe
-    d = d+1
-    step1_1 = d.apply(np.log, 0)
-    step1_2 = step1_1.apply(np.average, 0)
-    step1_3 = step1_2.apply(np.exp)
-    step2 = d.divide(step1_3, 1)
-    step3 = step2.apply(np.log, 0)
-    return(step3)
-
 def cm(X, y, labels=None):
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.metrics import auc
@@ -1041,6 +996,16 @@ def cm(X, y, labels=None):
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
     disp.plot()
     return cm
+
+def convtoRGBA(df):
+    import seaborn as sns
+    import pandas as pd
+    for col in df.columns:
+        lut = pd.Series(
+                sns.color_palette("hls", df[col].sort_values().nunique()).as_hex(),
+                index=df[col].sort_values().unique())
+        df[col] = df[col].map(lut)
+    return df
 
 ### Workflows
 def diversityanalysis(df, subject):
@@ -1096,7 +1061,7 @@ def differentialAbundance_plot(subject):
     f.clustermap(ffc, fsig.lt(val), figsize=(3,7))
     plt.savefig(f'../results/{subject}ClusterFC_HvD.svg')
 
-def differentialAbundance_vennplot(var1,var2,var3, subject, val=0.05, fcthresh=1):
+def differentialAbundance_vennplot(var1, var2, var3, subject, val=0.05, fcthresh=1):
     d1 = hfc[var1].loc[hsig.lt(val) & hfc.lt(-fcthresh).AML].index
     d2 = hfc.MDS.loc[hsig.lt(val).MDS & hfc.lt(-fcthresh).MDS].index
     d3 = hfc.MPN.loc[hsig.lt(val).MPN & ffc.lt(-fcthresh).MPN].index
@@ -1143,16 +1108,6 @@ def phylumRelabundance(metamsp, taxo):
     ndf = phy.groupby(phy.index).mean()
     nndf = ndf[ndf.sum().sort_values().tail(8).index]
     nndf.to_csv('../results/phylumRelabund.csv')
-
-def convtoRGBA(df):
-    import seaborn as sns
-    import pandas as pd
-    for col in df.columns:
-        lut = pd.Series(
-                sns.color_palette("hls", df[col].sort_values().nunique()).as_hex(),
-                index=df[col].sort_values().unique())
-        df[col] = df[col].map(lut)
-    return df
 
 if __name__ == '__main__':
     import doctest
