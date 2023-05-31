@@ -1071,18 +1071,72 @@ def diversityanalysis(df, subject):
     out.to_csv(f'../results/{subject}pairwiseANOVA.csv')
 
 def differentialAbundance(df, subject):
-    import numpy as np 
-    fc = lfc(df, perm=True)
-    fc.columns = fc.columns.str.join('/')
-    fc = fc.replace([np.inf, -np.inf], np.nan).dropna()
-    pval = sig(df, mult=True, perm=True)
-    #pval = ANCOM(df, perm=True).T
-    pval.columns = pval.columns.str.join('/')
-    pval = pval.loc[fc.index]
-    fc.to_csv(f'../results/{subject}FCabundance.csv')
-    pval.to_csv(f'../results/{subject}MWWabundance.csv')
+    lfc = f.lfc(df)
+    lfc.columns = lfc.columns.str.join('/')
+    lfc = lfc.replace([np.inf, -np.inf], np.nan)
+    sig = f.sig(df, mult=True)
+    sig.columns = sig.columns.str.join('/')
+    lfc = lfc.set_axis(['Log2(' + lfc.columns[0] + ')'], axis=1)
+    sig = sig.set_axis(['MWW_q-value'], axis=1)
+    basemean = df.mean().to_frame('basemean')
+    means = df.groupby(level=0).mean().T
+    means.columns = means.columns + '_Mean'
+    baseprevail = f.richness(df.T).div(df.shape[0]).to_frame('baseprevail')
+    prevail = df.groupby(level=0, axis=0).apply(lambda x: f.richness(x, axis=0).div(x.shape[0])).T
+    prevail.columns = prevail.columns + '_Prev'
+    output = pd.concat([basemean,means,baseprevail,prevail,lfc,sig], join='inner', axis=1).sort_values('MWW_q-value')
+    output.to_csv(f'../results/{subject}changes.tsv', sep='\t')
+    return output
 
-def differentialAbundance_plot(subject):
+def changesummary(subject):
+    # CHANGED
+    import pandas as pd
+    output = pd.read_csv(f'../results/{subject}changes.csv', index_col=0)
+    changed = 'sig changed = ' +\
+        str(output['MWW_q-value'].lt(0.05).sum()) + '/' + str(output.shape[0]) + ' (' + str(round(output['MWW_q-value'].lt(0.05).sum()/output.shape[0] * 100)) + '%)'
+    # INCREASED
+    increased = 'sig increased = ' +\
+        str(output.loc[(output['MWW_q-value'].lt(0.05)) & (output[output.columns[output.columns.str.contains('Log2')]].gt(0).iloc[:,0]), 'MWW_q-value'].lt(0.05).sum()) +\
+        '/' +\
+        str(output.shape[0]) +\
+        ' (' +\
+        str(round(output.loc[(output['MWW_q-value'].lt(0.05)) & (output[output.columns[output.columns.str.contains('Log2')]].gt(0).iloc[:,0]), 'MWW_q-value'].lt(0.05).sum()/output.shape[0] * 100)) +\
+        '%)'
+    # DECREASED
+    decreased = 'sig decreased = ' +\
+        str(output.loc[(output['MWW_q-value'].lt(0.05)) & (output[output.columns[output.columns.str.contains('Log2')]].lt(0).iloc[:,0]), 'MWW_q-value'].lt(0.05).sum()) +\
+        '/' +\
+        str(output.shape[0]) +\
+        ' (' +\
+        str(round(output.loc[(output['MWW_q-value'].lt(0.05)) & (output[output.columns[output.columns.str.contains('Log2')]].lt(0).iloc[:,0]), 'MWW_q-value'].lt(0.05).sum()/output.shape[0] * 100)) +\
+        '%)'
+    summary = pd.DataFrame([changed,increased,decreased], columns=[subject])
+    summary.to_csv(f'../results/{subject}ChangeSummary.csv', index=False)
+    return summary
+
+def change_plot(subject, fcthresh=1, pvalthresh=0.05):
+    import pandas as pd
+    changes = pd.read_csv(f'../results/{subject}changes.csv', index_col=0)
+    data = pd.read_csv(f'../results/{subject}.csv', index_col=[0,1])
+    f.setupplot()
+    fig, ax = plt.subplots()
+    increase = changes.loc[
+            (changes['MWW_q-value'].lt(0.05)) & (changes[changes.columns[changes.columns.str.contains('Log2')]].gt(0).iloc[:,0])
+            , 'MWW_q-value'].index
+    plotdf = data[increase].stack().to_frame('Value').reset_index()
+
+    fc.columns = fc.columns.str.split('/', expand=True)
+    sig.columns = sig.columns.str.split('/', expand=True)
+    val = 0.05
+    fcthresh = 1
+    hfc = fc.xs('Healthy', axis=1, level=1)
+    hsig = sig.xs('Healthy', axis=1, level=1)
+    ffc = hfc.loc[hfc.abs().gt(fcthresh).any(axis=1) & hsig.lt(val).any(axis=1)]
+    fsig = hsig.loc[hfc.abs().gt(fcthresh).any(axis=1) & hsig.lt(val).any(axis=1)]
+    f.clustermap(ffc, fsig.lt(val), figsize=(3,7))
+    plt.savefig(f'../results/{subject}ClusterFC_HvD.svg')
+
+def differentialAbundance_oldplot(subject):
     fc = pd.read_csv('../results/{subject}FCabundance.csv', index_col=0)
     sig = pd.read_csv('../results/{subject}MWWabundance.csv', index_col=0)
     fc.columns = fc.columns.str.split('/', expand=True)
