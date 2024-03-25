@@ -706,7 +706,7 @@ def filter(df, min_unique=0, thresh=None):
         df = df.loc[:, df.abs().gt(thresh).any(axis=0)]
     return df
 
-def varianceexplained(df):
+def varianceexplained(df, pval=True):
     import pandas as pd
     from skbio.stats.distance import permanova
     import numpy as np
@@ -716,8 +716,10 @@ def varianceexplained(df):
     Ar_dist = distance.squareform(distance.pdist(df, metric="braycurtis"))
     DM_dist = skbio.stats.distance.DistanceMatrix(Ar_dist)
     result = permanova(DM_dist, df.index, permutations=10000)
-    return result['p-value']
-    #return result['test statistic']
+    if pval:
+        return result['p-value']
+    else:
+        return result['test statistic']
 
 def norm(df):
     return df.T.div(df.sum(axis=1), axis=1).T
@@ -838,7 +840,25 @@ def RFC(X, y):
     print(confusion_matrix(y_test, y_pred))
     return model
 
-def SHAP_bin(X,model):
+def SHAP_reg(X, model):
+    import numpy as np
+    from scipy.stats import spearmanr
+    import pandas as pd
+    import shap
+    explainer = shap.TreeExplainer(model)
+    shaps_values = explainer(X)
+    meanabsshap = pd.Series(
+            np.abs(shaps_values.values).mean(axis=0),
+            index=X.columns
+            )
+    corrs = [spearmanr(shaps_values.values[:,x], X.iloc[:,x])[0] for x in range(len(X.columns))]
+    shaps = pd.DataFrame(shaps_values.values, columns=X.columns, index=X.index)
+    shaps = shaps.loc[:,shaps.sum() != 0]
+    final = meanabsshap * np.sign(corrs)
+    final.fillna(0, inplace=True)
+    return final
+
+def SHAP_bin(X, model):
     import numpy as np
     from scipy.stats import spearmanr
     import pandas as pd
@@ -1036,10 +1056,12 @@ def diversityanalysis(df, subject):
     out.to_csv(f'../results/{subject}pairwiseANOVA.csv')
 
 def differentialAbundance(df, subject):
+    # may add df in here as subject
     lfc = f.lfc(df)
     lfc.columns = lfc.columns.str.join('/')
     lfc = lfc.replace([np.inf, -np.inf], np.nan)
-    sig = f.sig(df, mult=True)
+    sig = f.sig(df)
+    #sig = f.sig(df, mult=True)
     sig.columns = sig.columns.str.join('/')
     lfc = lfc.set_axis(['Log2(' + lfc.columns[0] + ')'], axis=1)
     sig = sig.set_axis(['MWW_q-value'], axis=1)
@@ -1079,27 +1101,31 @@ def changesummary(subject):
     summary.to_csv(f'../results/{subject}ChangeSummary.csv', index=False)
     return summary
 
-def change_plot(subject, fcthresh=1, pvalthresh=0.05):
+def changeplot(subject, fcthresh=1, pvalthresh=0.0000000005):
     import pandas as pd
     changes = pd.read_csv(f'../results/{subject}changes.csv', index_col=0)
     data = pd.read_csv(f'../results/{subject}.csv', index_col=[0,1])
     f.setupplot()
-    fig, ax = plt.subplots()
     increase = changes.loc[
-            (changes['MWW_q-value'].lt(0.05)) & (changes[changes.columns[changes.columns.str.contains('Log2')]].gt(0).iloc[:,0])
+            (changes['MWW_q-value'].lt(pvalthresh)) & (changes[changes.columns[changes.columns.str.contains('Log2')]].gt(0).iloc[:,0])
             , 'MWW_q-value'].index
-    plotdf = data[increase].stack().to_frame('Value').reset_index()
-
-    fc.columns = fc.columns.str.split('/', expand=True)
-    sig.columns = sig.columns.str.split('/', expand=True)
-    val = 0.05
-    fcthresh = 1
-    hfc = fc.xs('Healthy', axis=1, level=1)
-    hsig = sig.xs('Healthy', axis=1, level=1)
-    ffc = hfc.loc[hfc.abs().gt(fcthresh).any(axis=1) & hsig.lt(val).any(axis=1)]
-    fsig = hsig.loc[hfc.abs().gt(fcthresh).any(axis=1) & hsig.lt(val).any(axis=1)]
-    f.clustermap(ffc, fsig.lt(val), figsize=(3,7))
-    plt.savefig(f'../results/{subject}ClusterFC_HvD.svg')
+    order = data[increase].groupby(level=1).median().iloc[0].sort_values(ascending=False).index
+    plotdf = data[order].stack().to_frame('Value').reset_index()
+    fig, ax = plt.subplots(figsize=(len(increase),2))
+    f.box(data=plotdf, x='level_2', y='Value', hue='ARM', ax=ax)
+    [ax.axvline(x+.5,color='k') for x in ax.get_xticks()]
+    plt.savefig(f'../results/{subject}decreasechangeplot.svg')
+    plt.show()
+    decrease = changes.loc[
+            (changes['MWW_q-value'].lt(pvalthresh)) & (changes[changes.columns[changes.columns.str.contains('Log2')]].lt(0).iloc[:,0])
+            , 'MWW_q-value'].index
+    order = data[decrease].groupby(level=1).median().iloc[0].sort_values(ascending=False).index
+    plotdf = data[order].stack().to_frame('Value').reset_index()
+    fig, ax = plt.subplots(figsize=(len(decrease),2))
+    f.box(data=plotdf, x='level_2', y='Value', hue='ARM', ax=ax)
+    [ax.axvline(x+.5,color='k') for x in ax.get_xticks()]
+    plt.savefig(f'../results/{subject}decreasechangeplot.svg')
+    plt.show()
 
 def differentialAbundance_oldplot(subject):
     fc = pd.read_csv('../results/{subject}FCabundance.csv', index_col=0)
