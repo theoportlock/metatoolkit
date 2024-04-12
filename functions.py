@@ -557,38 +557,28 @@ def group(df, type='sum'):
     return outdf
 
 # Filter 
-def filter(df, gt=None, lt=None, column=None, filter_df=None, filter_df_axis=0, absgt=None, rowfilt=None, colfilt=None, nonzero=None, prevail=None, abund=None, numeric_only=None, query=None):
+def filter(df, **kwargs):
     df.index = df.index.astype(str)
-    if filter_df is not None:
-        if filter_df_axis == 1:
-            df = df.loc[:, filter_df.index]
+    if kwargs.get('filter_df') is not None:
+        if kwargs.get('filter_df_axis') == 1:
+            df = df.loc[:, kwargs.get('filter_df').index]
         else:
-            df = df.loc[filter_df.index]
-    if colfilt:
-        df = df.loc[:, df.columns.str.contains(colfilt, regex=True)]
-    if rowfilt:
-        df = df.loc[df.index.str.contains(rowfilt, regex=True)]
-    if prevail:
-        df = df.loc[:, df.agg(np.count_nonzero, axis=0).gt(df.shape[0]*prevail)]
-    if abund:
-        df = df.loc[:, df.mean().gt(abund)]
-    if column and lt:
-        df = df.loc[df[column].lt(lt)]
-    elif lt:
-        df = df.loc[:, df.abs().lt(lt).any(axis=0)]
-    if column and gt:
-        df = df.loc[df[column].gt(gt)]
-    elif gt:
-        df = df.loc[:, df.abs().gt(gt).any(axis=0)]
-    if column and absgt:
-        df = df.loc[df[column].abs().gt(absgt)]
-    if nonzero:
+            df = df.loc[kwargs.get('filter_df').index]
+    if kwargs.get('colfilt'):
+        df = df.loc[:, df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
+    if kwargs.get('rowfilt'):
+        df = df.loc[df.index.str.contains(kwargs.get('rowfilt'), regex=True)]
+    if kwargs.get('prevail'):
+        df = df.loc[:, df.agg(np.count_nonzero, axis=0).gt(df.shape[0]*kwargs.get('prevail'))]
+    if kwargs.get('abund'):
+        df = df.loc[:, df.mean().gt(kwargs.get('abund'))]
+    if kwargs.get('nonzero'):
         df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) !=0]
-    if numeric_only:
+    if kwargs.get('numeric_only'):
         if ~(df.apply(lambda s: pd.to_numeric(s, errors='coerce').notnull().all())).any():
             df = pd.DataFrame()
-    if query:
-        df = df.query(query)
+    if kwargs.get('query'):
+        df = df.query(kwargs.get('query'))
     if df.empty:
         return None
     else:
@@ -1135,7 +1125,6 @@ def load(subject):
     return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject):
-    # NEED TO FIX THIS
     df.to_csv(f'../results/{subject}.tsv', sep='\t')
 
 def savefig(subject, tl=True):
@@ -1163,4 +1152,5 @@ def to_edges(df, thresh=0.5, directional=True):
     return fin
 
 if __name__ == '__main__':
+    print('All listed python functions:')
     print(vars().keys())
