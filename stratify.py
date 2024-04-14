@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from pathlib import Path
 import argparse
 import functions as f
+import os
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='''
@@ -16,11 +18,14 @@ known, unknown = parser.parse_known_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 unknown = eval(unknown[0]) if unknown != [] else {}
 
-# IF IS FILE THEN LOAD BUT NOT THEN DO THE OTHER LOAD
-df = f.load(known.get("subject"))
+subject = known.get("subject"); known.pop('subject')
+if os.path.isfile(subject): subject = Path(subject).stem
+df = f.load(subject)
+
 meta = f.load(known.get("df2")) if known.get("df2") else f.load('meta')
 level = known.get('level')
 
 output = f.stratify(df, meta, level)
 print(output)
-f.save(output, f'{known.get("subject")}{level}')
+f.save(output, f'{subject"}{level}')
+
