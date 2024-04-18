@@ -9,17 +9,16 @@ import os
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description='''
-Heatmap - Produces a heatmap of a given dataset
+Upset - Produces an upset plot of indecies of multiple datasets
 ''')
-parser.add_argument('subject')
+parser.add_argument('datasets', nargs='+')
 known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 
-subject = known.get("subject"); known.pop('subject')
-if os.path.isfile(subject): subject = Path(subject).stem
-df = f.load(subject)
+dfs = known.get("datasets")
+alldfs = {df:f.load(df).index for df in dfs}
 
-f.setupplot()
-f.spindle(df)
-f.savefig(f'{subject}spindle')
+#f.setupplot()
+f.upset(alldfs)
+f.savefig(f'upset')
 

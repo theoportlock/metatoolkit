@@ -12,26 +12,16 @@ dataset_names = sys.argv
 if len(sys.argv)<2:
     raise SystemExit('Please add dataset(s) as arguments to this command')
 '''
-sys.argv = ['EV.py','geneticsIDRecovery','genusIDRecovery','glitterIDRecovery','kingdomIDRecovery','lipidsIDRecovery','orderIDRecovery','pathwaysallIDRecovery','pathwaystaxoIDRecovery','pathwaysIDRecovery','pciIDRecovery','phylumIDRecovery','potsIDRecovery','psdIDRecovery','PSSIDRecovery','qualityIDRecovery','sleepIDRecovery','speciesIDRecovery','taxoIDRecovery','vepIDRecovery','wolkesIDRecovery']
+sys.argv = ['EV.py','../results/psdfilterIDRecovery.tsv','../results/genusfilterIDRecovery.tsv','../results/speciesfilterIDRecovery.tsv']
 '''
-datasets = {i:pd.read_csv(i, sep='\t', index_col=0) for i in sys.argv[1:]}
-print(datasets)
-
-dataset = 'Anthropometrics'
-filterdatasets = {}
-for dataset in datasets:
-    filterdatasets[dataset] = datasets[dataset]
-    # If empty or non numeric
-    if filterdatasets[dataset].empty or ~(filterdatasets[dataset].apply(lambda s: pd.to_numeric(s, errors='coerce').notnull().all())).any():
-        del filterdatasets[dataset]
+filterdatasets = {i:pd.read_csv(i, sep='\t', index_col=0) for i in sys.argv[1:]}
 
 # Calculate PERMANOVA power
 output = pd.Series(index=filterdatasets.keys())
-name, ni = 'wolkesIDRecovery', datasets['wolkesIDRecovery']
+#name, tdf = '../results/psdfilterIDRecovery.tsv', datasets['../results/psdfilterIDRecovery.tsv']
 pval=True
-for name, ni in filterdatasets.items():
-    tdf = ni.join(meta['Recovery'], how='inner').set_index('Recovery')
-    tdf = tdf.loc[tdf.index != 0]
+for name, tdf in filterdatasets.items():
+    #tdf = tdf.loc[tdf.index != 0]
     print(tdf)
     output[name] = f.PERMANOVA(tdf, pval=pval)
 power = -output.apply(np.log).sort_values()
@@ -39,6 +29,6 @@ f.setupplot(figsize=(3,5))
 power.plot.barh()
 plt.axvline(x=-np.log(0.05), color="black", linestyle="--")
 plt.xlabel('Explained Variance (-log2(pval))')
-plt.ylabel(f'{str(time)} dataset')
+#plt.ylabel(f'{str(time)} dataset')
 plt.tight_layout()
-f.savefig(f'{str(time)}_EV')
+f.savefig(f'EV')

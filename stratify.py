@@ -27,5 +27,7 @@ level = known.get('level')
 
 output = f.stratify(df, meta, level)
 print(output)
-f.save(output, f'{subject"}{level}')
-
+if output is not None:
+    f.save(output, f'{subject}{level}')
+else:
+    print(subject, 'is empty')

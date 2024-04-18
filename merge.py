@@ -12,10 +12,37 @@ parser.add_argument('-o', '--output')
 known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 
+'''
+dfs = [
+        'aaID',
+        'anthroID',
+        'bayleyID',
+        'classID',
+        'familyID',
+        'fnirsID',
+        'geneticsID',
+        'genusID',
+        'kingdomID',
+        'lipidsID',
+        'microID',
+        'orderID',
+        'pathwaysallID',
+        'pathwaysID',
+        'pathwaystaxoID',
+        'phylumID',
+        'psdID',
+        'sleepID',
+        'speciesID',
+        'taxoID',
+        'vepID',
+        'wolkesID'
+        ]
+'''
+
 dfs = known.get("datasets")
 alldfs = [f.load(df) for df in dfs]
 join=known.get("join") if known.get("join") else 'inner'
-output = known.get("filename")
+output = known.get("output")
 
 result = f.merge(datasets=alldfs, join=join)
 print(result)

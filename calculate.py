@@ -4,6 +4,8 @@
 import argparse
 import functions as f
 import pandas as pd
+from pathlib import Path
+import os
 
 parser = argparse.ArgumentParser(description='''
 Calculate - compute a value for each sample based on features
@@ -21,4 +23,4 @@ df = f.load(subject)
 analysis = known.get('analysis')
 output = f.calculate(analysis, df)
 print(output)
-f.save(output, known.get("subject") + known.get("analysis"))
+f.save(output, subject + known.get("analysis"))
