@@ -18,13 +18,13 @@ mult = known.get("mult") if known.get('mult') else False
 
 if len(subject) == 1:
     df = f.load(subject[0])
-    output = f.corr(df, mult)
+    output = f.corr(df)
     print(output)
-    f.save(output, subject+'corr')
+    f.save(output, subject[0]+'corr')
 elif len(subject) == 2:
     df1 = f.load(subject[0])
     df2 = f.load(subject[1])
-    output = f.corrpair(df1, df2, mult)[0]
+    output = f.corrpair(df1, df2)[0]
     print(output)
     f.save(output, subject[0] + subject[1] +'corr')
 else:

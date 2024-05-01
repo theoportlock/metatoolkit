@@ -18,6 +18,7 @@ parser.add_argument('-fdfx', '--filter_df_axis', type=int)
 parser.add_argument('-absgt', type=float)
 parser.add_argument('-p', '--prevail', type=float)
 parser.add_argument('-a', '--abund', type=float)
+parser.add_argument('-o', '--outfile', type=str)
 parser.add_argument('--numeric_only', action='store_true')
 parser.add_argument('--nonzero', action='store_true')
 known = parser.parse_args()
@@ -27,10 +28,15 @@ subject = known.get("subject"); known.pop('subject')
 if os.path.isfile(subject): subject = Path(subject).stem
 df = f.load(subject)
 
+outfile = known.get("outfile") if known.get("outfile") else None
+
 if known.get("filter_df"):
     known['filter_df'] = f.load(known.get("filter_df"))
 
 output = f.filter(df, **known)
 print(output)
 if output is not None:
-    f.save(output, subject + 'filter')
+    if outfile:
+        f.save(output, subject + outfile)
+    else:
+        f.save(output, subject + 'filter')

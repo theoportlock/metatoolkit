@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from combat.pycombat import pycombat
+#from combat.pycombat import pycombat
 from itertools import combinations, count, permutations
 from matplotlib_venn import venn3
 from scipy.cluster.hierarchy import linkage, dendrogram
@@ -52,6 +52,39 @@ def mlpclassifier(df, random_state=1):
     fpr, tpr, _ = roc_curve(y_test, y_prob, pos_label=y[0])
     aucrocdata = pd.DataFrame(pd.concat([pd.Series(fpr), pd.Series(tpr)],axis=1)).set_axis(['fpr','tpr'], axis=1)
     return model, performance, aucrocdata
+
+def classifier100(df, shapval=False, shapinteract=False):
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import roc_auc_score
+    import shap
+    aucrocs = []
+    meanabsshaps = pd.DataFrame()
+    mean_shap_interacts = pd.DataFrame(index=df.columns)
+    random_state = 1
+    for random_state in range(100):
+        model = RandomForestClassifier(n_jobs=-1, random_state=random_state)
+        X, y = df, df.index
+        X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=random_state, stratify=y)
+        model.fit(X_train, y_train)
+        # AUCROC
+        y_pred = model.predict(X_test)
+        y_prob = model.predict_proba(X_test)[:, 1]
+        aucrocs.append(roc_auc_score(y_test, y_prob))
+        if shapval:
+            explainer = shap.TreeExplainer(model)
+            shap_values = explainer(X)
+            meanabsshaps[random_state] = pd.Series(
+                np.abs(shap_values.values[:, :, 0]).mean(axis=0),
+                index=X.columns
+            )
+        if shapinteract:
+            inter_shaps_values = explainer.shap_interaction_values(X)
+            sum_shap_interacts = pd.DataFrame(
+                    data=np.abs(inter_shaps_values[0]).sum(0),
+                    columns=df.columns,
+                    index=df.columns)
+    return aucrocs, meanabsshaps, mean_shap_interacts
 
 def classifier(df, random_state=1):
     model = RandomForestClassifier(n_jobs=-1, random_state=random_state, oob_score=True)
@@ -129,6 +162,7 @@ def predict(analysis, df, **kwargs):
     available={
         'regressor':regressor,
         'classifier':classifier,
+        'classifier100':classifier100,
         }
     output = available.get(analysis)(df, **kwargs)
     return output
@@ -1133,6 +1167,7 @@ def savefig(subject, tl=True):
     plt.savefig(f'../results/{subject}.pdf')
     #plt.show()
     subprocess.call(f'zathura ../results/{subject}.pdf &', shell=True)
+    plt.clf()
 
 def selecttaxa(df, level):
     mapping = df.index.str.split('\|', expand=True).to_frame().set_index(df.index)

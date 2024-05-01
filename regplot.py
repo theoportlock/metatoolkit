@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='''
-Box - Produces a Boxplot of a given dataset
+Regplot - Produces a Regplot of a given dataset
 ''')
 
 parser.add_argument('subject')
@@ -20,12 +20,11 @@ known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 
 subject = known.get("subject"); known.pop("subject")
-if os.path.isfile(subject): subject = Path(subject).stem
 df = f.load(subject)
 logy = known.get("logy"); known.pop("logy")
 
 f.setupplot()
-f.box(df, **known)
+f.regplot(df, **known)
 if logy: plt.yscale('log')
-f.savefig(f'{subject}box')
+f.savefig(f'{subject}regplot')
 
