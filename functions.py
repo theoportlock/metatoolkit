@@ -280,9 +280,11 @@ def pointheatmap(df, ax=None, size_scale=300, **kwargs):
     plt.grid()
     return ax
 
-def spindle(df, x='PC1', y='PC2', ax=None, palette=None, **kwargs):
+def spindle(df, ax=None, palette=None, **kwargs):
     if palette is None: palette = pd.Series(sns.color_palette("hls", df.index.nunique()).as_hex(), index=df.index.unique())
     if ax is None: fig, ax= plt.subplots()
+    x=df.columns[0]
+    y=df.columns[1]
     centers = df.groupby(df.index).mean()
     centers.columns=['nPC1','nPC2']
     j = df.join(centers)
@@ -290,17 +292,20 @@ def spindle(df, x='PC1', y='PC2', ax=None, palette=None, **kwargs):
     i = j.reset_index().index[0]
     for i in j.reset_index().index:
         ax.plot(
-            j[['PC1','nPC1']].iloc[i],
-            j[['PC2','nPC2']].iloc[i],
-            linewidth = 1,
+            j[[x,'nPC1']].iloc[i],
+            j[[y,'nPC2']].iloc[i],
+            linewidth = 0.5,
             color = j['colours'].iloc[i],
             zorder=1,
             alpha=0.3
         )
-        ax.scatter(j.PC1.iloc[i], j.PC2.iloc[i], color = j['colours'].iloc[i], s=3)
+        ax.scatter(j[x].iloc[i], j[y].iloc[i], color = j['colours'].iloc[i], s=1)
     for i in centers.index:
-        ax.text(centers.loc[i,'nPC1']+0.01,centers.loc[i,'nPC2'], s=i, zorder=3)
-    ax.scatter(centers.nPC1, centers.nPC2, c='black', zorder=2, s=20, marker='+')
+        ax.text(centers.loc[i,'nPC1']+0.002,centers.loc[i,'nPC2']+0.002, s=i, zorder=3)
+    ax.scatter(centers.nPC1, centers.nPC2, c='black', zorder=2, s=10, marker='+')
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+    ax.spines[['right', 'top']].set_visible(False)
     return ax
 
 def polar(df, **kwargs):
@@ -524,31 +529,6 @@ def networkplot(*args, group=None, **kwargs):
     plt.colorbar(ax)
     return ax
 
-'''
-# LEFSE STUFF
-df = f.load('taxo')
-condition = f.stratify(df, meta, 'Condition')
-ndf = condition.T
-ndf.index.name = 'classname'
-ndf = ndf.T.reset_index().T
-ndf.to_csv(f'../results/LEFSE.txt', sep='\t')
-os.system('sudo docker run -v /home/theop/fellowship/m4efad/results:/home/data biobakery/lefse /home/linuxbrew/.linuxbrew/Cellar/lefse/1.0.0-dev-e3cabe9/bin/format_input.py /home/data/LEFSE.txt /home/data/LEFSE.in -u 1 -c 2')
-os.system('sudo docker run -v /home/theop/fellowship/m4efad/results:/home/data biobakery/lefse /home/linuxbrew/.linuxbrew/Cellar/lefse/1.0.0-dev-e3cabe9/bin/run_lefse.py /home/data/LEFSE.in /home/data/LEFSE.res -l 0.01')
-os.system('sudo docker run -v /home/theop/fellowship/m4efad/results:/home/data biobakery/lefse /home/linuxbrew/.linuxbrew/Cellar/lefse/1.0.0-dev-e3cabe9/bin/plot_res.py /home/data/LEFSE.res /home/data/LEFSE.pdf --format pdf')
-'''
-def lefsebar(*args, **kwargs):
-    os.system(f'lefse_plot_res.py ../results/kwargs.get(subject)LEFSE_scores.txt ../results/kwargs.get(subject)LEFSE_features.pdf --format pdf')
-    return None
-
-def lefseclad(*args, **kwargs):
-    os.system(f'lefse_plot_cladogram.py ../results/kwargs.get(subject)LEFSE_scores.txt ../results/kwargs.get(subject)LEFSE_clad.pdf --format pdf')
-    return None
-
-def lefsefeat(*args, **kwargs):
-    os.system(f'mkdir ../results/{subject}_biomarkers_raw_images')
-    os.system(f'lefse_plot_features.py ../results/kwargs.get(subject)LEFSE_format.txt ../results/kwargs.get(subject)LEFSE_scores.txt ../results/kwargs.get(subject)_biomarkers_raw_images/ --format svg')
-    return None
-
 def venn(*args, **kwargs):
     DF1 = pd.read_csv(f'../results/kwargs.get(df1).tsv', sep='\t', index_col=0)
     DF2 = pd.read_csv(f'../results/kwargs.get(df2).tsv', sep='\t', index_col=0)
@@ -613,6 +593,8 @@ def filter(df, **kwargs):
             df = pd.DataFrame()
     if kwargs.get('query'):
         df = df.query(kwargs.get('query'))
+    if kwargs.get('dtype'):
+        df = df.select_dtypes(kwargs.get('dtype'))
     if df.empty:
         return None
     else:
@@ -760,6 +742,7 @@ def corr(df):
         outdf.loc[comb, 'cor'] = cor
         outdf.loc[comb, 'pval'] = pval
     outdf['qval'] = fdrcorrection(outdf.pval)[1]
+    outdf.index.set_names(['source', 'target'], inplace=True)
     return outdf
 
 # Compare - TODO
@@ -802,106 +785,80 @@ def fisher(df, **kwargs):
         pvals.append(pvalue)
     outdf = pd.DataFrame(index=pd.MultiIndex.from_tuples(combs), dtype=float)
     outdf['odds'] = odsa
-    outdf['pvals'] = pvals
+    outdf['pval'] = pvals
     return outdf
 
 # Change
 def shapiro(df, **kwargs):
+    #fix
     output = pd.DataFrame()
     for col in df.columns: 
         for cat in df.index.unique():
             output.loc[col,cat] = shapiro(df.loc[cat,col])[1]
     return output
 
-def levene(df, **kwargs):
+def levene(df_true, df_false):
+    #fix
     output = pd.Series()
-    for col in df.columns: 
+    for col in df_true.columns: 
         output[col] = levene(*[df.loc[cat,col] for cat in df.index.unique()])[1]
     return output
 
-def ANCOM(df, comb=None):
+def ANCOM(df):
     outdf = ancom(df, df.index.to_series())[0]['Reject null hypothesis'].to_frame('ANCOM')
     return outdf
 
-def LEFSE(df, subject, **kwargs):
-    ndf = df.T
-    ndf.index.name = 'class'
-    ndf = ndf.T.reset_index().T
-    ndf.to_csv(f'../results/{subject}LEFSE_data.txt', sep='\t')
-    os.system(f'lefse_format_input.py ../results/{subject}LEFSE_data.txt ../results/{subject}LEFSE_format.txt -f r -c 1 -u 1 -o 1000000')
-    os.system(f'lefse_run.py ../results/{subject}LEFSE_format.txt ../results/{subject}LEFSE_scores.txt -l 2 --verbose 1')
-
-def mww(df, comb=None):
+def mww(df_true, df_false):
     outdf = pd.DataFrame(
-        mannwhitneyu(df.loc[comb[0]], df.loc[comb[1]])[1],
-        columns = ['MWW_pval'],
-        index = df.columns
-        )
+            mannwhitneyu(df_true, df_false).pvalue,
+            index=df_true.columns,
+            columns=['MWW_pval'])
     outdf['MWW_qval'] = fdrcorrection(outdf.MWW_pval)[1]
     return outdf
 
-def fc(df, comb=None):
-    print(comb)
+def fc(df_true, df_false):
     outdf = pd.DataFrame(
-        df.loc[comb[0]].mean().div(df.loc[comb[1]].mean()),
+        df_true.mean().div(df_false.mean()),
         columns = ['FC'],
-        index = df.columns)
+        index = df_true.columns)
     outdf['Log2FC'] = outdf.FC.apply(np.log2)
     outdf['Log10FC'] = outdf.FC.apply(np.log10)
     return outdf
 
-def mfc(df, comb=None):
-    print(comb)
+def mfc(df_true, df_false):
     outdf = pd.DataFrame(
-        df.loc[comb[0]].median().div(df.loc[comb[1]].median()),
-        columns = ['FC'],
-        index = df.columns)
-    outdf['Log2FC'] = outdf.FC.apply(np.log2)
-    outdf['Log10FC'] = outdf.FC.apply(np.log10)
+        df_true.median().div(df_false.median()),
+        columns = ['med_FC'],
+        index = df_true.columns)
+    outdf['Log2med_FC'] = outdf.med_FC.apply(np.log2)
+    outdf['Log10med_FC'] = outdf.med_FC.apply(np.log10)
     return outdf
 
-def diff(df, comb=None):
+def diffmean(df_true, df_false):
     outdf = pd.DataFrame(
-        df.loc[comb[0]].mean().sub(df.loc[comb[1]].mean()),
-        columns = ['meandiff'],
-        index = df.columns)
+        df_true.mean().sub(df_false.mean()),
+        columns = ['diffmean'],
+        index = df_true.columns)
     return outdf
 
-def prevail(df, comb=None):
-    basemean = df.mean().to_frame('basemean')
-    means = df.groupby(level=0).mean().T
-    means.columns = means.columns + 'mean'
-    baseprevail = df.agg(np.count_nonzero, axis=0).div(df.shape[0]).to_frame('baseprev')
-    prevail = df.groupby(level=0, axis=0).apply(lambda x: x.agg(np.count_nonzero, axis=0).div(x.shape[0])).T
-    prevail.columns = prevail.columns + 'prev'
-    basestd = df.std().to_frame('basestd')
-    stds = df.groupby(level=0).std().T
-    stds.columns = stds.columns + 'std'
-    output = pd.concat([basemean,means,baseprevail,prevail,basestd,stds], join='inner', axis=1)
-    return output
-
-def change(df, df2=None, columns=None, analysis=['prevail','fc','mww'], **kwargs):
-    df = df.sort_index()
+def change(df, df2, columns=None, analysis=['mww','fc','diffmean']):
     available={
-        'prevail':prevail,
-        'mww':mww,
-        'fc':fc,
-        'mfc':mfc,
-        'diff':diff,
-        'ancom':ANCOM,
-        }
-    combs = list(permutations(df.index.unique(), 2))
+            'mww':mww,
+            'fc':fc,
+            'diffmean':diffmean}
     i = analysis[0]
-    comb = combs[0]
-    ret = {}
-    for comb in combs:
+    label = df2.columns[0]
+    out = {}
+    for label in df2.columns:
         output = []
         for i in analysis:
-            tdf = pd.concat([df.loc[comb[0]].dropna(),df.loc[comb[1]].dropna()], axis=0)
-            output.append(available.get(i)(tdf, comb))
-        out = pd.concat(output, join='inner', axis=1)
-        ret[comb[0]+'vs'+comb[1]] = out
-    return ret
+            split = splitter(df, df2, label)
+            if len(split) == 1: continue
+            output.append(available.get(i)(split[True], split[False]))
+        out[label] = pd.concat(output, axis=1)
+    outdf = pd.concat(out.values(), axis=0, keys=out.keys())
+    outdf.index.set_names(['source','target'], inplace=True)
+    return outdf
 
 # Calculate
 def Richness(df, axis=1):
@@ -998,8 +955,15 @@ def umap(df):
     df['PC1'], df['PC2'] = results[:,0], results[:,1]
     return df[['PC1', 'PC2']]
 
+def prevail(df):
+    return df.agg(np.count_nonzero, axis=0).div(df.shape[0]).to_frame('baseprev')
+
+def onehot(df):
+    return pd.get_dummies(df, prefix_sep=': ')
+
 def calculate(analysis, df):
     available={
+        'prevail':prevail,
         'diversity':diversity,
         'fbratio':fbratio,
         'pbratio':pbratio,
@@ -1010,6 +974,7 @@ def calculate(analysis, df):
         'top20':top20,
         'som':som,
         'umap':umap,
+        'onehot':onehot,
         }
     output = available.get(analysis)(df)
     return output
@@ -1159,7 +1124,9 @@ def load(subject):
     return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject):
-    df.to_csv(f'../results/{subject}.tsv', sep='\t')
+    output_path = f'../results/{subject}.tsv' 
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, sep='\t')
 
 def savefig(subject, tl=True):
     if tl: plt.tight_layout()

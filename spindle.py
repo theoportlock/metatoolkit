@@ -21,5 +21,5 @@ df = f.load(subject)
 
 f.setupplot()
 f.spindle(df)
-f.savefig(f'{subject}spindle')
+f.savefig(f'{subject}Spindle')
 
