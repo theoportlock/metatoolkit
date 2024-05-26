@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#from combat.pycombat import pycombat
 from itertools import combinations, count, permutations
 from matplotlib_venn import venn3
 from scipy.cluster.hierarchy import linkage, dendrogram
@@ -12,10 +11,10 @@ from skbio.stats.composition import multiplicative_replacement as mul
 from skbio.stats.distance import permanova
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.neural_network import MLPClassifier
 from sklearn.manifold import MDS, TSNE
 from sklearn.metrics import auc, classification_report, confusion_matrix, mean_absolute_error, r2_score, roc_auc_score, roc_curve
 from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.utils import resample
 from sklearn_som.som import SOM
@@ -35,7 +34,6 @@ import seaborn as sns
 import shap
 import shutil
 import skbio
-import statannot
 import subprocess
 import umap
 
