@@ -414,7 +414,8 @@ def box(df, **kwargs):
     sns.boxplot(data=df, showfliers=False, showcaps=False, **kwargs)
     if kwargs.get('hue'): kwargs['dodge'] = True
     sns.stripplot(data=df, s=1, color="0.2", **kwargs)
-    plt.setp(kwargs['ax'].get_xticklabels(), rotation=40, ha="right")
+    #plt.setp(kwargs['ax'].get_xticklabels(), rotation=40, ha="right")
+    kwargs['ax'].spines[['right', 'top']].set_visible(False)
     return kwargs['ax']
 
 def violin(df, **kwargs):
