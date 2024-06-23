@@ -6,7 +6,7 @@ import functions as f
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='''
-Explain - compute a SHAP value for each sample based on features in AI model''')
+shap - compute a SHAP value for each sample based on features in AI model''')
 
 parser.add_argument('analysis')
 parser.add_argument('subject')
@@ -21,4 +21,4 @@ with open(f'../results/{known.get("subject")}predict.pkl', 'rb') as file:
 output = f.explain(df, model, **known)
 print(output.to_string())
 
-f.save(output, f'{subject}explain})
+f.save(output, f'{subject}Shap')

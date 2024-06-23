@@ -9,6 +9,8 @@ from skbio.diversity.alpha import pielou_e, shannon, chao1, faith_pd
 from skbio.stats.composition import ancom, clr
 from skbio.stats.composition import multiplicative_replacement as mul
 from skbio.stats.distance import permanova
+from scipy.spatial.distance import pdist, squareform
+from skbio.stats.distance import DistanceMatrix
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.manifold import MDS, TSNE
@@ -31,7 +33,7 @@ import pandas as pd
 import pickle
 import pycircos
 import seaborn as sns
-import shap
+#import shap
 import shutil
 import skbio
 import subprocess
@@ -55,7 +57,6 @@ def classifier100(df, shapval=False, shapinteract=False):
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import train_test_split
     from sklearn.metrics import roc_auc_score
-    import shap
     aucrocs = []
     meanabsshaps = pd.DataFrame()
     mean_shap_interacts = pd.DataFrame(index=df.columns)
@@ -437,7 +438,48 @@ def multibox(df, sharey=True, logy=False):
     if logy: plt.yscale('log')
     return ax
 
-def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, annot=True, ax=None, **kwargs):
+def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, annot=True, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    # Extracting the fold change and p-values
+    lfc = df[change]
+    pvals = df[sig]
+    lpvals = -np.log10(pvals)
+
+    # Set default color for all points
+    colors = 'black'
+    if hue:
+        colors = df[hue]
+
+    # Scatter plot
+    ax.scatter(lfc, lpvals, c=colors, s=0.5)
+
+    # Adding threshold lines
+    ax.axvline(0, color='gray', linestyle='--')
+    ax.axhline(-np.log10(pval), color='red', linestyle='-')
+    ax.axhline(0, color='gray', linestyle='--')
+    ax.axvline(fc, color='red', linestyle='-')
+    ax.axvline(-fc, color='red', linestyle='-')
+
+    # Setting labels and limits
+    ax.set_ylabel('-log10 p-value')
+    ax.set_xlabel('log2 fold change')
+    ax.set_ylim(ymin=-0.1)
+    x_max = np.abs(lfc).max() * 1.1
+    ax.set_xlim(xmin=-x_max, xmax=x_max)
+
+    # Annotate significant points
+    sig_species = (lfc.abs() > fc) & (pvals < pval)
+    filter_df = df[sig_species]
+
+    if annot:
+        for idx, row in filter_df.iterrows():
+            ax.text(row[change], -np.log10(row[sig]), s=idx, fontsize=6)
+
+    return ax
+'''
+def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, annot=True, ax=None):
     if not ax: fig, ax= plt.subplots()
     lfc = df[change]
     pvals = df[sig] 
@@ -460,6 +502,7 @@ def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, anno
     sig.columns=['x','y']
     if annot: [ax.text(sig.loc[i,'x'], sig.loc[i,'y'], s=i) for i in sig.index]
     return ax
+'''
 
 def aucroc(df, ax=None, colour=None, **kwargs):
     AUC = auc(df.fpr, df.tpr)
@@ -841,18 +884,17 @@ def diffmean(df_true, df_false):
     return outdf
 
 def change(df, df2, columns=None, analysis=['mww','fc','diffmean']):
-    available={
-            'mww':mww,
-            'fc':fc,
-            'diffmean':diffmean}
+    # df2 has to be one hot encoded
+    if columns is None: columns = df2.columns
+    available={ 'mww':mww, 'fc':fc, 'diffmean':diffmean}
     i = analysis[0]
     label = df2.columns[0]
     out = {}
     for label in df2.columns:
         output = []
+        split = splitter(df, df2, label)
+        if len(split) != 2: continue
         for i in analysis:
-            split = splitter(df, df2, label)
-            if len(split) == 1: continue
             output.append(available.get(i)(split[True], split[False]))
         out[label] = pd.concat(output, axis=1)
     outdf = pd.concat(out.values(), axis=0, keys=out.keys())
@@ -883,6 +925,11 @@ def diversity(df):
              Shannon(df.copy()).to_frame('Shannon')],
             axis=1).sort_index().sort_index(ascending=False)
     return diversity
+
+def dist(df, metric='braycurtis'):
+    Ar_dist = squareform(pdist(df, metric=metric))
+    output = pd.DataFrame(Ar_dist, index=df.index, columns=df.index)
+    return output
 
 def fbratio(df):
     phylum = df.copy()
@@ -958,7 +1005,7 @@ def prevail(df):
     return df.agg(np.count_nonzero, axis=0).div(df.shape[0]).to_frame('baseprev')
 
 def onehot(df):
-    return pd.get_dummies(df, prefix_sep=': ')
+    return pd.get_dummies(df, prefix_sep=': ', dummy_na=True)
 
 def calculate(analysis, df):
     available={
@@ -1127,11 +1174,12 @@ def save(df, subject):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t')
 
-def savefig(subject, tl=True):
+def savefig(subject, tl=False, show=False):
     if tl: plt.tight_layout()
     plt.savefig(f'../results/{subject}.svg')
     plt.savefig(f'../results/{subject}.pdf')
-    #plt.show()
+    if show:
+        plt.show()
     subprocess.call(f'zathura ../results/{subject}.pdf &', shell=True)
     plt.clf()
 
