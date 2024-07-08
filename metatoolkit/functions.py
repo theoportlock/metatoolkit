@@ -812,23 +812,6 @@ def chisq(df, **kwargs):
     obsdict = dict(zip(combs, obsa))
     return obsdict, pvaldf
 
-def fisher(df, **kwargs):
-    # todo - will also make odds ratio plot with SE (to figure out)
-    df.index, df.columns = df.index.astype(str), df.columns.astype(str)
-    combs = list(permutations(df.columns.unique(), 2))
-    pvals=[]
-    odsa=[]
-    comb = combs[0]
-    for comb in combs:
-        test = df.loc[:, [comb[0], comb[1]]]
-        obs = pd.crosstab(test.iloc[:,0], test.iloc[:,1])
-        oddsratio, pvalue = fisher_exact(obs)
-        odsa.append(oddsratio)
-        pvals.append(pvalue)
-    outdf = pd.DataFrame(index=pd.MultiIndex.from_tuples(combs), dtype=float)
-    outdf['odds'] = odsa
-    outdf['pval'] = pvals
-    return outdf
 
 # Change
 def shapiro(df, **kwargs):
@@ -867,15 +850,6 @@ def fc(df_true, df_false):
     outdf['Log10FC'] = outdf.FC.apply(np.log10)
     return outdf
 
-def mfc(df_true, df_false):
-    outdf = pd.DataFrame(
-        df_true.median().div(df_false.median()),
-        columns = ['med_FC'],
-        index = df_true.columns)
-    outdf['Log2med_FC'] = outdf.med_FC.apply(np.log2)
-    outdf['Log10med_FC'] = outdf.med_FC.apply(np.log10)
-    return outdf
-
 def diffmean(df_true, df_false):
     outdf = pd.DataFrame(
         df_true.mean().sub(df_false.mean()),
@@ -883,19 +857,75 @@ def diffmean(df_true, df_false):
         index = df_true.columns)
     return outdf
 
-def change(df, df2, columns=None, analysis=['mww','fc','diffmean']):
-    # df2 has to be one hot encoded
+def summary(df_true: pd.DataFrame, df_false: pd.DataFrame) -> pd.DataFrame:
+    """
+    Generate summary statistics combining mean and standard deviation for true and false values.
+    Parameters
+    ----------
+    df_true : pd.DataFrame
+        DataFrame containing the true values.
+    df_false : pd.DataFrame
+        DataFrame containing the false values.
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing mean ± standard deviation for each column in both df_true and df_false.
+    """
+    def get_summary(df: pd.DataFrame) -> pd.Series:
+        mean_values = df.mean().round(2).astype(str)
+        std_values = df.std().round(2).astype(str)
+        return mean_values + ' ± ' + std_values
+    true_summary = get_summary(df_true)
+    false_summary = get_summary(df_false)
+    summary_df = pd.DataFrame({
+        'source_true_summary': true_summary,
+        'source_false_summary': false_summary
+    })
+    return summary_df
+
+def change(df, df2, columns=None, analysis=['mww','fc','diffmean','summary']):
+    """
+    Perform various analyses on specified columns of a DataFrame and summarize the results.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Main DataFrame containing the data to be analyzed.
+    df2 : pd.DataFrame
+        DataFrame containing one-hot encoded columns for splitting data in df.
+    columns : list, optional
+        List of column names to be analyzed. If None, all columns in df2 are used.
+    analysis : list, optional
+        List of analyses to perform. Default is ['mww', 'fc', 'diffmean', 'summary'].
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame containing the results of the specified analyses for each column.
+    Example
+    -------
+    >>> df = pd.DataFrame({
+    ...     'A': [1, 2, 3, 4, 5],
+    ...     'B': [5, 6, 7, 8, 9],
+    ...     'C': [10, 11, 12, 13, 14]
+    ... })
+    >>> df2 = pd.DataFrame({
+    ...     'X': [1, 0, 1, 0, 1],
+    ...     'Y': [0, 1, 0, 1, 0],
+    ...     'Z': [1, 1, 0, 0, 1]
+    ... })
+    >>> result = change(df, df2)
+    """
     if columns is None: columns = df2.columns
-    available={ 'mww':mww, 'fc':fc, 'diffmean':diffmean}
-    i = analysis[0]
-    label = df2.columns[0]
+    available={'mww':mww, 'fc':fc, 'diffmean':diffmean, 'summary':summary}
+    i = 'summary'
+    label = df2.columns[2]
     out = {}
-    for label in df2.columns:
+    for label in df2[columns].columns:
         output = []
         split = splitter(df, df2, label)
         if len(split) != 2: continue
         for i in analysis:
-            output.append(available.get(i)(split[True], split[False]))
+            df_true, df_false = split[True], split[False]
+            output.append(available.get(i)(df_true, df_false))
         out[label] = pd.concat(output, axis=1)
     outdf = pd.concat(out.values(), axis=0, keys=out.keys())
     outdf.index.set_names(['source','target'], inplace=True)
@@ -1005,7 +1035,7 @@ def prevail(df):
     return df.agg(np.count_nonzero, axis=0).div(df.shape[0]).to_frame('baseprev')
 
 def onehot(df):
-    return pd.get_dummies(df, prefix_sep=': ', dummy_na=True)
+    return pd.get_dummies(df, prefix_sep='.')
 
 def calculate(analysis, df):
     available={
@@ -1175,11 +1205,12 @@ def save(df, subject):
     df.to_csv(output_path, sep='\t')
 
 def savefig(subject, tl=False, show=False):
+    if os.path.isfile(subject): subject = Path(subject).stem
     if tl: plt.tight_layout()
     plt.savefig(f'../results/{subject}.svg')
     plt.savefig(f'../results/{subject}.pdf')
-    if show:
-        plt.show()
+    plt.savefig(f'../results/{subject}.jpg')
+    if show: plt.show()
     subprocess.call(f'zathura ../results/{subject}.pdf &', shell=True)
     plt.clf()
 
