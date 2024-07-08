@@ -18,6 +18,7 @@ with pd.ExcelWriter('../figures/suppTables.xlsx') as writer:
                 writer,
                 sheet_name='SuppT' + str(j) + '_' + i.split('/')[-1].split('.')[0])
 
+'''
 # Create Supp tables for latex
 tables = pd.read_csv('../figures/suppTableList.txt', header=None)
 table = '../results/' + tables + '.tsv'
@@ -27,3 +28,4 @@ except: None
 pathlib.Path(mydir).mkdir(parents=True) 
 for j,i in enumerate(table[0]):
     pd.read_csv(i, sep='\t', index_col=0, dtype=object).to_latex('../figures/texsupptables/TableS' + str(j+1) + '_' + i.split('/')[-1].split('.')[0] + '.tex', escape="Latex", longtable=True)
+'''
