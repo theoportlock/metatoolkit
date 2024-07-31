@@ -4,6 +4,7 @@
 import argparse
 import functions as f
 import matplotlib.pyplot as plt
+import os
 
 parser = argparse.ArgumentParser(description='''
 Hist - Produces a Histplot of a given dataset

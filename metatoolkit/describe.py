@@ -4,6 +4,7 @@
 import argparse
 import functions as f
 import pandas as pd
+import os
 
 parser = argparse.ArgumentParser(description='Describe - Produces a summary report of analysis')
 parser.add_argument('subject')
