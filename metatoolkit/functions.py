@@ -702,52 +702,6 @@ def upsample(df):
                  random_state=42)
     return pd.concat([df.drop(df.index.value_counts().index[1]), upsample])
 
-# Describe
-def describe(df, pval=0.05, corr=None, change=None, sig=None, **kwargs):
-    # CHANGED
-    if change and sig:
-        changed = 'sig changed = ' +\
-            str(df[sig].lt(pval).sum()) + '/' + str(df.shape[0]) + ' (' + str(round(df[sig].lt(pval).sum()/df.shape[0] * 100)) + '%)'
-        # INCREASED
-        increased = 'sig increased = ' +\
-            str(df.loc[(df[sig].lt(pval)) & (df[change].gt(0)),sig].lt(pval).sum()) +\
-            '/' +\
-            str(df.shape[0]) +\
-            ' (' +\
-            str(round(df.loc[(df[sig].lt(pval)) & (df[change].gt(0)),sig].lt(pval).sum()/df.shape[0] * 100)) +\
-            '%)'
-        # DECREASED
-        decreased = 'sig decreased = ' +\
-            str(df.loc[(df[sig].lt(pval)) & (df[change].lt(0)),sig].lt(pval).sum()) +\
-            '/' +\
-            str(df.shape[0]) +\
-            ' (' +\
-            str(round(df.loc[(df[sig].lt(pval)) & (df[change].lt(0)),sig].lt(pval).sum()/df.shape[0] * 100)) +\
-            '%)'
-        summary = pd.Series([changed, increased, decreased])
-    else:
-        summary = df.describe(include='all').T.reset_index()
-    if corr:
-        changed = 'sig correlated = ' +\
-            str(df['sig'].lt(pval).sum()) + '/' + str(df.shape[0]) + ' (' + str(round(df['sig'].lt(pval).sum()/df.shape[0] * 100)) + '%)'
-        # INCREASED
-        increased = 'sig positively correlated = ' +\
-            str(df.loc[(df['sig'].lt(pval)) & (df[df.columns[df.columns.str.contains('rho')]].gt(0).iloc[:,0]), 'sig'].lt(pval).sum()) +\
-            '/' +\
-            str(df.shape[0]) +\
-            ' (' +\
-            str(round(df.loc[(df['sig'].lt(pval)) & (df[df.columns[df.columns.str.contains('rho')]].gt(0).iloc[:,0]), 'sig'].lt(pval).sum()/df.shape[0] * 100)) +\
-            '%)'
-        # DECREASED
-        decreased = 'sig negatively correlated = ' +\
-            str(df.loc[(df['sig'].lt(pval)) & (df[df.columns[df.columns.str.contains('rho')]].lt(0).iloc[:,0]), 'sig'].lt(pval).sum()) +\
-            '/' +\
-            str(df.shape[0]) +\
-            ' (' +\
-            str(round(df.loc[(df['sig'].lt(pval)) & (df[df.columns[df.columns.str.contains('rho')]].lt(0).iloc[:,0]), 'sig'].lt(pval).sum()/df.shape[0] * 100)) +\
-            '%)'
-        summary = pd.Series([changed, increased, decreased])
-    return summary
 
 # Corr
 def corrpair(df1, df2, FDR=True, min_unique=0):
