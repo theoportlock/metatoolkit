@@ -19,7 +19,7 @@ scripts = [os.path.join('metatoolkit', f) for f in os.listdir('metatoolkit')
 
 setup(
     name='metatoolkit',
-    version='0.1',
+    version='0.2',
     packages=find_packages(),
     scripts=scripts,
     install_requires=required,
