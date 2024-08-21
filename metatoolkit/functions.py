@@ -628,6 +628,8 @@ def filter(df, **kwargs):
         df = df.loc[:, df.agg(np.count_nonzero, axis=0).gt(df.shape[0]*kwargs.get('prevail'))]
     if kwargs.get('abund'):
         df = df.loc[:, df.mean().gt(kwargs.get('abund'))]
+    if kwargs.get('min_unique'):
+        df = df.loc[:, df.nunique().gt(kwargs.get('min_unique'))]
     if kwargs.get('nonzero'):
         df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) !=0]
     if kwargs.get('numeric_only'):
@@ -1153,10 +1155,10 @@ def load(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
     return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
 
-def save(df, subject):
+def save(df, subject, index=True):
     output_path = f'../results/{subject}.tsv' 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df.to_csv(output_path, sep='\t')
+    df.to_csv(output_path, sep='\t', index=index)
 
 def savefig(subject, tl=False, show=False):
     if os.path.isfile(subject): subject = Path(subject).stem
