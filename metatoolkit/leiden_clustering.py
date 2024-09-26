@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import argparse
 import functions as f
 import igraph as ig
