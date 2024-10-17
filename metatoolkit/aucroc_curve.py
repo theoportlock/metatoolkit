@@ -34,7 +34,6 @@ def parse_args(args):
     parser.add_argument('subject', type=str, help='Data name or full filepath')
     return parser.parse_args(args)
 
-#arguments = ['../../fellowship/m4efad/baseline/results/alldatafilterCondition.MAMfpr_tpr.tsv']
 arguments = sys.argv[1:]
 args = parse_args(arguments)
 

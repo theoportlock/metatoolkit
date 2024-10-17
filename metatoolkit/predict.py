@@ -28,7 +28,8 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
     random_state = 1
     for random_state in range(n_iter):
         if analysis.lower() == 'classifier':
-            model = RandomForestClassifier(n_jobs=-1, random_state=random_state)
+            model = RandomForestClassifier(n_jobs=-1, random_state=random_state, bootstrap=False, max_depth=None, min_samples_leaf=8,min_samples_split=20,n_estimators=400)
+            # updated from the hyperparameter tuning
         elif analysis.lower() == 'regressor':
             model = RandomForestRegressor(n_jobs=-1, random_state=random_state)
         else:

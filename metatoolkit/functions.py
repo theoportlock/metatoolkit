@@ -33,7 +33,7 @@ import pandas as pd
 import pickle
 import pycircos
 import seaborn as sns
-#import shap
+import shap
 import shutil
 import skbio
 import subprocess
@@ -92,10 +92,6 @@ def classifier(df, random_state=1):
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     y_prob = model.predict_proba(X_test)[:, 1]
-    #performance = classification_report(y_true=y_test, y_pred=y_pred) + '\n' \
-    #    'AUCROC=' + str(roc_auc_score(y_test, y_prob)) + '\n\n' +\
-    #    pd.DataFrame(confusion_matrix(y_test, y_pred)).to_string() + '\n' +\
-    #    'oob score=' + str(model.oob_score_)
     performance = roc_auc_score(y_test, y_prob)
     print(performance)
     fpr, tpr, _ = roc_curve(y_test, y_prob, pos_label=y[0])
@@ -110,12 +106,8 @@ def regressor(df, random_state=1, **kwargs):
     y_pred = model.predict(X_test)
     mae = mean_absolute_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-    # performance = "Mean Absolute Error:" + str(mae) + '\n\n' + \
-    #     "R-squared score:" + str(r2) + '\n' + \
-    #     'oob score =' + str(model.oob_score_)
     performance = mae
     print(performance)
-    #with open(f'../results/{subject}performance.txt', 'w') as of: of.write(performance)
     return model, performance
 
 def networkpredict(df):
@@ -139,7 +131,6 @@ def binnetworkpredict(df):
     shaps = pd.DataFrame(index=df.columns)
     aucroc = pd.Series(index=df.columns)
     for ii,i in enumerate(df.columns):
-        #try:
         print(i)
         tdf = df.set_index(i)
         tdf = upsample(tdf)
@@ -152,9 +143,6 @@ def binnetworkpredict(df):
         shaps[i] = SHAP_bin(tdf, model)
         print(shaps)
         print(aucroc)
-        #except:
-        #    print('fail')
-        #    pass
     return aucroc, shaps
 
 def predict(analysis, df, **kwargs):
@@ -167,14 +155,13 @@ def predict(analysis, df, **kwargs):
     return output
 
 # Plotting
-def setupplot(grid=False, logy=False, agg=False, figsize=(3,3)):
+def setupplot(grid=False, logy=False, agg=False, figsize=(3,3), fontsize=6):
     #matplotlib.use('WebAgg')
     if agg: matplotlib.use('Agg')
     linewidth = 0.25
     matplotlib.rcParams['grid.color'] = 'lightgray'
     matplotlib.rcParams["svg.fonttype"] = "none"
-    #matplotlib.rcParams["font.size"] = 5
-    matplotlib.rcParams["font.size"] = 6
+    matplotlib.rcParams["font.size"] = fontsize
     matplotlib.rcParams["lines.linewidth"] = linewidth
     matplotlib.rcParams["figure.figsize"] = figsize
     matplotlib.rcParams["axes.linewidth"] = linewidth
@@ -410,7 +397,7 @@ def box(df, **kwargs):
     if kwargs.get('x') is None: kwargs['x'] = df.columns[0]
     if kwargs.get('y') is None: kwargs['y'] = df.columns[1]
     if kwargs.get('ax') is None: kwargs['ax'] = plt.subplots()[1]
-    sns.boxplot(data=df, showfliers=False, showcaps=False, **kwargs)
+    sns.boxplot(data=df, showfliers=False, showcaps=False, linewidth=0.25, **kwargs)
     if kwargs.get('hue'): kwargs['dodge'] = True
     sns.stripplot(data=df, s=1, color="0.2", **kwargs)
     #plt.setp(kwargs['ax'].get_xticklabels(), rotation=40, ha="right")
@@ -438,7 +425,7 @@ def multibox(df, sharey=True, logy=False):
     if logy: plt.yscale('log')
     return ax
 
-def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, annot=True, ax=None):
+def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, annot=True, ax=None, size=None):
     if ax is None:
         fig, ax = plt.subplots()
 
@@ -450,10 +437,19 @@ def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, anno
     # Set default color for all points
     colors = 'black'
     if hue:
-        colors = df[hue]
+        # Use a red color map
+        unique_vals = df[hue].unique()
+        color_palette = sns.color_palette("Reds", len(unique_vals))
+        color_dict = dict(zip(unique_vals, color_palette))
+        colors = df[hue].map(color_dict)
+
+    # Set default size for all points or use the size column
+    sizes = 20  # default size
+    if size:
+        sizes = df[size]
 
     # Scatter plot
-    ax.scatter(lfc, lpvals, c=colors, s=0.5)
+    ax.scatter(lfc, lpvals, c=colors, s=sizes, alpha=0.5)
 
     # Adding threshold lines
     ax.axvline(0, color='gray', linestyle='--')
@@ -478,31 +474,6 @@ def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, anno
             ax.text(row[change], -np.log10(row[sig]), s=idx, fontsize=6)
 
     return ax
-'''
-def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, annot=True, ax=None):
-    if not ax: fig, ax= plt.subplots()
-    lfc = df[change]
-    pvals = df[sig] 
-    lpvals = pvals.apply(np.log10).mul(-1)
-    c = 'black'
-    if hue: c = 'hue'
-    ax.scatter(lfc, lpvals, c=c, s=0.5)
-    ax.axvline(0, color='gray', linestyle='--')
-    ax.axhline(-1 * np.log10(pval), color='red', linestyle='-')
-    ax.axhline(0, color='gray', linestyle='--')
-    ax.axvline(fc, color='red', linestyle='-')
-    ax.axvline(-fc, color='red', linestyle='-')
-    ax.set_ylabel('-log10 q-value')
-    ax.set_xlabel('log2 fold change')
-    ax.set_ylim(ymin=-0.1)
-    x_max = np.abs(ax.get_xlim()).max()
-    ax.set_xlim(xmin=-x_max, xmax=x_max)
-    sigspecies = lfc.abs().gt(fc) & lpvals.abs().gt(-1 * np.log10(pval))
-    sig = pd.concat([lfc.loc[sigspecies], lpvals.loc[sigspecies]], axis=1) 
-    sig.columns=['x','y']
-    if annot: [ax.text(sig.loc[i,'x'], sig.loc[i,'y'], s=i) for i in sig.index]
-    return ax
-'''
 
 def aucroc(df, ax=None, colour=None, **kwargs):
     AUC = auc(df.fpr, df.tpr)
@@ -596,7 +567,6 @@ def expvsobs(df, **kwargs):
     plt.title('Random Forest Regression Model')
     return None
 
-# Merge
 def merge(datasets=None, join='inner', append=None):
     if append:
         outdf = pd.concat(datasets, axis=0, join=join)
@@ -604,7 +574,6 @@ def merge(datasets=None, join='inner', append=None):
         outdf = pd.concat(datasets, axis=1, join=join)
     return outdf
 
-# Group
 def group(df, type='sum'):
     if type=='sum':
         outdf = df.groupby(level=0).sum()
@@ -612,7 +581,6 @@ def group(df, type='sum'):
         outdf = df.groupby(level=0).mean()
     return outdf
 
-# Filter 
 def filter(df, **kwargs):
     df.index = df.index.astype(str)
     if kwargs.get('filter_df') is not None:
@@ -644,7 +612,6 @@ def filter(df, **kwargs):
     else:
         return df
 
-# Explain
 def SHAP_interact(df, model, **kwargs):
     X = df.copy()
     explainer = shap.TreeExplainer(model)
@@ -704,8 +671,6 @@ def upsample(df):
                  random_state=42)
     return pd.concat([df.drop(df.index.value_counts().index[1]), upsample])
 
-
-# Corr
 def corrpair(df1, df2, FDR=True, min_unique=0):
     df1 = df1.loc[:, df1.nunique() > min_unique]
     df2 = df2.loc[:, df2.nunique() > min_unique]
@@ -723,14 +688,6 @@ def corrpair(df1, df2, FDR=True, min_unique=0):
             columns = pvaldf.columns)
     return cordf, pvaldf
 
-def sparcc(subject):
-    ncor = pd.read_csv('/home/theop/SparCC/sparcc_output/cor_sparcc_tapetes.csv', index_col=0)
-    ncor.index, ncor.columns = cor.index, cor.columns
-    thresh = 0.03
-    edges = f.to_edges(ncor, thresh=thresh)
-    edges.sort_values('weight').to_csv('../results/edges.csv')
-    return edges
-
 def corr(df):
     combs = list(permutations(df.columns.unique(), 2))
     outdf = pd.DataFrame(index=pd.MultiIndex.from_tuples(combs), columns=['cor','pval'])
@@ -743,7 +700,6 @@ def corr(df):
     outdf.index.set_names(['source', 'target'], inplace=True)
     return outdf
 
-# Compare - TODO
 def chisq(df, **kwargs):
     df.index, df.columns = df.index.astype(str), df.columns.astype(str)
     combs = list(permutations(df.columns.unique(), 2))
@@ -768,8 +724,6 @@ def chisq(df, **kwargs):
     obsdict = dict(zip(combs, obsa))
     return obsdict, pvaldf
 
-
-# Change
 def shapiro(df, **kwargs):
     #fix
     output = pd.DataFrame()
@@ -1106,7 +1060,6 @@ def splitter(df, df2, column):
 
 # Misc
 def taxofunc(msp, taxo, short=False):
-    import pandas as pd
     m, t = msp.copy(), taxo.copy()
     t['superkingdom'] = 'k_' + t['superkingdom']
     t['phylum'] = t[['superkingdom', 'phylum']].apply(lambda x: '|p_'.join(x.dropna().astype(str).values), axis=1)
@@ -1130,14 +1083,9 @@ def fdr(pvaldf):
         columns = pvaldf.columns)
     return out
 
-def batch(df):
-    out = pycombat(df.T,df.index).T
-    return out
-
 def lmer(df): 
     import statsmodels.formula.api as smf
     import statsmodels.api as sm
-    data = pd.read_csv('/tmp/dietox.csv', index_col=0)
     data = df.copy()
     md = smf.mixedlm("Weight ~ Time", data, groups=data["Pig"])
     mdf = md.fit()

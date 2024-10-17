@@ -4,6 +4,7 @@
 import argparse
 import functions as f
 import matplotlib.pyplot as plt
+import os
 
 parser = argparse.ArgumentParser(description='''
 Heatmap - Produces a heatmap of a given dataset
