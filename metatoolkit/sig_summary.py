@@ -7,14 +7,6 @@ import pandas as pd
 import os
 from pathlib import Path
 
-parser = argparse.ArgumentParser(description='Describe - Produces a summary report of analysis')
-parser.add_argument('subject')
-parser.add_argument('-p', '--pval', type=float, default=0.25)
-parser.add_argument('-c', '--change', type=str, default='coef')
-parser.add_argument('-s', '--sig', type=str, default='qval')
-known = parser.parse_args()
-known = {k: v for k, v in vars(known).items() if v is not None}
-
 def change_summary(df, change='coef', sig='qval', pval=0.25):
     total_rows = df.shape[0]
     sig_changed_count = df[sig].lt(pval).sum()
@@ -24,6 +16,14 @@ def change_summary(df, change='coef', sig='qval', pval=0.25):
     sig_decreased_count = df.loc[(df[sig] < pval) & (df[change] < 0), sig].lt(pval).sum()
     decreased = f"sig down = {sig_decreased_count}/{total_rows} ({round(sig_decreased_count / total_rows * 100)}%)"
     return pd.Series([changed, increased, decreased])
+
+parser = argparse.ArgumentParser(description='Describe - Produces a summary report of analysis')
+parser.add_argument('subject')
+parser.add_argument('-p', '--pval', type=float, default=0.25)
+parser.add_argument('-c', '--change', type=str, default='coef')
+parser.add_argument('-s', '--sig', type=str, default='qval')
+known = parser.parse_args()
+known = {k: v for k, v in vars(known).items() if v is not None}
 
 subject = known.get("subject")
 if os.path.isfile(subject): subject = Path(subject).stem

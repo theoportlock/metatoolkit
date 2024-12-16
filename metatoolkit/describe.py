@@ -15,7 +15,7 @@ parser.add_argument('-r', '--corr', action='store_true')
 known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 
-def describe(df, datatype=None, **kwargs):
+def Describe(df, datatype=None, **kwargs):
     available = {'change_summary':change_summary,
                  'corr_summary':corr_summary,
                  'mbiome_summary':mbiome_summary}
@@ -75,6 +75,6 @@ if os.path.isfile(subject): subject = Path(subject).stem
 df = f.load(subject)
 
 df = f.load(subject)
-output = describe(df, **known)
+output = Describe(df, **known)
 print(output.to_string())
-f.save(output, f'{subject}describe')
+f.save(output, f'{subject}Describe')

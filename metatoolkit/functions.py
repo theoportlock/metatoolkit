@@ -574,11 +574,8 @@ def merge(datasets=None, join='inner', append=None):
         outdf = pd.concat(datasets, axis=1, join=join)
     return outdf
 
-def group(df, type='sum'):
-    if type=='sum':
-        outdf = df.groupby(level=0).sum()
-    elif type=='mean':
-        outdf = df.groupby(level=0).mean()
+def group(df, agg_func='sum'):
+    outdf = df.groupby(level=0).agg(agg_func)
     return outdf
 
 def filter(df, **kwargs):
@@ -827,7 +824,7 @@ def change(df, df2, columns=None, analysis=['mww','fc','diffmean','summary']):
     if columns is None: columns = df2.columns
     available={'mww':mww, 'fc':fc, 'diffmean':diffmean, 'summary':summary}
     i = 'summary'
-    label = df2.columns[2]
+    #label = df2.columns[2]
     out = {}
     for label in df2[columns].columns:
         output = []
@@ -945,7 +942,7 @@ def prevail(df):
     return df.agg(np.count_nonzero, axis=0).div(df.shape[0]).to_frame('baseprev')
 
 def onehot(df):
-    return pd.get_dummies(df, prefix_sep='.')
+    return pd.get_dummies(df, prefix_sep='.', dtype=bool)
 
 def calculate(analysis, df):
     available={
@@ -1113,7 +1110,7 @@ def savefig(subject, tl=False, show=False):
     if tl: plt.tight_layout()
     plt.savefig(f'../results/{subject}.svg')
     plt.savefig(f'../results/{subject}.pdf')
-    plt.savefig(f'../results/{subject}.jpg')
+    plt.savefig(f'../results/{subject}.jpg', dpi=500)
     if show: plt.show()
     subprocess.call(f'zathura ../results/{subject}.pdf &', shell=True)
     plt.clf()

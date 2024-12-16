@@ -25,8 +25,8 @@ unknown = eval(unknown[0]) if unknown != [] else {}
 
 # Assemble params
 subject = known.get("subject"); known.pop('subject')
-change = known.get("change") if known.get("change") else 'Log2FC'
-sig = known.get("sig") if known.get("sig") else 'MWW_pval'
+change = known.get("change") if known.get("change") else 'coef'
+sig = known.get("sig") if known.get("sig") else 'qval'
 fc = float(known.get("fc")) if known.get("fc") else 1.0
 pval = float(known.get("pval")) if known.get("pval") else 0.05
 annot = known.get("annot") if known.get("annot") else True
