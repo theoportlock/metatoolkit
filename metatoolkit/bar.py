@@ -23,4 +23,5 @@ df = f.load(subject)
 
 f.setupplot()
 f.bar(df, **known)
-f.savefig('{subject}bar')
+plt.tight_layout()
+f.savefig(f'{subject}bar')

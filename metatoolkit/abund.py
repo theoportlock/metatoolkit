@@ -18,4 +18,4 @@ df = f.load(subject)
 
 f.setupplot()
 f.abund(df)
-f.savefig('{subject}abund')
+f.savefig(f'{subject}abund')

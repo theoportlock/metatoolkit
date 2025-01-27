@@ -19,7 +19,7 @@ def plot_network(graphml_file, output_file, max_label_width=150):
     if all('status' in G.nodes[node] for node in G.nodes):
         node_color = [G.nodes[node]['status'] for node in G.nodes]
     else:
-        node_color = 'blue'  # Default color if no status info is available
+        node_color = 'gray'  # Default color if no status info is available
 
     # Function to wrap text based on max pixel width (approximate)
     def wrap_label(text, max_pixels, font_size=6):
@@ -32,7 +32,7 @@ def plot_network(graphml_file, output_file, max_label_width=150):
     labels = {node: wrap_label(G.nodes[node].get('label', node), max_label_width) for node in G.nodes}
 
     # Plot the network with a smaller font size and save to PDF
-    plt.figure(figsize=(10, 10))
+    #plt.figure(figsize=(10, 10))
     nx.draw(G, pos, labels=labels, with_labels=True,
             node_color=node_color, cmap=plt.cm.viridis,
             font_size=6, font_color='black')  # Smaller font size for labels
@@ -42,8 +42,8 @@ def plot_network(graphml_file, output_file, max_label_width=150):
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plot a network graph from a GraphML file and save it as a PDF.')
-    parser.add_argument('--graphml-file', required=True, help='Path to the GraphML file')
-    parser.add_argument('--output-file', required=True, help='Path to save the output PDF file')
+    parser.add_argument('--graphml-file', help='Path to the GraphML file')
+    parser.add_argument('--output-file', help='Path to save the output PDF file')
     args = parser.parse_args()
 
     # Plot the network and save as PDF

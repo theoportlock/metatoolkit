@@ -1,0 +1,17 @@
+{
+  "name": "tmpapp",
+  "version": "1.0.0",
+  "description": "A simple network GUI app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.1",
+    "express-fileupload": "^1.2.0"
+  },
+  "type": "module",
+  "author": "",
+  "license": "ISC"
+}
+
