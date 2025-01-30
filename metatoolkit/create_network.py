@@ -50,14 +50,24 @@ def build_graph(nodes, edges):
 def main():
     """Main function to parse arguments and build the graph."""
     parser = argparse.ArgumentParser(description="Build a graph from node and edge files.")
-    parser.add_argument('--nodes', required=True, help="Path to the nodes TSV file")
+    parser.add_argument('--nodes', required=False, help="Path to the nodes TSV file (optional)")
     parser.add_argument('--edges', required=True, help="Path to the edges TSV file")
     parser.add_argument('--output', default='graph.graphml', help="Output GraphML file")
     args = parser.parse_args()
 
-    # Load nodes and edges
-    nodes = load_nodes(args.nodes)
+    # Load edges
     edges = load_edges(args.edges)
+
+    # Load or create nodes
+    if args.nodes:
+        nodes = load_nodes(args.nodes)
+    else:
+        # Extract all unique nodes from edges
+        all_nodes = set()
+        for edge in edges:
+            all_nodes.add(edge["source"])
+            all_nodes.add(edge["target"])
+        nodes = {node: {} for node in all_nodes}
 
     # Build graph
     G = build_graph(nodes, edges)
