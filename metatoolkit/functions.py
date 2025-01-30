@@ -38,6 +38,7 @@ import shutil
 import skbio
 import subprocess
 import umap
+from pathlib import Path
 
 # Prediction
 def mlpclassifier(df, random_state=1):
