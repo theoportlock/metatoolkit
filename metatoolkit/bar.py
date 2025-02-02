@@ -19,10 +19,6 @@ def parse_args():
     parser.add_argument('subject', help='Dataset identifier to load')
     return vars(parser.parse_args())
 
-# ---------------------------
-# Plotting function
-# ---------------------------
-
 def bar(df, ax=None):
     """
     Create a bar plot with the top 20 columns, summing the rest into "Other".
