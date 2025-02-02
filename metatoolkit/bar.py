@@ -2,26 +2,83 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
+import metatoolkit.functions as f
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 
-parser = argparse.ArgumentParser(description='''
-Bar - Produces a barplot of a given dataset
-''')
+# ---------------------------
+# Argument parsing
+# ---------------------------
 
-parser.add_argument('subject')
-parser.add_argument('-x')
-parser.add_argument('-y')
-parser.add_argument('-hue')
+def parse_args():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Bar - Produces a barplot of a given dataset'
+    )
+    parser.add_argument('subject', help='Dataset identifier to load')
+    return vars(parser.parse_args())
 
-known = parser.parse_args()
-known = {k: v for k, v in vars(known).items() if v is not None}
+# ---------------------------
+# Plotting function
+# ---------------------------
 
-subject = known.get("subject")
-df = f.load(subject)
+def bar(df, ax=None):
+    """
+    Create a bar plot with the top 20 columns, summing the rest into "Other".
+    
+    Parameters:
+    - df: Input DataFrame
+    - ax: Optional matplotlib Axes object
+    """
+    maximum = 20  # Hardcoded value
+    
+    if ax is None:
+        _, ax = plt.subplots(figsize=(5,5))
 
-f.setupplot()
-f.bar(df, **known)
-plt.tight_layout()
-f.savefig(f'{subject}bar')
+    # Create "Other" category if needed
+    if df.shape[1] > maximum:
+        top_columns = df.mean().nlargest(maximum - 1).index
+        df['Other'] = df.drop(columns=top_columns).sum(axis=1)
+        df = df[top_columns.union(['Other'])]
+
+    # Sort and melt data
+    df = df[df.median().sort_values(ascending=False).index]
+    mdf = df.melt()
+
+    # Create plots using melted columns
+    sns.boxplot(
+        data=mdf,
+        x='variable',
+        y='value',
+        showfliers=False,
+        boxprops=dict(alpha=0.25),
+        ax=ax
+    )
+    
+    sns.stripplot(
+        data=mdf,
+        x='variable',
+        y='value',
+        size=2,
+        color=".3",
+        ax=ax
+    )
+
+    # Formatting
+    ax.set_xlabel('Categories')
+    ax.set_ylabel('Relative abundance')
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+    
+    return ax
+
+# ---------------------------
+# Main execution
+# ---------------------------
+
+if __name__ == '__main__':
+    args = parse_args()
+    df = f.load(args['subject'])
+    bar(df)
+    plt.tight_layout()
+    f.savefig(f"{args['subject']}_bar")
