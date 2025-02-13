@@ -35,5 +35,6 @@ else:
     f.regplot(df, **known)
 
 if logy: plt.yscale('log')
+plt.tight_layout()
 f.savefig(f'{subject}regplot')
 
