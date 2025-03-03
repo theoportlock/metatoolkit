@@ -52,7 +52,7 @@ def main():
     parser = argparse.ArgumentParser(description="Build a graph from node and edge files.")
     parser.add_argument('--nodes', required=False, help="Path to the nodes TSV file (optional)")
     parser.add_argument('--edges', required=True, help="Path to the edges TSV file")
-    parser.add_argument('--output', default='graph.graphml', help="Output GraphML file")
+    parser.add_argument('--output', default='../results/graph.graphml', help="Output GraphML file")
     args = parser.parse_args()
 
     # Load edges
