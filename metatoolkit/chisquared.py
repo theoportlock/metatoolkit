@@ -55,7 +55,7 @@ def chi_squared(df: pd.DataFrame) -> pd.DataFrame:
     }
 
     for source, target in column_pairs:
-        contingency_table = pd.crosstab(df[target], df[source], dropna=False)
+        contingency_table = pd.crosstab(df[target], df[source])
         chi2_stat, pvalue, dof, expected = chi2_contingency(contingency_table)
         v = association(contingency_table, method="cramer")
         results['chi2'].append(chi2_stat)

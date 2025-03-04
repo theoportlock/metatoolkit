@@ -29,7 +29,13 @@ def kruskal_wallis_test(df, df2):
             filtered_df2 = df2[valid_idx]
             
             groups = [filtered_df[num_col][filtered_df2[cat_col] == category] for category in filtered_df2[cat_col].unique()]
+            
+            # Ensure all groups have more than one unique value to avoid errors
             if len(groups) > 1 and all(len(g) > 0 for g in groups):
+                unique_values = [g.nunique() for g in groups]
+                if all(u == 1 for u in unique_values):
+                    continue  # Skip if all values in all groups are identical
+                
                 stat, p = kruskal(*groups)
                 results.append({'source': cat_col, 'target': num_col, 'statistic': stat, 'p_value': p})
     
@@ -47,4 +53,3 @@ if __name__ == "__main__":
     print(output)
     
     f.save(output, subject + '_kruskal')
-
