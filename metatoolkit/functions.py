@@ -393,18 +393,6 @@ def regplot(df, **kwargs):
     sns.regplot(data=df, x=x, y=y, scatter_kws={"color": "black", 's':1}, line_kws={"color": "red"})
     return kwargs['ax']
 
-def box(df, **kwargs):
-    df = df.reset_index()
-    if kwargs.get('x') is None: kwargs['x'] = df.columns[0]
-    if kwargs.get('y') is None: kwargs['y'] = df.columns[1]
-    if kwargs.get('ax') is None: kwargs['ax'] = plt.subplots()[1]
-    sns.boxplot(data=df, showfliers=False, showcaps=False, linewidth=0.25, **kwargs)
-    if kwargs.get('hue'): kwargs['dodge'] = True
-    sns.stripplot(data=df, s=1, color="0.2", **kwargs)
-    #plt.setp(kwargs['ax'].get_xticklabels(), rotation=40, ha="right")
-    kwargs['ax'].spines[['right', 'top']].set_visible(False)
-    return kwargs['ax']
-
 def violin(df, **kwargs):
     df = df.reset_index()
     if kwargs.get('x') is None: kwargs['x'] = df.columns[0]

@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import metatoolkit.functions as f
+import os
+from pathlib import Path
+import subprocess
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -18,6 +20,17 @@ def parse_args():
     )
     parser.add_argument('subject', help='Dataset identifier to load')
     return vars(parser.parse_args())
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+
+def savefig(subject, tl=False, show=False):
+    if os.path.isfile(subject): 
+        subject = Path(subject).stem
+    plt.savefig(f'../results/{subject}.svg')
+    plt.clf()
 
 def bar(df, ax=None):
     """
@@ -66,6 +79,10 @@ def bar(df, ax=None):
     ax.set_ylabel('Relative abundance')
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     
+    # Remove the top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
     return ax
 
 # ---------------------------
@@ -74,7 +91,7 @@ def bar(df, ax=None):
 
 if __name__ == '__main__':
     args = parse_args()
-    df = f.load(args['subject'])
+    df = load(args['subject'])
     bar(df)
     plt.tight_layout()
-    f.savefig(f"{args['subject']}_bar")
+    savefig(f"{args['subject']}_bar")
