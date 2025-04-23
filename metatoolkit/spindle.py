@@ -2,85 +2,113 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from pathlib import Path
 import seaborn as sns
+import sys
 
-def spindle(df, meta=None, ax=None, palette=None, **kwargs):
-    if palette is None: palette = pd.Series(sns.color_palette("hls", df.index.nunique()).as_hex(), index=df.index.unique())
-    if ax is None: fig, ax= plt.subplots()
-    x=df.columns[0]
-    y=df.columns[1]
-    centers = df.groupby(df.index).mean()
-    centers.columns=['nPC1','nPC2']
-    j = df.join(centers)
-    j['colours'] = palette
-    i = j.reset_index().index[0]
-    for i in j.reset_index().index:
-        ax.plot(
-            j[[x,'nPC1']].iloc[i],
-            j[[y,'nPC2']].iloc[i],
-            linewidth = 0.5,
-            color = j['colours'].iloc[i],
-            zorder=1,
-            alpha=0.3
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='''
+    Spindle - Produces a spindleplot of a given dataset
+    ''')
+    parser.add_argument('subject', help='Path to dataset file or subject name')
+    parser.add_argument(
+        '--meta',
+        help='Path to a metadata file (TSV/CSV) containing your explainer column',
+        required=True
+    )
+    parser.add_argument(
+        '--group-col',
+        help='Name of the column in the metadata file to use for grouping/spindle labels',
+        required=True
+    )
+    return parser.parse_args()
+
+def load_subject_df(path_or_name):
+    """Load main data from ../results/{stem}.tsv"""
+    path = Path(path_or_name)
+    stem = path.stem if path.is_file() else path_or_name
+    df = pd.read_csv(Path('../results') / f'{stem}.tsv', sep='\t', index_col=0)
+    return df, stem
+
+def load_and_merge_meta(df, meta_path, group_col):
+    """Load metadata, check group_col exists, set it as the index, then inner-join to df."""
+    # auto-detect delimiter
+    mdf = pd.read_csv(meta_path, sep=None, engine='python', index_col=None)
+    if group_col not in mdf.columns:
+        sys.exit(f"ERROR: metadata file {meta_path} does not contain column '{group_col}'")
+    # set group-col as index
+    mdf = mdf.set_index(group_col)
+    # join: only keep rows present in both subject df and metadata
+    return df.join(mdf, how='inner')
+
+def spindle(df, ax=None, palette=None):
+    """Draw a spindle plot grouping by df.index."""
+    # build palette if none supplied
+    groups = df.index.unique()
+    if palette is None:
+        palette = pd.Series(
+            sns.color_palette("hls", len(groups)).as_hex(),
+            index=groups
         )
-        ax.scatter(j[x].iloc[i], j[y].iloc[i], color = j['colours'].iloc[i], s=1)
-    for i in centers.index:
-        ax.text(centers.loc[i,'nPC1']+0.002,centers.loc[i,'nPC2']+0.002, s=i, zorder=3)
-    ax.scatter(centers.nPC1, centers.nPC2, c='black', zorder=2, s=10, marker='+')
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    x, y = df.columns[:2]
+
+    # compute group centers
+    centers = df.groupby(df.index)[[x, y]].mean()
+    centers.columns = ['nPC1', 'nPC2']
+
+    # join centers back onto each row
+    j = df.join(centers, how='inner')
+    j['colour'] = j.index.map(palette)
+
+    # draw spokes + points
+    for _, row in j.iterrows():
+        ax.plot(
+            [row[x], row['nPC1']],
+            [row[y], row['nPC2']],
+            linewidth=0.5,
+            color=row['colour'],
+            alpha=0.3,
+            zorder=1
+        )
+        ax.scatter(row[x], row[y], color=row['colour'], s=1, zorder=1)
+
+    # draw and label centers
+    for grp, cen in centers.iterrows():
+        ax.scatter(cen['nPC1'], cen['nPC2'], c='black', s=10, marker='+', zorder=2)
+        ax.text(cen['nPC1'] + 0.002, cen['nPC2'] + 0.002, str(grp), zorder=3)
+
     ax.set_xlabel(x)
     ax.set_ylabel(y)
-    ax.spines[['right', 'top']].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
     return ax
 
-parser = argparse.ArgumentParser(description='''
-Spindle - Produces a spindleplot of a given dataset
-''')
-parser.add_argument('subject')
-known = parser.parse_args()
-known = {k: v for k, v in vars(known).items() if v is not None}
+def savefig(stem):
+    out = Path('../results')
+    out.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out / f'{stem}.svg')
+    plt.clf()
 
-subject = known.get("subject"); known.pop('subject')
-if os.path.isfile(subject): subject = Path(subject).stem
-df = f.load(subject)
+def main():
+    args = parse_arguments()
 
-f.setupplot()
-spindle(df)
-f.savefig(f'{subject}Spindle')
+    # load subject data
+    df, stem = load_subject_df(args.subject)
 
+    # load metadata, ensure group-col present, set as index, then join
+    df = load_and_merge_meta(df, args.meta, args.group_col)
 
-'''
-def parse_args(args):
-    parser = argparse.ArgumentParser(
-       prog='predict.py',
-       description='Random Forest Classifier/Regressor with options'
-    )
-    parser.add_argument('analysis', type=str, help='Regressor or Classifier')
-    parser.add_argument('subject', type=str, help='Data name or full filepath')
-    parser.add_argument('-n','--n_iter', type=int, help='Number of iterations for bootstrapping', default=10)
-    parser.add_argument('--shap_val', action='store_true', help='SHAP interpreted output')
-    parser.add_argument('--shap_interact', action='store_true', help='SHAP interaction interpreted output')
-    return parser.parse_args(args)
+    # now df.index holds your explainer groups
+    ax = spindle(df)
 
-#arguments = ['classifier','speciesCondition.MAM','--shap_val','--shap_interact', '-n=20']
-arguments = sys.argv[1:]
-args = parse_args(arguments)
+    savefig(f'{stem}_spindle')
 
-# Check if the provided subject is a valid file path
-if os.path.isfile(args.subject):
-    subject = Path(args.subject).stem
-else:
-    subject = args.subject
-
-df = f.load(subject)
-analysis = args.analysis
-shap_val = args.shap_val
-shap_interact = args.shap_interact
-n_iter = args.n_iter
-
-predict(df, args.analysis, shap_val=args.shap_val, shap_interact=args.shap_interact, n_iter=args.n_iter)
-'''
+if __name__ == '__main__':
+    main()

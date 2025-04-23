@@ -24,7 +24,7 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
     r2s = []
     meanabsshaps = pd.DataFrame()
     shap_interacts = pd.DataFrame(index=pd.MultiIndex.from_tuples(permutations(df.columns, 2)))
-#    
+    
     random_state = 1
     for random_state in range(n_iter):
         if analysis.lower() == 'classifier':
@@ -34,7 +34,7 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
             model = RandomForestRegressor(n_jobs=-1, random_state=random_state)
         else:
             raise ValueError("Invalid analysis type. Choose 'classifier' or 'regressor'.")
-# 
+ 
         X, y = df, df.index
 
         scaler = StandardScaler()
@@ -43,9 +43,9 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
         X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, random_state=random_state, stratify=y)
         smoter = SMOTE(random_state=random_state)
         X_train_upsample, y_train_upsample = smoter.fit_resample(X_train, y_train)
-#
+
         model.fit(X_train_upsample, y_train_upsample)
-#        
+        
         if analysis.lower() == 'classifier':
             y_prob = model.predict_proba(X_test)[:, 1]
             aucrocs.append(roc_auc_score(y_test, y_prob))
@@ -56,12 +56,12 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
                 'random_state': random_state
             })
             fpr_tpr.append(aucrocdata)
-#        
+        
         if analysis.lower() == 'regressor':
             y_pred = model.predict(X_test)
             maes.append(mean_absolute_error(y_test, y_pred))
             r2s.append(r2_score(y_test, y_pred))
-#        
+        
         if shap_val:
             explainer = shap.TreeExplainer(model)
             shap_values = explainer(X_scaled)
@@ -69,7 +69,7 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
                     np.abs(shap_values.values[:,:,1]).mean(axis=0),
                     index=X.columns
             )
-#        
+       
         if shap_interact:
             explainer = shap.TreeExplainer(model)
             explainer = shap.Explainer(model)
@@ -79,7 +79,7 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
                 columns=df.columns,
                 index=df.columns)
             shap_interacts[random_state] = sum_shap_interacts.stack()
-#
+
     fpr_tpr_df = pd.concat(fpr_tpr)
     f.save(pd.Series(aucrocs).to_frame(f'{subject}'), f'{subject}aucrocs', index=False)
     f.save(meanabsshaps, f'{subject}meanabsshaps')
@@ -98,7 +98,6 @@ def parse_args(args):
     parser.add_argument('--shap_interact', action='store_true', help='SHAP interaction interpreted output')
     return parser.parse_args(args)
 
-#arguments = ['classifier','speciesCondition.MAM','--shap_val','--shap_interact', '-n=20']
 arguments = sys.argv[1:]
 args = parse_args(arguments)
 

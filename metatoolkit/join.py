@@ -3,9 +3,18 @@
 '''
 Author: Theo Portlock
 '''
-import metatoolkit.functions as f
 import argparse
 import pandas as pd
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+
+def save(df, subject, index=True):
+    output_path = f'../results/{subject}.tsv' 
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, sep='\t', index=index)
 
 def combine_identical_columns(df, suffixes):
     """
@@ -58,8 +67,8 @@ def main():
     # Load dataframes
     #df1 = pd.read_csv('../results/'+args.file1+'.tsv', sep='\t')
     #df2 = pd.read_csv('../results/'+args.file2+'.tsv', sep='\t')
-    df1 = f.load(args.file1).reset_index()
-    df2 = f.load(args.file2).reset_index()
+    df1 = load(args.file1).reset_index()
+    df2 = load(args.file2).reset_index()
 
     # Process suffixes
     suffixes = args.suffixes.split(',')
@@ -93,7 +102,7 @@ def main():
     merged_df = merged_df.set_index(merged_df.columns[0])
 
     # Save results
-    f.save(merged_df, args.output)
+    save(merged_df, args.output)
 
 if __name__ == '__main__':
     main()

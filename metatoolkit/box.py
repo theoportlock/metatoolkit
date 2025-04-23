@@ -5,7 +5,6 @@ import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
-import subprocess
 import seaborn as sns
 
 def parse_arguments():
@@ -18,20 +17,54 @@ def parse_arguments():
     parser.add_argument('--show', action='store_true', help='Display the plot window')
     parser.add_argument('--figsize', default='2,2', help='Figure size as width,height')
     parser.add_argument('-o', '--output', help='Output filename without extension')
+    parser.add_argument(
+        '--meta',
+        nargs='+',
+        help='Path(s) to metadata file(s) to inner-join with subject data before plotting'
+    )
     return parser.parse_args()
 
-def load_data(subject):
-    path = Path(subject) if Path(subject).is_file() else Path('../results') / f'{subject}.tsv'
-    return pd.read_csv(path, sep='\t', index_col=0)
+def load_data(path_or_name):
+    path = Path(path_or_name)
+    if path.is_file():
+        return pd.read_csv(path, sep='\t', index_col=0)
+    else:
+        # assume subject name: look for ../results/{subject}.tsv
+        return pd.read_csv(Path('../results') / f'{path_or_name}.tsv', sep='\t', index_col=0)
+
+def merge_meta(df, meta_paths):
+    for mpath in meta_paths:
+        mdf = pd.read_csv(mpath, sep=None, engine='python', index_col=0)
+        df = df.join(mdf, how='inner')
+    return df
 
 def plot_box(df, x, y, hue, figsize):
     df = df.reset_index()
     fig, ax = plt.subplots(figsize=figsize)
-    sns.boxplot(data=df, x=x or df.columns[0], y=y or df.columns[1], hue=hue, ax=ax,
-                showfliers=False, showcaps=False, linewidth=0.4,
-                boxprops={'edgecolor': 'black'}, whiskerprops={'color': 'black'},
-                medianprops={'color': 'black'}, capprops={'color': 'black'})
-    sns.stripplot(data=df, x=x, y=y, hue=hue, ax=ax, size=1, color='black', dodge=bool(hue))
+    sns.boxplot(
+        data=df,
+        x=x or df.columns[0],
+        y=y or df.columns[1],
+        hue=hue,
+        ax=ax,
+        showfliers=False,
+        showcaps=False,
+        linewidth=0.4,
+        boxprops={'edgecolor': 'black'},
+        whiskerprops={'color': 'black'},
+        medianprops={'color': 'black'},
+        capprops={'color': 'black'}
+    )
+    sns.stripplot(
+        data=df,
+        x=x or df.columns[0],
+        y=y or df.columns[1],
+        hue=hue,
+        ax=ax,
+        size=1,
+        color='black',
+        dodge=bool(hue)
+    )
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     return ax
@@ -40,17 +73,31 @@ def save_plots(filename, show):
     out_dir = Path('../results')
     out_dir.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_dir / f'{filename}.svg')
+    if show:
+        plt.show()
     plt.clf()
 
 def main():
     args = parse_arguments()
+
+    # load subject data
     df = load_data(args.subject)
+
+    # optionally merge in metadata explainers
+    if args.meta:
+        df = merge_meta(df, args.meta)
+
+    # parse figsize
     figsize = tuple(map(float, args.figsize.split(',')))
+
+    # plot
     ax = plot_box(df, args.x, args.y, args.hue, figsize)
     if args.logy:
         ax.set_yscale('log')
     plt.tight_layout()
-    save_plots(args.output or f'{Path(args.subject).stem}box', args.show)
+
+    # save (and optionally show) 
+    save_plots(args.output or f'{Path(args.subject).stem}_box', args.show)
 
 if __name__ == '__main__':
     main()
