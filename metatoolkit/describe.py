@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import pandas as pd
 import os
 
@@ -14,6 +13,16 @@ parser.add_argument('-s', '--sig')
 parser.add_argument('-r', '--corr', action='store_true')
 known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+
+def save(df, subject, index=True):
+    output_path = f'../results/{subject}.tsv' 
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, sep='\t', index=index)
 
 def Describe(df, datatype=None, **kwargs):
     available = {'change_summary':change_summary,
@@ -72,9 +81,9 @@ def mbiome_summary(df, kwargs):
 
 subject = known.get("subject"); known.pop("subject")
 if os.path.isfile(subject): subject = Path(subject).stem
-df = f.load(subject)
+df = load(subject)
 
-df = f.load(subject)
+df = load(subject)
 output = Describe(df, **known)
 print(output.to_string())
-f.save(output, f'{subject}Describe')
+save(output, f'{subject}Describe')

@@ -2,7 +2,6 @@
 from scipy.spatial import distance
 from skbio.stats.distance import permanova, permdisp, DistanceMatrix
 import argparse
-import functions as f
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -18,6 +17,16 @@ parser.add_argument('-s', '--suffix', type=str)
 parser.add_argument('--from_beta', action='store_true')
 known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+
+def save(df, subject, index=True):
+    output_path = f'../results/{subject}.tsv' 
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, sep='\t', index=index)
 
 # Load data
 dfs = {df:f.load(df) for df in known.get("dfs")}

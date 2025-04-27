@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Script to compute percentage of reads removed by KneadData.
+"""
+
 import pandas as pd
-import sys
+import argparse
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python script.py <input_csv_file>")
-        sys.exit(1)
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Calculate percentage of reads removed by KneadData.")
+    parser.add_argument("input", help="Input TSV file with KneadData summary")
+    parser.add_argument("output", help="Output TSV file with results")
     
-    # Read the input CSV file
-    input_file = sys.argv[1]
-    df = pd.read_csv(input_file, sep='\t')
+    args = parser.parse_args()
     
-    # Calculate the total raw reads for each sample
+    # Read the input TSV file
+    df = pd.read_csv(args.input, sep='\t')
+    
+    # Calculate totals and removal stats
     df['total_raw'] = df['raw pair1'] + df['raw pair2']
-    
-    # Calculate the total final reads for each sample
-    df['total_final'] = (df['final pair1'] + df['final pair2'] +
-                         df['final orphan1'] + df['final orphan2'])
-    
-    # Calculate the number of reads removed by kneaddata
+    df['total_final'] = df['final pair1'] + df['final pair2'] + df['final orphan1'] + df['final orphan2']
     df['reads_removed'] = df['total_raw'] - df['total_final']
-    
-    # Calculate the percentage of reads removed relative to the raw reads
     df['percentage_removed'] = (df['reads_removed'] / df['total_raw']) * 100
     
-    # Print the results (Sample and percentage removed)
-    print(df[['Sample', 'percentage_removed']])
-    
+    # Select and save relevant output
+    df[['Sample', 'percentage_removed']].to_csv(args.output, sep='\t', index=False)
+
 if __name__ == "__main__":
     main()
-

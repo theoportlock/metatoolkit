@@ -5,6 +5,7 @@ Author: Theo Portlock
 '''
 import argparse
 import pandas as pd
+import os
 
 def load(subject):
     if os.path.isfile(subject):

@@ -9,12 +9,21 @@ from sklearn.metrics import roc_auc_score, mean_absolute_error, r2_score, roc_cu
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import argparse
-import functions as f
 import numpy as np
 import os
 import pandas as pd
 import shap
 import sys
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+
+def save(df, subject, index=True):
+    output_path = f'../results/{subject}.tsv' 
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, sep='\t', index=index)
 
 def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
     outputs = []
@@ -81,10 +90,10 @@ def predict(df, analysis, shap_val=False, shap_interact=False, n_iter=30):
             shap_interacts[random_state] = sum_shap_interacts.stack()
 
     fpr_tpr_df = pd.concat(fpr_tpr)
-    f.save(pd.Series(aucrocs).to_frame(f'{subject}'), f'{subject}aucrocs', index=False)
-    f.save(meanabsshaps, f'{subject}meanabsshaps')
-    f.save(shap_interacts,f'shap_interacts')
-    f.save(fpr_tpr_df, f'{subject}fpr_tpr')
+    save(pd.Series(aucrocs).to_frame(f'{subject}'), f'{subject}aucrocs', index=False)
+    save(meanabsshaps, f'{subject}meanabsshaps')
+    save(shap_interacts,f'shap_interacts')
+    save(fpr_tpr_df, f'{subject}fpr_tpr')
 
 def parse_args(args):
     parser = argparse.ArgumentParser(
@@ -107,7 +116,7 @@ if os.path.isfile(args.subject):
 else:
     subject = args.subject
 
-df = f.load(subject)
+df = load(subject)
 analysis = args.analysis
 shap_val = args.shap_val
 shap_interact = args.shap_interact
