@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import sys
+import shlex
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -13,7 +15,9 @@ def load(subject):
     return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject, index=True):
-    output_path = f'../results/{subject}.tsv' 
+    if not subject.endswith('.tsv'):
+        subject = f'../results/{subject}.tsv'
+    output_path = subject
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 
@@ -77,15 +81,17 @@ def parse_args():
     return {k: v for k, v in vars(args).items() if v is not None}
 
 def main():
+    #sys.argv = shlex.split('format.py ../results/formatted/species.tsv -fdf ../results/specieschange/significant_results.tsv -fdfx 1')
     known = parse_args()
     
     subject = known.get("subject")
     known.pop('subject')
-    if os.path.isfile(subject):
-        subject = Path(subject).stem
     
     # Load the original DataFrame
     original_df = load(subject)
+
+    if os.path.isfile(subject):
+        subject = Path(subject).stem
     
     if known.get("filter_df"):
         known['filter_df'] = load(known.get("filter_df"))

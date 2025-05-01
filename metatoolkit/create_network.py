@@ -14,19 +14,20 @@ def load_nodes(nodes_file):
     nodes_dict = nodes_df.to_dict(orient='index')
     return nodes_dict
 
-def load_edges(edges_file):
-    """Load edges from a TSV file, assuming the first two columns are source and target."""
+def load_edges(edges_file, source_col='source', target_col='target'):
+    """Load edges from a TSV file, allowing custom source and target column names."""
     edges_df = pd.read_csv(edges_file, sep='\t')
-    if edges_df.shape[1] < 2:
-        raise ValueError("The edges file must have at least two columns for source and target.")
+    if source_col not in edges_df.columns or target_col not in edges_df.columns:
+        raise ValueError(f"The edges file must contain columns '{source_col}' and '{target_col}'.")
 
     # Extract source, target, and all other attributes
-    source_target = edges_df.iloc[:, :2].values  # First two columns as source and target
-    attributes = edges_df.iloc[:, 2:]  # Remaining columns as attributes
-
     edges = []
-    for (source, target), attr_row in zip(source_target, attributes.to_dict(orient='records')):
-        edge = {"source": source, "target": target, **attr_row}
+    for _, row in edges_df.iterrows():
+        edge = {
+            "source": row[source_col],
+            "target": row[target_col],
+            **{k: v for k, v in row.items() if k not in [source_col, target_col]}
+        }
         edges.append(edge)
 
     return edges
@@ -53,10 +54,12 @@ def main():
     parser.add_argument('--nodes', required=False, help="Path to the nodes TSV file (optional)")
     parser.add_argument('--edges', required=True, help="Path to the edges TSV file")
     parser.add_argument('--output', default='../results/graph.graphml', help="Output GraphML file")
+    parser.add_argument('--source_col', default='source', help="Column name for the source node in edges file")
+    parser.add_argument('--target_col', default='target', help="Column name for the target node in edges file")
     args = parser.parse_args()
 
     # Load edges
-    edges = load_edges(args.edges)
+    edges = load_edges(args.edges, source_col=args.source_col, target_col=args.target_col)
 
     # Load or create nodes
     if args.nodes:

@@ -4,14 +4,20 @@
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
+from pathlib import Path
 
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
     return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
 
-def abund(df, order=None, **kwargs):
-    kwargs['ax'] = plt.subplots()[1] if not kwargs.get('ax') else kwargs.get('ax')
+def norm(df):
+    return df.T.div(df.sum(axis=1), axis=1).T
+
+def abund(df, order=None, figsize=(4, 4), **kwargs):
+    fig, ax = plt.subplots(figsize=figsize)
+    kwargs['ax'] = ax
     tdf = df.copy()
     if tdf.columns.shape[0] > 20:
         tdf['others'] = tdf[tdf.mean().sort_values(ascending=False).iloc[21:].index].sum(axis=1)
@@ -19,30 +25,38 @@ def abund(df, order=None, **kwargs):
     if order:
         tdf = tdf.loc[:, tdf.mean().sort_values(ascending=True).index]
     tdf.plot(kind='bar', stacked=True, width=0.9, cmap='tab20', **kwargs)
-    plt.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
-    plt.ylabel('Relative abundance')
-    plt.setp(kwargs['ax'].get_xticklabels(), rotation=45, ha="right")
-    return kwargs['ax']
+    ax.set_ylim(0, 1)
+    ax.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
+    ax.set_ylabel('Relative abundance')
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    return ax
 
-def savefig(subject, tl=False, show=False):
-    if os.path.isfile(subject): subject = Path(subject).stem
-    if tl: plt.tight_layout()
-    plt.savefig(f'../results/{subject}.svg')
-    plt.savefig(f'../results/{subject}.pdf')
-    plt.savefig(f'../results/{subject}.jpg', dpi=500)
-    if show: plt.show()
-    subprocess.call(f'zathura ../results/{subject}.pdf &', shell=True)
-    plt.clf()
+def savefig(subject_path):
+    subject_path = Path(subject_path)
+    subject_name = subject_path.stem  # strips .tsv or any extension
+    plt.tight_layout()
+    plt.savefig(f'../results/{subject_name}_abundance.svg')
 
-parser = argparse.ArgumentParser(description='''
-Abund - Produces an Abundance/Relative abundance plot of a given dataset
-''')
-parser.add_argument('subject')
-known = parser.parse_args()
-known = {k: v for k, v in vars(known).items() if v is not None}
+def parse_args():
+    parser = argparse.ArgumentParser(description='''
+    Abund - Produces an Abundance/Relative abundance plot of a given dataset
+    ''')
+    parser.add_argument('subject', help='Input file or subject name')
+    parser.add_argument('--figsize', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
+                        help='Figure size in inches, e.g., --figsize 4 4', default=[4, 4])
+    return parser.parse_args()
 
-subject = known.get("subject")
-df = load(subject)
+def main():
+    args = parse_args()
+    subject = args.subject
+    figsize = tuple(args.figsize)
 
-abund(df)
-savefig(f'{subject}abund')
+    df = load(subject)
+    abund(df, figsize=figsize)
+    savefig(subject)
+
+if __name__ == '__main__':
+    main()
+
