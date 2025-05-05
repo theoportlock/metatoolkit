@@ -6,7 +6,6 @@ import functions as f
 import pandas as pd
 
 def parse_arguments():
-    """Parse and return command-line arguments."""
     parser = argparse.ArgumentParser(description='Group - Groups a dataset')
     parser.add_argument('subject', help="Path to the input data file")
     parser.add_argument('--group_by', nargs='+', help="Columns to group by")
