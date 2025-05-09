@@ -56,27 +56,19 @@ def save(df: pd.DataFrame, stem: str, index: bool = True):
     print(f"Saved results to {out}")
 
 
-def splitter(df: pd.DataFrame,
-             df2: pd.DataFrame,
-             column: str) -> dict:
-    """
-    For each unique level in df2[column], inner-join df with those rows,
-    dropping the split column. Returns {level: sub-DataFrame}.
-    """
+def splitter(df: pd.DataFrame, df2: pd.DataFrame, column: str) -> dict:
     output = {}
     if df2 is None:
         df2 = df.copy()
     for level in df2[column].unique():
-        # select rows of df2 matching this level
         idx = df2[df2[column] == level].index
-        # join only those rows, drop the split column
-        merged = (
-            df.loc[idx, df.columns.difference([column])]
-              .copy()
-        )
+        idx_common = idx.intersection(df.index)  # Only keep indices present in df
+        if len(idx_common) == 0:
+            print(f"[WARNING] No overlapping indices in df for level '{level}' of column '{column}'")
+            continue
+        merged = df.loc[idx_common, df.columns.difference([column])].copy()
         output[level] = merged
     return output
-
 
 def mww(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     pvals = [mannwhitneyu(df1[col], df2[col]).pvalue for col in df1.columns]
@@ -128,12 +120,19 @@ def change(df: pd.DataFrame,
 
     for col in columns:
         levels = df2[col].unique()
-        # for every pair of distinct levels
+        sub = splitter(df, df2, col)
+
         for i, lvl1 in enumerate(levels):
             for lvl2 in levels[i+1:]:
-                sub = splitter(df, df2, col)
+                if lvl1 not in sub or lvl2 not in sub:
+                    missing = [str(lvl) for lvl in [lvl1, lvl2] if lvl not in sub]
+                    print(f"[WARNING] Skipping comparison '{str(lvl1)} vs {str(lvl2)}' in column '{col}': "
+                          f"missing group(s): {', '.join(missing)}")
+                    continue
+
                 df1, df2_ = sub[lvl1], sub[lvl2]
                 if df1.empty or df2_.empty:
+                    print(f"[WARNING] Skipping empty comparison '{str(lvl1)} vs {str(lvl2)}' in column '{col}'")
                     continue
 
                 # run each analysis
@@ -141,21 +140,23 @@ def change(df: pd.DataFrame,
                 for method in analyses:
                     dfs.append(available[method](df1, df2_))
 
-                # concat side by side
                 combined = pd.concat(dfs, axis=1)
-                # label the index
                 combined.index.set_names('feature', inplace=True)
-                # add MultiIndex: (column, comparison)
-                combined.columns  # features are columns; index is features
                 combined = combined.assign(
                     source=col,
-                    comparison=f'{lvl1}_vs_{lvl2}'
+                    comparison=f'{str(lvl1)}_vs_{str(lvl2)}'
                 ).set_index(['source','comparison'], append=True)
                 all_results.append(combined)
 
     if not all_results:
         return pd.DataFrame()  # empty
 
+    result = pd.concat(all_results)
+    result = result.reorder_levels(['source','comparison','feature'])
+    return result
+    result = pd.concat(all_results)
+    result = result.reorder_levels(['source','comparison','feature'])
+    return result
     # combine all, swap levels so (source,comparison,feature)
     result = pd.concat(all_results)
     result = result.reorder_levels(['source','comparison','feature'])
@@ -174,3 +175,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

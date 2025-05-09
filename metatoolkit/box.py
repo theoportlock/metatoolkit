@@ -22,6 +22,10 @@ def parse_arguments():
         nargs='+',
         help='Path(s) to metadata file(s) to inner-join with subject data before plotting'
     )
+    parser.add_argument(
+        '--rc',
+        help='Path to matplotlibrc file to use for styling'
+    )
     return parser.parse_args()
 
 def load_data(path_or_name):
@@ -79,6 +83,10 @@ def save_plots(filename, show):
 
 def main():
     args = parse_arguments()
+
+    # load matplotlibrc file if specified
+    if args.rc:
+        plt.style.use(args.rc)
 
     # load subject data
     df = load_data(args.subject)
