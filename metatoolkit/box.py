@@ -74,9 +74,16 @@ def plot_box(df, x, y, hue, figsize):
     return ax
 
 def save_plots(filename, show):
-    out_dir = Path('../results')
-    out_dir.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_dir / f'{filename}.svg')
+    filename = Path(filename)
+    if filename.suffix:  # If the filename has an extension
+        out_path = filename
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        out_dir = Path('../results')
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f'{filename}.svg'
+
+    plt.savefig(out_path)
     if show:
         plt.show()
     plt.clf()
