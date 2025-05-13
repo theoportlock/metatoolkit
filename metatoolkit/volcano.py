@@ -8,6 +8,56 @@ import pandas as pd
 import os
 from pathlib import Path
 
+def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05, annot=True, ax=None, size=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    # Extracting the fold change and p-values
+    lfc = df[change]
+    pvals = df[sig]
+    lpvals = -np.log10(pvals)
+
+    # Set default color for all points
+    colors = 'black'
+    if hue:
+        # Use a red color map
+        unique_vals = df[hue].unique()
+        color_palette = sns.color_palette("Reds", len(unique_vals))
+        color_dict = dict(zip(unique_vals, color_palette))
+        colors = df[hue].map(color_dict)
+
+    # Set default size for all points or use the size column
+    sizes = 20  # default size
+    if size:
+        sizes = df[size]
+
+    # Scatter plot
+    ax.scatter(lfc, lpvals, c=colors, s=sizes, alpha=0.5)
+
+    # Adding threshold lines
+    ax.axvline(0, color='gray', linestyle='--')
+    ax.axhline(-np.log10(pval), color='red', linestyle='-')
+    ax.axhline(0, color='gray', linestyle='--')
+    ax.axvline(fc, color='red', linestyle='-')
+    ax.axvline(-fc, color='red', linestyle='-')
+
+    # Setting labels and limits
+    ax.set_ylabel('-log10 p-value')
+    ax.set_xlabel('log2 fold change')
+    ax.set_ylim(ymin=-0.1)
+    x_max = np.abs(lfc).max() * 1.1
+    ax.set_xlim(xmin=-x_max, xmax=x_max)
+
+    # Annotate significant points
+    sig_species = (lfc.abs() > fc) & (pvals < pval)
+    filter_df = df[sig_species]
+
+    if annot:
+        for idx, row in filter_df.iterrows():
+            ax.text(row[change], -np.log10(row[sig]), s=idx, fontsize=6)
+
+    return ax
+
 parser = argparse.ArgumentParser(description='''
 Volcano - Produces a Volcano plot of a given dataset
 ''')
@@ -36,6 +86,6 @@ df = f.load(subject)
 
 # Plot
 f.setupplot()
-f.volcano(df, change=change, sig=sig, fc=fc, pval=pval, annot=annot)
+volcano(df, change=change, sig=sig, fc=fc, pval=pval, annot=annot)
 if os.path.isfile(subject): subject = Path(subject).stem
 f.savefig(f'{subject}volcano')
