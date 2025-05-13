@@ -24,12 +24,12 @@ def parse_args():
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def savefig(subject, tl=False, show=False):
     if os.path.isfile(subject): 
         subject = Path(subject).stem
-    plt.savefig(f'../results/{subject}.svg')
+    plt.savefig(f'results/{subject}.svg')
     plt.clf()
 
 def bar(df, ax=None):

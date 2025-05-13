@@ -1,62 +1,72 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import argparse
-import matplotlib.pyplot as plt
+import typer
 import pandas as pd
-import os
+import matplotlib.pyplot as plt
 from pathlib import Path
+from typing import List
 
-def load(subject):
-    if os.path.isfile(subject):
-        return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+app = typer.Typer(help="Plot relative abundances from a TSV file.")
 
-def norm(df):
-    return df.T.div(df.sum(axis=1), axis=1).T
 
-def abund(df, order=None, figsize=(4, 4), **kwargs):
-    fig, ax = plt.subplots(figsize=figsize)
-    kwargs['ax'] = ax
-    tdf = df.copy()
-    if tdf.columns.shape[0] > 20:
-        tdf['others'] = tdf[tdf.mean().sort_values(ascending=False).iloc[21:].index].sum(axis=1)
-    tdf = norm(tdf.loc[:, tdf.mean().sort_values(ascending=False).iloc[:20].index])
+def plot_abundance(
+    df: pd.DataFrame,
+    order: bool,
+    max_categories: int,
+    figsize: tuple
+):
+    # Keep top N columns + combine others
+    col_means = df.mean()
+    sorted_cols = col_means.sort_values(ascending=False)
+
+    if len(sorted_cols) > max_categories:
+        top_cols = sorted_cols.iloc[:max_categories].index
+        other_cols = sorted_cols.iloc[max_categories:].index
+        df["others"] = df[other_cols].sum(axis=1)
+        df = df[top_cols.tolist() + ['others']]
+
+    # Normalize rows
+    df = df.T.div(df.sum(axis=1), axis=1).T
+
     if order:
-        tdf = tdf.loc[:, tdf.mean().sort_values(ascending=True).index]
-    tdf.plot(kind='bar', stacked=True, width=0.9, cmap='tab20', **kwargs)
+        df = df.loc[:, df.mean().sort_values().index]
+
+    # Plot
+    ax = df.plot(kind="bar", stacked=True, figsize=figsize, width=0.9, cmap="tab20")
+    ax.set_ylabel("Relative abundance")
     ax.set_ylim(0, 1)
-    ax.legend(bbox_to_anchor=(1.001, 1), loc='upper left', fontsize='small')
-    ax.set_ylabel('Relative abundance')
+    ax.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize="small")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    return ax
 
-def savefig(subject_path):
-    subject_path = Path(subject_path)
-    subject_name = subject_path.stem  # strips .tsv or any extension
-    plt.tight_layout()
-    plt.savefig(f'../results/{subject_name}_abundance.svg')
+    return plt
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='''
-    Abund - Produces an Abundance/Relative abundance plot of a given dataset
-    ''')
-    parser.add_argument('subject', help='Input file or subject name')
-    parser.add_argument('--figsize', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
-                        help='Figure size in inches, e.g., --figsize 4 4', default=[4, 4])
-    return parser.parse_args()
 
-def main():
-    args = parse_args()
-    subject = args.subject
-    figsize = tuple(args.figsize)
+@app.command()
+def main(
+    input: Path = typer.Argument(..., help="TSV file with samples as rows, features as columns"),
+    output: Path = typer.Option("abund.svg", "--output", "-o", help="Output file path"),
+    figsize: List[float] = typer.Option([4, 4], help="Figure size, e.g. --figsize 6 5"),
+    order: bool = typer.Option(False, help="Sort categories by average abundance"),
+    max_categories: int = typer.Option(20, help="Number of top categories to keep before combining 'others'")
+):
+    """Plot stacked bar chart of relative abundances."""
+    if not input.exists():
+        typer.echo(f"❌ File not found: {input}")
+        raise typer.Exit()
 
-    df = load(subject)
-    abund(df, figsize=figsize)
-    savefig(subject)
+    if len(figsize) != 2:
+        typer.echo("❌ --figsize must have two numbers: width and height")
+        raise typer.Exit()
 
-if __name__ == '__main__':
-    main()
+    df = pd.read_csv(input, sep="\t", index_col=0)
+    plot = plot_abundance(df, order=order, max_categories=max_categories, figsize=tuple(figsize))
+    plot.tight_layout()
+    plot.savefig(output)
+    typer.echo(f"✅ Saved plot to: {output}")
 
+
+if __name__ == "__main__":
+    app()

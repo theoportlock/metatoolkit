@@ -4,14 +4,34 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 import argparse
-import functions as f
 import numpy as np
 import os
 import pandas as pd
 import sys
 
+def load_data(path_or_name):
+    path = Path(path_or_name)
+    if path.is_file():
+        return pd.read_csv(path, sep='\t', index_col=0)
+    else:
+        return pd.read_csv(Path('results') / f'{path_or_name}.tsv', sep='\t', index_col=0)
+
+def save_plots(filename, show):
+    filename = Path(filename)
+    if filename.suffix:  # If the filename has an extension
+        out_path = filename
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        out_dir = Path('results')
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f'{filename}.svg'
+
+    plt.savefig(out_path)
+    if show:
+        plt.show()
+    plt.clf()
+
 def aucroc(df):
-    f.setupplot()
     meanroc = df.groupby(level=0).mean()
     stdroc = df.groupby(level=0).std()
     fig, ax= plt.subplots()
@@ -37,7 +57,7 @@ def parse_args(args):
 arguments = sys.argv[1:]
 args = parse_args(arguments)
 
-df = f.load(args.subject)
+df = load(args.subject)
 
 if os.path.isfile(args.subject):
     subject = Path(args.subject).stem
@@ -45,4 +65,4 @@ else:
     subject = args.subject
 
 aucroc(df)
-f.savefig(f'{subject}aucroc_curve')
+savefig(f'{subject}aucroc_curve')

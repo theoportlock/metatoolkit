@@ -12,11 +12,11 @@ import os
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject, index=True):
     if not subject.endswith('.tsv'):
-        subject = f'../results/{subject}.tsv'
+        subject = f'results/{subject}.tsv'
     output_path = subject
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)

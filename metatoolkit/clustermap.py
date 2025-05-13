@@ -2,11 +2,21 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import metatoolkit.functions as f
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import numpy as np
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+
+def savefig(subject, tl=False, show=False):
+    if os.path.isfile(subject):
+        subject = Path(subject).stem
+    plt.savefig(f'../results/{subject}.svg')
+    plt.clf()
 
 def parse_arguments():
     """Parse and return command-line arguments."""
@@ -83,13 +93,12 @@ def clustermap(df, effect_col, sig_col, sig_thresh, figsize=(4,4), cluster=True)
 
 def main():
     args = parse_arguments()
-    df = f.load(args.subject)
+    df = load(args.subject)
 
     # Verify required columns exist
     if not all(col in df.reset_index().columns for col in ['source', 'target', args.effect, args.sig]):
         raise ValueError("Input dataframe missing required columns")
 
-    f.setupplot()
     g = clustermap(
         df,
         effect_col=args.effect,
@@ -99,7 +108,7 @@ def main():
     )
 
     output_path = args.output or f"{args.subject}_clustermap.png"
-    f.savefig(output_path)
+    savefig(output_path)
 
 if __name__ == "__main__":
     main()

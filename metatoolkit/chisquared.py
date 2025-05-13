@@ -8,11 +8,20 @@ This script calculates the Chi Squared test and Cramér's V for all pairs of cat
 import argparse
 import pandas as pd
 import numpy as np
-import metatoolkit.functions as f
 from itertools import permutations
 from scipy.stats import chi2_contingency
 from scipy.stats.contingency import association
 from statsmodels.stats.multitest import fdrcorrection
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+
+def save(df, subject, index=True):
+    output_path = f'../results/{subject}.tsv' 
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, sep='\t', index=index)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Calculate Chi Squared test and Cramér's V for all pairs of categorical columns in a DataFrame.")
@@ -71,12 +80,12 @@ def chi_squared(df: pd.DataFrame) -> pd.DataFrame:
 def main():
     args = parse_arguments()
 
-    df = f.load(args.file)
+    df = load(args.file)
 
     # Calculate Chi Squared test results
     result = chi_squared(df)
     print(result)
-    f.save(result, args.file + '_chisq')
+    save(result, args.file + '_chisq')
 
 if __name__ == '__main__':
     main()

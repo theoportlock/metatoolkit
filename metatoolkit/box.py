@@ -33,8 +33,8 @@ def load_data(path_or_name):
     if path.is_file():
         return pd.read_csv(path, sep='\t', index_col=0)
     else:
-        # assume subject name: look for ../results/{subject}.tsv
-        return pd.read_csv(Path('../results') / f'{path_or_name}.tsv', sep='\t', index_col=0)
+        # assume subject name: look for results/{subject}.tsv
+        return pd.read_csv(Path('results') / f'{path_or_name}.tsv', sep='\t', index_col=0)
 
 def merge_meta(df, meta_paths):
     for mpath in meta_paths:
@@ -79,7 +79,7 @@ def save_plots(filename, show):
         out_path = filename
         out_path.parent.mkdir(parents=True, exist_ok=True)
     else:
-        out_dir = Path('../results')
+        out_dir = Path('results')
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f'{filename}.svg'
 
