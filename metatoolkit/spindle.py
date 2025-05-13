@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -27,10 +27,10 @@ def parse_arguments():
     return parser.parse_args()
 
 def load_subject_df(path_or_name):
-    """Load main data from ../results/{stem}.tsv"""
+    """Load main data from results/{stem}.tsv"""
     path = Path(path_or_name)
     stem = path.stem if path.is_file() else path_or_name
-    df = pd.read_csv(Path('../results') / f'{stem}.tsv', sep='\t', index_col=0)
+    df = pd.read_csv(Path('results') / f'{stem}.tsv', sep='\t', index_col=0)
     return df, stem
 
 def load_and_merge_meta(df, meta_path, group_col):
@@ -91,7 +91,7 @@ def spindle(df, ax=None, palette=None):
     return ax
 
 def savefig(stem):
-    out = Path('../results')
+    out = Path('results')
     out.mkdir(parents=True, exist_ok=True)
     plt.savefig(out / f'{stem}.svg')
     plt.clf()

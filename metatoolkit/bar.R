@@ -23,12 +23,12 @@ if (file.exists(subject)) {
   subject <- file_path_sans_ext(basename(subject))
 }
 
-file_path <- paste0("../results/", subject, ".tsv")
+file_path <- paste0("results/", subject, ".tsv")
 df <- read.csv(file_path, sep="\t", header=TRUE, row.names=1)
 
 p <- ggplot(df, aes(x = .data[[column]])) +
   geom_bar() +
   theme_minimal()
 
-output_path <- paste0("../results/", subject, "bar.svg")
+output_path <- paste0("results/", subject, "bar.svg")
 ggsave(output_path, plot=p, width=3, height=3)

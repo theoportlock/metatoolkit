@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import numpy as np
 import sys
 import functions as f
@@ -8,7 +10,7 @@ import pandas as pd
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def PERMANOVA(df, pval=True, full=False):
     np.random.seed(0)
@@ -27,7 +29,7 @@ meta = f.load('meta')
 def savefig(subject, tl=False, show=False):
     if os.path.isfile(subject): subject = Path(subject).stem
     if tl: plt.tight_layout()
-    plt.savefig(f'../results/{subject}.svg')
+    plt.savefig(f'results/{subject}.svg')
     plt.clf()
 
 dataset_names = sys.argv

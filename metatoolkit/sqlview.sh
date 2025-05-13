@@ -1,3 +1,5 @@
+#!/bin/bash
+
 db=$1
 out=$2
 inname=$(readlink -f $db)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -15,13 +15,13 @@ def load(subject):
     if os.path.isfile(subject):
         df = pd.read_csv(subject, sep='\t', index_col=0)
     else:
-        df = pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+        df = pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
     print(f"Loaded {subject} with shape {df.shape}")
     return df
 
 def save(df, filename, index=True):
     """Save dataframe to output file."""
-    output_path = f'../results/{filename}.tsv'
+    output_path = f'results/{filename}.tsv'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -30,9 +30,9 @@ subject = known.pop("subject")
 if os.path.isfile(subject):
     subject = Path(subject).stem
 
-df = pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+df = pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 plt.figure()
 hist(df, **known)
-plt.savefig(f'../results/{subject}hist.svg')
+plt.savefig(f'results/{subject}hist.svg')
 

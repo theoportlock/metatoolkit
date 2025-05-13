@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from itertools import combinations, count, permutations
 from matplotlib_venn import venn3
 from scipy.cluster.hierarchy import linkage, dendrogram
@@ -515,7 +517,7 @@ def upset(dfdict=None, **kwargs):
     return upset
 
 def networkplot(*args, group=None, **kwargs):
-    G = nx.read_gpickle(f'../results/kwargs.get(subject).gpickle')
+    G = nx.read_gpickle(f'results/kwargs.get(subject).gpickle')
     if group:
         nx.set_node_attributes(G, group, "group")
         groups = set(nx.get_node_attributes(G, 'group').values())
@@ -532,9 +534,9 @@ def networkplot(*args, group=None, **kwargs):
     return ax
 
 def venn(*args, **kwargs):
-    DF1 = pd.read_csv(f'../results/kwargs.get(df1).tsv', sep='\t', index_col=0)
-    DF2 = pd.read_csv(f'../results/kwargs.get(df2).tsv', sep='\t', index_col=0)
-    DF3 = pd.read_csv(f'../results/kwargs.get(df3).tsv', sep='\t', index_col=0)
+    DF1 = pd.read_csv(f'results/kwargs.get(df1).tsv', sep='\t', index_col=0)
+    DF2 = pd.read_csv(f'results/kwargs.get(df2).tsv', sep='\t', index_col=0)
+    DF3 = pd.read_csv(f'results/kwargs.get(df3).tsv', sep='\t', index_col=0)
     def combs(x): return [c for i in range(1, len(x)+1) for c in combinations(x,i)]
     comb = combs([DF1, DF2, DF3])
     result = []
@@ -1087,21 +1089,21 @@ def MERF(df):
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject, index=True):
-    output_path = f'../results/{subject}.tsv' 
+    output_path = f'results/{subject}.tsv' 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 
 def savefig(subject, tl=False, show=False):
     if os.path.isfile(subject): subject = Path(subject).stem
     if tl: plt.tight_layout()
-    plt.savefig(f'../results/{subject}.svg')
-    plt.savefig(f'../results/{subject}.pdf')
-    plt.savefig(f'../results/{subject}.jpg', dpi=500)
+    plt.savefig(f'results/{subject}.svg')
+    plt.savefig(f'results/{subject}.pdf')
+    plt.savefig(f'results/{subject}.jpg', dpi=500)
     if show: plt.show()
-    subprocess.call(f'zathura ../results/{subject}.pdf &', shell=True)
+    subprocess.call(f'zathura results/{subject}.pdf &', shell=True)
     plt.clf()
 
 def selecttaxa(df, level):

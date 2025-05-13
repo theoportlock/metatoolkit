@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -37,20 +37,20 @@ def parse_arguments():
 
 
 def load_table(path_or_name: str) -> (pd.DataFrame, str):
-    """Load a TSV from file or ../results/{name}.tsv; return (df, stem)."""
+    """Load a TSV from file or results/{name}.tsv; return (df, stem)."""
     p = Path(path_or_name)
     if p.is_file():
         stem = p.stem
         df = pd.read_csv(p, sep='\t', index_col=0)
     else:
         stem = path_or_name
-        df = pd.read_csv(Path('../results') / f'{stem}.tsv', sep='\t', index_col=0)
+        df = pd.read_csv(Path('results') / f'{stem}.tsv', sep='\t', index_col=0)
     return df, stem
 
 
 def save(df: pd.DataFrame, stem: str, index: bool = True):
-    """Save df to ../results/{stem}.tsv."""
-    out = Path('../results') / f'{stem}.tsv'
+    """Save df to results/{stem}.tsv."""
+    out = Path('results') / f'{stem}.tsv'
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out, sep='\t', index=index)
     print(f"Saved results to {out}")

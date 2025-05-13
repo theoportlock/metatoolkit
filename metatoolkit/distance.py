@@ -1,8 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 Script to compute and save distance matrices.
 """
+
 import argparse
 import os
 from pathlib import Path
@@ -15,11 +17,11 @@ def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description='Compute distance matrix from a data table')
     parser.add_argument('subject', type=str,
-                        help='Path to input data file (TSV) or subject name to look up in ../results')
+                        help='Path to input data file (TSV) or subject name to look up in results')
     parser.add_argument('-m', '--metric', type=str, default='braycurtis',
                         help='Distance metric (e.g., braycurtis, euclidean, cosine, etc.)')
     parser.add_argument('-o', '--outfile', type=str,
-                        help='Output file path (TSV). If not provided, saved to ../results/<subject><suffix>.tsv')
+                        help='Output file path (TSV). If not provided, saved to results/<subject><suffix>.tsv')
     parser.add_argument('-s', '--suffix', type=str,
                         help='Suffix to append to subject name for output filename when --outfile not given')
     return parser.parse_args()
@@ -32,11 +34,11 @@ def dist(df: pd.DataFrame, metric: str = 'braycurtis') -> pd.DataFrame:
 
 
 def load(subject: str) -> pd.DataFrame:
-    """Load the data table from file or from ../results folder."""
+    """Load the data table from file or from results folder."""
     if os.path.isfile(subject):
         path = subject
     else:
-        path = f'../results/{subject}.tsv'
+        path = f'results/{subject}.tsv'
     return pd.read_csv(path, sep='\t', index_col=0)
 
 
@@ -67,7 +69,7 @@ def main():
     if args.outfile:
         outpath = args.outfile
     else:
-        outpath = f'../results/{subject_name}{args.suffix}.tsv'
+        outpath = f'results/{subject_name}{args.suffix}.tsv'
 
     # Save
     save(dist_df, outpath)

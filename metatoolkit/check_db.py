@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import sqlite3
 
 def check_sqlite_integrity(db_file):
@@ -12,6 +15,6 @@ def check_sqlite_integrity(db_file):
     con.close()
 
 if __name__ == '__main__':
-    db_file = '../results/m4efad.db'
+    db_file = 'results/m4efad.db'
     check_sqlite_integrity(db_file)
 

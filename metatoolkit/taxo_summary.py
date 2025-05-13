@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import argparse
-import pandas as pd
-import os
 from pathlib import Path
-import functions as f
+import argparse
+import os
+import pandas as pd
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Describe - Produces a summary report of taxonomic breakdown')
@@ -15,10 +14,10 @@ def parse_args():
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject, index=True):
-    output_path = f'../results/{subject}.tsv'
+    output_path = f'results/{subject}.tsv'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 

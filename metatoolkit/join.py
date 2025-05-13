@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 '''
 Author: Theo Portlock
 '''
+
 import argparse
 import pandas as pd
 import os
@@ -10,10 +12,10 @@ import os
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject, index=True):
-    output_path = f'../results/{subject}.tsv' 
+    output_path = f'results/{subject}.tsv' 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 
@@ -66,8 +68,8 @@ def main():
     args = parser.parse_args()
 
     # Load dataframes
-    #df1 = pd.read_csv('../results/'+args.file1+'.tsv', sep='\t')
-    #df2 = pd.read_csv('../results/'+args.file2+'.tsv', sep='\t')
+    #df1 = pd.read_csv('results/'+args.file1+'.tsv', sep='\t')
+    #df2 = pd.read_csv('results/'+args.file2+'.tsv', sep='\t')
     df1 = load(args.file1).reset_index()
     df2 = load(args.file2).reset_index()
 

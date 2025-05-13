@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -28,7 +28,7 @@ def save_dataframe(df, output_path):
 
 
 def load_dataframe(subject):
-    path = subject if os.path.isfile(subject) else f"../results/{subject}.tsv"
+    path = subject if os.path.isfile(subject) else f"results/{subject}.tsv"
     return pd.read_csv(path, sep="\t", index_col=0)
 
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         output_filename = known_args.get("output")
         if output_filename is None:
             output_filename = f"{subject_name}_{known_args['level']}"
-        output_path = f"../results/{output_filename}.tsv"
+        output_path = f"results/{output_filename}.tsv"
         save_dataframe(output_df, output_path)
         print(f"Saved renamed dataframe to: {output_path}")
     else:

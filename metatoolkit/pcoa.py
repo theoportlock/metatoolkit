@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -70,7 +70,7 @@ def main():
     else:
         # Default output path
         base_name = os.path.splitext(os.path.basename(subject))[0]
-        output_path = f'../results/{base_name}_pcoa.tsv'
+        output_path = f'results/{base_name}_pcoa.tsv'
 
     # Ensure the directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)

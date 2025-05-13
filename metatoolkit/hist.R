@@ -26,7 +26,7 @@ if (file.exists(subject)) {
   subject <- file_path_sans_ext(basename(subject))
 }
 
-file_path <- paste0("../results/", subject, ".tsv")
+file_path <- paste0("results/", subject, ".tsv")
 df <- read.csv(file_path, sep="\t", header=TRUE, row.names=1)
 
 p <- ggplot(df, aes(x = .data[[column]])) +
@@ -34,5 +34,5 @@ p <- ggplot(df, aes(x = .data[[column]])) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle=45, hjust=1))
 
-output_path <- paste0("../results/", subject, "hist.svg")
+output_path <- paste0("results/", subject, "hist.svg")
 ggsave(output_path, plot=p, width=8, height=6)

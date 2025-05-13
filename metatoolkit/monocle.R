@@ -1,17 +1,17 @@
 require(igraph)
 require(monocle)
 require(Biobase)
-vect_atlas <- read.csv('../results/newhealthymsp.csv',
+vect_atlas <- read.csv('results/newhealthymsp.csv',
 		       row.names=1,
 		       header=T,
 		       stringsAsFactors=F)
 
-meta <- read.csv('../results/monoclemeta.csv',
+meta <- read.csv('results/monoclemeta.csv',
 		       row.names=1,
 		       header=T,
 		       stringsAsFactors=F)
 
-taxo <- read.csv('../../data/gutTaxo.csv',
+taxo <- read.csv('data/gutTaxo.csv',
 		       row.names=1,
 		       header=T,
 		       stringsAsFactors=F)

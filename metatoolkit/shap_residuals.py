@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 # SHAP RESIDUALS SCRIPT
 # NEEDS FIXING - Just needs to be added as an option to predict.py and to average across the hypercube
 

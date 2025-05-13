@@ -1,4 +1,4 @@
-#!/opt/anaconda/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -15,14 +15,14 @@ def parse_args():
     parser.add_argument('subject', help='Subject file or name (without extension)')
     parser.add_argument('level', help='Metadata column to stratify by')
     parser.add_argument('--df2', help='Optional second dataframe (default: meta)')
-    parser.add_argument('-o','--output', help='Output file path (default: ../results/{subject}{level}.tsv)')
+    parser.add_argument('-o','--output', help='Output file path (default: results/{subject}{level}.tsv)')
     return parser.parse_args()
 
 
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 
 def save(df, output_path, index=True):
@@ -57,7 +57,7 @@ def main():
         if args.output:
             output_path = args.output
         else:
-            output_path = f'../results/{subject_name}{level}.tsv'
+            output_path = f'results/{subject_name}{level}.tsv'
 
         save(output_df, output_path)
         print(f"Saved stratified dataframe to {output_path}")

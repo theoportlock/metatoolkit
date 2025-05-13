@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -25,8 +25,8 @@ def load_data(subject):
     subject_path = Path(subject)
     if subject_path.is_file():
         return pd.read_csv(subject_path, sep='\t', index_col=0)
-    # If not a file, assume subject name and look in ../results folder
-    default_path = Path('../results') / f'{subject}.tsv'
+    # If not a file, assume subject name and look in results folder
+    default_path = Path('results') / f'{subject}.tsv'
     return pd.read_csv(default_path, sep='\t', index_col=0)
 
 def plot_reg(df, x=None, y=None, hue=None, ax=None, figsize=(2, 2)):
@@ -69,7 +69,7 @@ def plot_reg(df, x=None, y=None, hue=None, ax=None, figsize=(2, 2)):
 
 def save_plots(filename, show=False):
     # Ensure output directory exists
-    out_dir = Path('../results')
+    out_dir = Path('results')
     out_dir.mkdir(parents=True, exist_ok=True)
     base_name = Path(filename).stem
     svg_path = out_dir / f'{base_name}.svg'

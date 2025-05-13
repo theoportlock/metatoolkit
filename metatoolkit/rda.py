@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import argparse
 import pandas as pd
@@ -15,7 +16,7 @@ parser.add_argument("-t", "--taxonomic_data", required=True, help="Path to taxon
 parser.add_argument("-m", "--metadata", required=True, help="Path to metadata file (TSV)")
 parser.add_argument("-f", "--fixed_effects", required=True,
                     help="Comma-separated list of fixed effects (e.g. 'Factor1,Factor2')")
-parser.add_argument("-o", "--output", default="../results/lda_results.tsv", help="Path to output TSV file")
+parser.add_argument("-o", "--output", default="results/lda_results.tsv", help="Path to output TSV file")
 
 args = parser.parse_args()
 
@@ -50,14 +51,14 @@ summary_df = pd.DataFrame({
 summary_df.to_csv(args.output, sep="\t")
 
 # Plot ordination (scaling 1: distances between samples)
-os.makedirs("../results", exist_ok=True)
+os.makedirs("results", exist_ok=True)
 fig, ax = plt.subplots(figsize=(5, 5))
 sample_coords = result.samples.iloc[:, :2]
 sns.scatterplot(x=sample_coords.iloc[:, 0], y=sample_coords.iloc[:, 1], ax=ax)
 for i, sample in enumerate(sample_coords.index):
     ax.text(sample_coords.iloc[i, 0], sample_coords.iloc[i, 1], sample, fontsize=6)
 ax.set_title("RDA ordination (Scaling 2)")
-plt.savefig("../results/ordiplot1.svg")
+plt.savefig("ults/ordiplot1.svg")
 
 # Print stats
 print("Adjusted R²:", result.proportion_explained.sum())

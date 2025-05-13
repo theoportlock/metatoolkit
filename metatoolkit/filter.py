@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -81,7 +81,7 @@ def parse_args():
     return {k: v for k, v in vars(args).items() if v is not None}
 
 def main():
-    #sys.argv = shlex.split('format.py ../results/formatted/species.tsv -fdf ../results/specieschange/significant_results.tsv -fdfx 1')
+    #sys.argv = shlex.split('format.py results/formatted/species.tsv -fdf results/specieschange/significant_results.tsv -fdfx 1')
     known = parse_args()
     
     subject = known.get("subject")

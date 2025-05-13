@@ -11,14 +11,14 @@ full <- FALSE
 dev.off <- function(...) invisible(grDevices::dev.off(...))
 
 # Load data
-genusMat <- read.table("../results/genus.tsv", header=T, row.names=1, dec=".", sep="\t")
+genusMat <- read.table("results/genus.tsv", header=T, row.names=1, dec=".", sep="\t")
 genusMat <- genusMat * 1e2
 
 # DMN clustering
 set.seed(1)
 genusFit <- mclapply(1:7, dmn, count=as.matrix(genusMat), verbose=TRUE, mc.cores=16)
 lplc <- sapply(genusFit, laplace)
-pdf("../results/min-laplace.pdf")
+pdf("results/min-laplace.pdf")
 plot(lplc, type="b", xlab="Number of Dirichlet Components" ,ylab="Model Fit")
 dev.off()
 best <- genusFit[[which.min(lplc)]]
@@ -36,4 +36,4 @@ df <- head(cbind(Mean=p0[o], p3[o,], diff=diff[o], cdiff), 10)
 clusterAssigned = apply(best@group, 1, function(x) which.max(x))
 clusterAssignedList = split(names(clusterAssigned), clusterAssigned)
 out = stack(clusterAssignedList)
-write.csv(out, '../results/enterotypes.csv', quote=F)
+write.csv(out, 'results/enterotypes.csv', quote=F)

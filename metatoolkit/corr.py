@@ -1,66 +1,110 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import pandas as pd
+import numpy as np
 from scipy.stats import spearmanr
 from statsmodels.stats.multitest import fdrcorrection
-from itertools import permutations
 
-parser = argparse.ArgumentParser(description='''
-Corr - Produces a report of the significant correlations between data
-''')
-parser.add_argument('subject', nargs='+')
-parser.add_argument('-m', '--mult', action='store_true')
+def fast_spearman(df1, df2=None, fdr=False, min_unique=1):
+    """
+    Compute Spearman correlations efficiently, handling NaNs.
 
-known = parser.parse_args()
-known = {k: v for k, v in vars(known).items() if v is not None}
+    Args:
+        df1 (pd.DataFrame): First dataset.
+        df2 (pd.DataFrame, optional): Second dataset for cross-correlations.
+        fdr (bool): Apply FDR correction.
+        min_unique (int): Minimum unique values per column.
 
-subject = known.get("subject")
-mult = known.get("mult") if known.get('mult') else False
+    Returns:
+        pd.DataFrame: Correlation results in edge list format.
+    """
+    # Drop columns that have fewer than min_unique unique values
+    df1 = df1.loc[:, df1.nunique() > min_unique].dropna(axis=1, how="all")
 
-def corrpair(df1, df2, FDR=True, min_unique=0):
-    df1 = df1.loc[:, df1.nunique() > min_unique]
-    df2 = df2.loc[:, df2.nunique() > min_unique]
-    df = df1.join(df2, how='inner')
-    cor, pval = spearmanr(df)
-    cordf = pd.DataFrame(cor, index=df.columns, columns=df.columns)
-    pvaldf = pd.DataFrame(pval, index=df.columns, columns=df.columns)
-    cordf = cordf.loc[df1.columns, df2.columns]
-    pvaldf = pvaldf.loc[df1.columns, df2.columns]
-    pvaldf.fillna(1, inplace=True)
-    if FDR:
-        pvaldf = pd.DataFrame(
-            fdrcorrection(pvaldf.values.flatten())[1].reshape(pvaldf.shape),
-            index = pvaldf.index,
-            columns = pvaldf.columns)
-    return cordf, pvaldf
+    if df2 is None:
+        # Remove columns with fewer than 3 non-NaN values
+        valid_cols = df1.columns[df1.count() >= 3]
+        df1 = df1[valid_cols]
 
-def corr(df):
-    combs = list(permutations(df.columns.unique(), 2))
-    outdf = pd.DataFrame(index=pd.MultiIndex.from_tuples(combs), columns=['cor','pval'])
-    for comb in combs:
-        tdf = pd.concat([df[comb[0]], df[comb[1]]], axis=1).dropna()
-        cor, pval = spearmanr(tdf[comb[0]], tdf[comb[1]])
-        outdf.loc[comb, 'cor'] = cor
-        outdf.loc[comb, 'pval'] = pval
-    outdf['qval'] = fdrcorrection(outdf.pval)[1]
-    outdf.index.set_names(['source', 'target'], inplace=True)
-    return outdf
+        if df1.shape[1] < 2:
+            return pd.DataFrame()
 
-if len(subject) == 1:
-    df = f.load(subject[0])
-    output = corr(df)
-    print(output)
-    f.save(output, subject[0]+'corr')
-elif len(subject) == 2:
-    df1 = f.load(subject[0])
-    df2 = f.load(subject[1])
-    cor,pval = corrpair(df1, df2)
-    print(cor)
-    f.save(cor, subject[0] + subject[1] +'corr')
-    f.save(pval, subject[0] + subject[1] +'corrpval')
+        cor_matrix = df1.corr(method='spearman', min_periods=3)
+
+        # Compute p-values manually
+        pval_matrix = pd.DataFrame(np.nan, index=df1.columns, columns=df1.columns)
+        for i, col1 in enumerate(df1.columns):
+            for j, col2 in enumerate(df1.columns):
+                if i < j:
+                    x, y = df1[col1], df1[col2]
+                    valid = x.notna() & y.notna()
+                    if valid.sum() >= 3:
+                        _, p = spearmanr(x[valid], y[valid], nan_policy='omit')
+                        pval_matrix.at[col1, col2] = p
+                        pval_matrix.at[col2, col1] = p  # Symmetric
+
+    else:
+        df2 = df2.loc[:, df2.nunique() > min_unique].dropna(axis=1, how="all")
+
+        # Remove columns with fewer than 3 valid values
+        df1 = df1.loc[:, df1.count() >= 3]
+        df2 = df2.loc[:, df2.count() >= 3]
+
+        if df1.shape[1] == 0 or df2.shape[1] == 0:
+            return pd.DataFrame()
+
+        cor_matrix = df1.corrwith(df2, method='spearman', min_periods=3)
+
+        # Compute p-values manually
+        pval_matrix = pd.DataFrame(np.nan, index=df1.columns, columns=df2.columns)
+        for col1 in df1.columns:
+            for col2 in df2.columns:
+                x, y = df1[col1], df2[col2]
+                valid = x.notna() & y.notna()
+                if valid.sum() >= 3:
+                    _, p = spearmanr(x[valid], y[valid], nan_policy='omit')
+                    pval_matrix.at[col1, col2] = p
+
+    # Convert matrices to edge list format
+    cor_long = cor_matrix.stack().reset_index()
+    cor_long.columns = ["source", "target", "cor"]
+
+    pval_long = pval_matrix.stack().reset_index()
+    pval_long.columns = ["source", "target", "pval"]
+
+    result = cor_long.merge(pval_long, on=["source", "target"], how="left")
+
+    # Apply FDR correction if requested
+    if fdr and not result.empty:
+        result["qval"] = fdrcorrection(result["pval"].fillna(1))[1]
+
+    return result.dropna()
+
+# Command-line argument parsing
+parser = argparse.ArgumentParser(description="Compute Spearman correlations efficiently.")
+parser.add_argument("files", nargs="+", help="Input file(s)")
+parser.add_argument("-m", "--mult", action="store_true", help="Apply FDR correction")
+args = parser.parse_args()
+
+# Load and process data
+if len(args.files) == 1:
+    df = pd.read_csv(args.files[0], sep='\t', index_col=0)
+    output = fast_spearman(df, fdr=args.mult)
+    if not output.empty:
+        output.to_csv(args.files[0] + ".corr.tsv", sep='\t')
+    else:
+        print("No valid correlations found.")
+
+elif len(args.files) == 2:
+    df1 = pd.read_csv(args.files[0], sep='\t', index_col=0)
+    df2 = pd.read_csv(args.files[1], sep='\t', index_col=0)
+    output = fast_spearman(df1, df2, fdr=args.mult)
+    if not output.empty:
+        output.to_csv(args.files[0] + "_" + args.files[1] + ".corr.tsv", sep='\t')
+    else:
+        print("No valid correlations found.")
+
 else:
-    print('invalid number of arguments')
-
+    print("Please provide 1 or 2 files.")

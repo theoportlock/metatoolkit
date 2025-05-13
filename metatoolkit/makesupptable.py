@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import pandas as pd
 from openpyxl import load_workbook
@@ -6,14 +8,14 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, Alignment, Border, Side
 
 # Paths
-supp_table_list_path = '../figures/suppTableList.txt'
-contents_path = '../figures/contents.tsv'
-glossary_path = '../figures/glossary.tsv'
-output_path = '../figures/suppTables.xlsx'
+supp_table_list_path = 'figures/suppTableList.txt'
+contents_path = 'figures/contents.tsv'
+glossary_path = 'figures/glossary.tsv'
+output_path = 'figures/suppTables.xlsx'
 
 # Read the list of tables to be included
 tables = pd.read_csv(supp_table_list_path, header=None)
-table_paths = '../results/' + tables[0] + '.tsv'
+table_paths = 'results/' + tables[0] + '.tsv'
 
 # Add Glossary
 table_paths = pd.concat([pd.Series([contents_path, glossary_path]), table_paths])

@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import argparse
 import pandas as pd
 import networkx as nx
@@ -53,7 +55,7 @@ def main():
     parser = argparse.ArgumentParser(description="Build a graph from node and edge files.")
     parser.add_argument('--nodes', required=False, help="Path to the nodes TSV file (optional)")
     parser.add_argument('--edges', required=True, help="Path to the edges TSV file")
-    parser.add_argument('--output', default='../results/graph.graphml', help="Output GraphML file")
+    parser.add_argument('--output', default='results/graph.graphml', help="Output GraphML file")
     parser.add_argument('--source_col', default='source', help="Column name for the source node in edges file")
     parser.add_argument('--target_col', default='target', help="Column name for the target node in edges file")
     args = parser.parse_args()

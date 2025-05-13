@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -18,7 +18,6 @@ known = {k: v for k, v in vars(known).items() if v is not None}
 dfs = known.get("datasets")
 alldfs = {df:f.load(df).index for df in dfs}
 
-#f.setupplot()
 f.upset(alldfs)
 f.savefig(f'upset')
 

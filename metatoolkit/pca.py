@@ -1,5 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import argparse
 import os
 import pandas as pd
@@ -71,7 +72,7 @@ def main():
         output_path = args.output
     else:
         base = os.path.splitext(os.path.basename(args.input))[0]
-        output_path = os.path.join('..', 'results', f"{base}_pca.tsv")
+        output_path = os.path.join('results', f"{base}_pca.tsv")
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)

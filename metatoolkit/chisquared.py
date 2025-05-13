@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 Author: Theo Portlock (modified by ChatGPT)
 This script calculates the Chi Squared test and Cramér's V for all pairs of categorical columns in a DataFrame.
@@ -16,10 +17,10 @@ from statsmodels.stats.multitest import fdrcorrection
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'../results/{subject}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject, index=True):
-    output_path = f'../results/{subject}.tsv' 
+    output_path = f'results/{subject}.tsv' 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 
