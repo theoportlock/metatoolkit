@@ -16,10 +16,13 @@ def parse_args():
     parser.add_argument("--hue", required=True, help="Grouping variable for color (e.g., Feed)")
     parser.add_argument("--id", required=True, help="Unique subject ID column name (e.g., subjectID)")
     parser.add_argument("--output", default="output.svg", help="Output SVG file path")
+    parser.add_argument("--logy", action="store_true", help="Use log scale for Y-axis")
+    parser.add_argument("--figsize", nargs=2, type=float, default=[3, 3], metavar=("WIDTH", "HEIGHT"),
+                        help="Figure size in inches, e.g., --figsize 4 4")
     return parser.parse_args()
 
 
-def plot(df, x, y, hue, id_col, output):
+def plot(df, x, y, hue, id_col, output, logy=False, figsize=(3, 3)):
     # Drop missing values in columns of interest
     df = df.dropna(subset=[x, y, hue, id_col])
 
@@ -31,7 +34,7 @@ def plot(df, x, y, hue, id_col, output):
     # Reset index for plotting
     df_reset = df.reset_index()
 
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=figsize)
 
     # Plot individual lines
     sns.lineplot(
@@ -46,6 +49,9 @@ def plot(df, x, y, hue, id_col, output):
         hue=hue, palette=palette,
         ax=ax, linewidth=1
     )
+
+    if logy:
+        ax.set_yscale("log")
 
     ax.set_title(y)
     ax.set_ylabel("")
@@ -70,7 +76,7 @@ def main():
         df.loc[df.Condition == "Well-nourished", "Recovery"] = "Healthy"
         df.loc[df.Condition == "Well-nourished", "Feed"] = "Healthy"
 
-    plot(df, args.x, args.y, args.hue, args.id, args.output)
+    plot(df, args.x, args.y, args.hue, args.id, args.output, args.logy, tuple(args.figsize))
 
 
 if __name__ == "__main__":
