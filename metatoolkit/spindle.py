@@ -36,13 +36,10 @@ def load_subject_df(path_or_name):
 def load_and_merge_meta(df, meta_path, group_col):
     """Load metadata, check group_col exists, set it as the index, then inner-join to df."""
     # auto-detect delimiter
-    mdf = pd.read_csv(meta_path, sep=None, engine='python', index_col=None)
+    mdf = pd.read_csv(meta_path, sep='\t', index_col=0)
     if group_col not in mdf.columns:
         sys.exit(f"ERROR: metadata file {meta_path} does not contain column '{group_col}'")
-    # set group-col as index
-    mdf = mdf.set_index(group_col)
-    # join: only keep rows present in both subject df and metadata
-    return df.join(mdf, how='inner')
+    return df.join(mdf, how='inner').set_index(group_col)
 
 def spindle(df, ax=None, palette=None):
     """Draw a spindle plot grouping by df.index."""
