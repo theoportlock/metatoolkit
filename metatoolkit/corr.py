@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import spearmanr
 from statsmodels.stats.multitest import fdrcorrection
+from pathlib import Path
 
 def fast_spearman(df1, df2=None, fdr=False, min_unique=1):
     """
@@ -93,7 +94,7 @@ if len(args.files) == 1:
     df = pd.read_csv(args.files[0], sep='\t', index_col=0)
     output = fast_spearman(df, fdr=args.mult)
     if not output.empty:
-        output.to_csv(args.files[0] + ".corr.tsv", sep='\t')
+        output.to_csv('results/' + Path(args.files[0]).stem + ".corr.tsv", sep='\t', index=False)
     else:
         print("No valid correlations found.")
 
@@ -102,7 +103,7 @@ elif len(args.files) == 2:
     df2 = pd.read_csv(args.files[1], sep='\t', index_col=0)
     output = fast_spearman(df1, df2, fdr=args.mult)
     if not output.empty:
-        output.to_csv(args.files[0] + "_" + args.files[1] + ".corr.tsv", sep='\t')
+        output.to_csv('results/' + Path(args.files[0]).stem + "_" + args.files[1] + ".corr.tsv", sep='\t', index=False)
     else:
         print("No valid correlations found.")
 

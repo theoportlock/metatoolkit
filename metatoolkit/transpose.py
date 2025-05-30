@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
-import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from pathlib import Path
@@ -16,11 +14,12 @@ known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 
 subject = known.get("subject")
-if os.path.isfile(subject):
-    subject = Path(subject).stem
-df = f.load(subject)
+if not os.path.isfile(subject):
+    subject = f'results/{subject}.tsv'
+df = pd.read_csv(subject, sep='\t', index_col=0)
 
 outdf = df.T
 
-f.save(outdf, f'{subject}_T')
+subject = Path(subject).stem
+outdf.to_csv(f'results/{subject}_T.tsv', sep='\t')
 
