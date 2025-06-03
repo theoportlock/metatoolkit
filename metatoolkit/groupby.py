@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import pandas as pd
 
 def parse_arguments():
@@ -40,14 +39,14 @@ def main():
     output = args.output or f"{subject}_{args.func}"
     
     # Load data
-    df = f.load(subject)
+    df = pd.read_csv(subject, sep='\t', index_col=0)
 
     # Apply grouping
     out = group(df, group_by=args.group_by, func=args.func, axis=args.axis)
     print(out)
 
     # Save output
-    f.save(out, output)
+    out.to_csv(f'results/{output}.tsv', sep='\t')
 
 if __name__ == "__main__":
     main()

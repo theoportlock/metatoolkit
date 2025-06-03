@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import pandas as pd
 
 parser = argparse.ArgumentParser(description='Group - Groups a dataset')
@@ -30,7 +29,7 @@ func = known.get("func")
 axis = known.get("axis")
 index_levels = known.get("index_levels")
 
-df = f.load(subject)
+df = pd.read_csv(subject, sep='\t', index_col=0)
 
 if index_levels > 1:
     df = df.reset_index()
@@ -40,6 +39,6 @@ out = group(df, on_index=on_index, axis=axis, func=func)
 print(out)
 
 if known.get("output"):
-    f.save(out, output)
+    out.to_csv(f'results/{output}.tsv', sep='\t')
 else:
-    f.save(out, subject+func)
+    out.to_csv(f'results/{subject+func}.tsv', sep='\t')

@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
 Author: Theo Portlock
 '''
-import functions as f
+
 import argparse
 import pandas as pd
 import numpy as np
@@ -78,13 +78,13 @@ def main():
 
     # load data
     file = args.file
-    cats = f.load(file)
+    cats = pd.read_csv(file, sep='\t', index_col=0)
 
     # calculate fisher exact
     out = fisher(cats)
 
     # save fisher results
-    f.save(out, f'{file}Fisher')
+    pd.to_csv(f'results/{file}Fisher.tsv', sep='\t')
 
 if __name__ == '__main__':
     main()

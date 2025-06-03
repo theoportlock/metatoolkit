@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import numpy as np
 import sys
-import functions as f
+from skbio.stats.distance import permanova
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -24,7 +24,7 @@ def PERMANOVA(df, pval=True, full=False):
     else:
         return result['test statistic']
 # load and format data
-meta = f.load('meta')
+meta = pd.read_csv('results/meta.tsv', sep='\t', index_col=0)
 
 def savefig(subject, tl=False, show=False):
     if os.path.isfile(subject): subject = Path(subject).stem
@@ -50,4 +50,4 @@ power.plot.barh()
 plt.axvline(x=-np.log(0.05), color="black", linestyle="--")
 plt.xlabel('Explained Variance (-log2(pval))')
 plt.tight_layout()
-f.savefig(f'EV')
+plt.savefig('results/EV.svg')
