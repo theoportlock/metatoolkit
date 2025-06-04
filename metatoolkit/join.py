@@ -14,8 +14,7 @@ def load(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
     return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
-def save(df, subject, index=True):
-    output_path = f'results/{subject}.tsv' 
+def save(df, output_path, index=True):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 
@@ -68,8 +67,6 @@ def main():
     args = parser.parse_args()
 
     # Load dataframes
-    #df1 = pd.read_csv('results/'+args.file1+'.tsv', sep='\t')
-    #df2 = pd.read_csv('results/'+args.file2+'.tsv', sep='\t')
     df1 = load(args.file1).reset_index()
     df2 = load(args.file2).reset_index()
 
