@@ -27,11 +27,11 @@ def volcano(df, hue=None, change='Log2FC', sig='MWW_pval', fc=1, pval=0.05,
         color_dict = dict(zip(unique_vals, color_palette))
         colors = df[hue].map(color_dict)
 
-    sizes = 20
+    sizes = 5
     if size:
         sizes = df[size]
 
-    ax.scatter(lfc, lpvals, c=colors, s=sizes, alpha=0.5)
+    ax.scatter(lfc, lpvals, c=colors, s=sizes, alpha=1)
     ax.axvline(0, color='gray', linestyle='--')
     ax.axhline(-np.log10(pval), color='red', linestyle='-')
     ax.axhline(0, color='gray', linestyle='--')

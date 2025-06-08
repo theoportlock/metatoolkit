@@ -16,7 +16,7 @@ def parse_arguments():
     parser.add_argument("--df2", help="Metadata dataframe file or identifier.")
     parser.add_argument("--axis", choices=["columns", "index"], default="index",
                        help="Axis to rename (default: index).")
-    parser.add_argument("--output", help="Output filename for the renamed dataframe")
+    parser.add_argument("--output", help="Output filename for the renamed dataframe (without extension).")
     
     known, unknown = parser.parse_known_args()
     return vars(known), unknown
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         output_filename = known_args.get("output")
         if output_filename is None:
             output_filename = f"{subject_name}_{known_args['level']}"
-        output_path = output_filename
+        output_path = f"results/{output_filename}.tsv"
         save_dataframe(output_df, output_path)
         print(f"Saved renamed dataframe to: {output_path}")
     else:
