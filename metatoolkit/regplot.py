@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 import subprocess
 import seaborn as sns
-import functions as f
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Produces a Regplot of a given dataset')

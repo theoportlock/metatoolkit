@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import os
 import pandas as pd
 import shutil

@@ -3,7 +3,6 @@
 
 import numpy as np
 import sys
-import functions as f
 import matplotlib.pyplot as plt
 import pandas as pd
 

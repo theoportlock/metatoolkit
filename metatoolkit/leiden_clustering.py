@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import igraph as ig
 import leidenalg as la
 import pandas as pd
@@ -16,7 +15,7 @@ parser.add_argument('-s', '--suffix', type=str, help='Name of suffix for output'
 known = parser.parse_args()
 
 # load edgelist
-edge_list = f.load(known.subject).reset_index()
+edge_list = pd.read_csv(known.subject, sep='\t')
 
 # Create graph
 seed='random'
@@ -34,8 +33,8 @@ node_clusters = pd.DataFrame({'node': node_names, 'cluster': partition.membershi
 
 # Save the node list with cluster assignments
 if known.outfile:
-    f.save(node_clusters, known.outfile)
+    node_clusters.to_csv(known.outfile, sep='\t')
 elif known.suffix:
-    f.save(node_clusters, known.subject + known.suffix)
+    node_clusters.to_csv(f'results/{known.subject}_{known.suffix}', sep='\t')
 else:
-    f.save(node_clusters, known.subject + '_clusters')
+    node_clusters.to_csv(f'results/{known.subject}_clusters', sep='\t')

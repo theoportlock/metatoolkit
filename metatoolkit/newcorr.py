@@ -8,7 +8,6 @@ from scipy.stats import spearmanr
 from statsmodels.stats.multitest import fdrcorrection
 from itertools import permutations, product
 from pathlib import Path
-import functions as f
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Produces Spearman correlations between datasets.')
@@ -69,8 +68,9 @@ def main():
     secondary_path = args['df2']
     use_fdr = args['mult']
     
-    primary_df = f.load(primary_path)
+    primary_df = pd.read_csv(primary_path, index_col=0, sep='\t')
     secondary_df = f.load(secondary_path) if secondary_path else None
+    secondary_df = pd.read_csv(secondary_path, index_col=0, sep='\t') if secondary_path else None
     
     output = calculate_correlations(primary_df, secondary_df, fdr=use_fdr)
     
@@ -80,7 +80,7 @@ def main():
         base_name += f"_vs_{Path(secondary_path).stem}"
     
     print(output)
-    f.save(output, f"{base_name}_spearman_corr")
+    output.to_csv(f"results/{base_name}_spearman_corr.tsv", sep='\t')
 
 if __name__ == "__main__":
     main()

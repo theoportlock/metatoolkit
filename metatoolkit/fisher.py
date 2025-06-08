@@ -3,7 +3,6 @@
 '''
 Author: Theo Portlock
 '''
-import functions as f
 import argparse
 import pandas as pd
 import numpy as np
@@ -78,13 +77,13 @@ def main():
 
     # load data
     file = args.file
-    cats = f.load(file)
+    cats = pd.read_csv(file, index_col=0, sep='\t')
 
     # calculate fisher exact
     out = fisher(cats)
 
     # save fisher results
-    f.save(out, f'{file}Fisher')
+    out.to_csv(f'results/{file}_Fisher.tsv', sep='\t', index_col=0)
 
 if __name__ == '__main__':
     main()
