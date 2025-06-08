@@ -46,8 +46,8 @@ def main():
     subject = args.subject
     column = args.column
 
-    df, subject_path = load(subject)
-    df2, _ = load(args.df2) if args.df2 else (None, None)
+    df = load(subject)
+    df2 = load(args.df2) if args.df2 else None
 
     output = splitter(df, df2, column)
 
