@@ -12,10 +12,12 @@ import seaborn as sns
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Produces a Regplot of a given dataset')
     parser.add_argument('subject', help='Path to dataset file or subject name')
+    parser.add_argument('-o', '--output', help='Path to output svg')
     parser.add_argument('-x', help='Column name for x-axis')
     parser.add_argument('-y', help='Column name for y-axis')
     parser.add_argument('--hue', help='Column name for hue grouping')
     parser.add_argument('--logy', action='store_true', help='Set y-axis to log scale')
+    parser.add_argument('--logx', action='store_true', help='Set x-axis to log scale')
     parser.add_argument('--show', action='store_true', help='Display the plot window')
     parser.add_argument('--figsize', help='Figure size as width,height (default: 2,2)', default='2,2')
     return parser.parse_args()
@@ -28,7 +30,7 @@ def load_data(subject):
     default_path = Path('results') / f'{subject}.tsv'
     return pd.read_csv(default_path, sep='\t', index_col=0)
 
-def plot_reg(df, x=None, y=None, hue=None, ax=None, figsize=(2, 2)):
+def plot_reg(df, x=None, y=None, hue=None, ax=None, logx=False, figsize=(2, 2)):
     # Reset index to ensure the index is part of the data frame
     df = df.reset_index()
     
@@ -42,7 +44,7 @@ def plot_reg(df, x=None, y=None, hue=None, ax=None, figsize=(2, 2)):
     
     # Create the regplot
     #sns.regplot(data=df, x=x, y=y, scatter_kws={"color": "black", 's':2}, line_kws={"color": "red"}, ax=ax)
-    sns.regplot(data=df, x=x, y=y, scatter=False, line_kws={"color": "red"}, ax=ax)
+    sns.regplot(data=df, x=x, y=y, scatter=False, logx=logx, line_kws={"color": "red"}, ax=ax)
     
     # Overlay scatterplot with points if hue is provided
     if hue:
@@ -66,14 +68,8 @@ def plot_reg(df, x=None, y=None, hue=None, ax=None, figsize=(2, 2)):
     
     return ax
 
-def save_plots(filename, show=False):
-    # Ensure output directory exists
-    out_dir = Path('results')
-    out_dir.mkdir(parents=True, exist_ok=True)
-    base_name = Path(filename).stem
-    svg_path = out_dir / f'{base_name}.svg'
-    
-    plt.savefig(svg_path)
+def save_plot(filename, show=False):
+    plt.savefig(filename)
     plt.clf()
 
 def main():
@@ -84,12 +80,15 @@ def main():
     
     df = load_data(args.subject)
     
-    plot_reg(df, x=args.x, y=args.y, hue=args.hue, figsize=figsize)
+    plot_reg(df, x=args.x, y=args.y, hue=args.hue, logx=args.logx, figsize=figsize)
     
     if args.logy:
         plt.yscale('log')
+    if args.logx:
+        plt.xscale('log')
     
-    save_plots(f'{args.subject}_regplot', show=args.show)
+    out_file = args.output if args.output else f'{args.subject}_regplot'
+    save_plot(out_file, show=args.show)
 
 if __name__ == '__main__':
     main()
