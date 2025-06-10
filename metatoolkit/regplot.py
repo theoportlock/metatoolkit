@@ -30,7 +30,7 @@ def load_data(subject):
     default_path = Path('results') / f'{subject}.tsv'
     return pd.read_csv(default_path, sep='\t', index_col=0)
 
-def plot_reg(df, x=None, y=None, hue=None, ax=None, logx=False, figsize=(2, 2)):
+def plot_reg(df, x=None, y=None, hue=None, ax=None, figsize=(2, 2)):
     # Reset index to ensure the index is part of the data frame
     df = df.reset_index()
     
@@ -44,7 +44,7 @@ def plot_reg(df, x=None, y=None, hue=None, ax=None, logx=False, figsize=(2, 2)):
     
     # Create the regplot
     #sns.regplot(data=df, x=x, y=y, scatter_kws={"color": "black", 's':2}, line_kws={"color": "red"}, ax=ax)
-    sns.regplot(data=df, x=x, y=y, scatter=False, logx=logx, line_kws={"color": "red"}, ax=ax)
+    sns.regplot(data=df, x=x, y=y, scatter=False, line_kws={"color": "red"}, ax=ax)
     
     # Overlay scatterplot with points if hue is provided
     if hue:
@@ -80,7 +80,7 @@ def main():
     
     df = load_data(args.subject)
     
-    plot_reg(df, x=args.x, y=args.y, hue=args.hue, logx=args.logx, figsize=figsize)
+    plot_reg(df, x=args.x, y=args.y, hue=args.hue, figsize=figsize)
     
     if args.logy:
         plt.yscale('log')

@@ -15,8 +15,8 @@ def parse_arguments():
     parser.add_argument("subject", help="Input dataframe file or identifier.")
     parser.add_argument("--match", help="Regex pattern to match.", required=True)
     parser.add_argument("--replace", help="Replacement pattern.", required=True)
-    parser.add_argument("--axis", choices=["columns", "index"], default="index",
-                        help="Axis to rename (default: index).")
+    parser.add_argument("--axis", choices=["columns", "index"], default="columns",
+                        help="Axis to rename (default: columns).")
     parser.add_argument("--output", help="Output filename for the renamed dataframe")
 
     known, unknown = parser.parse_known_args()
