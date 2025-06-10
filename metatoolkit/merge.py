@@ -11,9 +11,7 @@ def load(subject):
     return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def save(df, subject, index=True):
-    output_path = f'results/{subject}.tsv'
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df.to_csv(output_path, sep='\t', index=index)
+    df.to_csv(subject, sep='\t', index=index)
 
 def merge(datasets=None, join='inner', append=False, add_filename_column=False, filenames=None):
     if append:
@@ -45,7 +43,7 @@ def main():
 
     print(result)
 
-    output_name = args.output if args.output else "".join(args.datasets)
+    output_name = args.output if args.output else f'results/{"_".join(args.datasets)}'
     save(result, output_name)
 
 if __name__ == '__main__':

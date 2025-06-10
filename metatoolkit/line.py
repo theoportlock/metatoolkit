@@ -3,7 +3,6 @@
 
 import seaborn as sns
 import argparse
-import functions as f
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -24,8 +23,8 @@ known = {k: v for k, v in vars(known).items() if v is not None}
 # Load data
 subject = known.get('subject')
 if os.path.isfile(subject): subject = Path(subject).stem
-df = f.load(subject)
-df2 = f.load(known.get('df2'))
+df = pd.read_csv(subject, sep='\t', index_col=0)
+df2 = pd.read_csv(known.get('df2'), index_col=0, sep='\t')
 
 # Merge metadata
 plotdf = df.join(df2)
@@ -42,7 +41,6 @@ logy = known.get("logy")
 plotdf = plotdf.sort_values(x)
 
 # Plot and save
-f.setupplot()
 sns.lineplot(data=plotdf,
              x=x,
              y=y,
@@ -50,5 +48,5 @@ sns.lineplot(data=plotdf,
              hue=hue,
              estimator=None)
 if logy: plt.yscale('log')
-f.savefig(f'{subject}line')
+plt.savefig(f'results/{subject}_line.svg')
 

@@ -6,7 +6,6 @@ import pandas as pd
 import os
 from scipy.stats import kruskal
 from pathlib import Path
-import functions as f
 
 def parse_args():
     parser = argparse.ArgumentParser(description='''
@@ -46,10 +45,10 @@ if __name__ == "__main__":
     subject = known["subject"]
     df2_path = known["df2"]
     
-    df = f.load(subject)
-    df2 = f.load(df2_path)
+    df = pd.read_csv(subject, index_col=0, sep='\t')
+    df2 = pd.read_csv(df2_path, index_col=0, sep='\t')
     
     output = kruskal_wallis_test(df, df2)
     print(output)
     
-    f.save(output, subject + '_kruskal')
+    output.to_csv(f'results/{subject}_kruskal.tsv', sep='\t')

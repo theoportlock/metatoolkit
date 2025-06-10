@@ -36,17 +36,17 @@ def main():
     # Parse arguments
     args = parse_arguments()
     subject = args.subject
-    output = args.output or f"{subject}_{args.func}"
+    output = args.output or f"results/{subject}_{args.func}.tsv"
     
     # Load data
-    df = pd.read_csv(subject, sep='\t', index_col=0)
+    df = pd.read_csv(subject, index_col=0, sep='\t')
 
     # Apply grouping
     out = group(df, group_by=args.group_by, func=args.func, axis=args.axis)
     print(out)
 
     # Save output
-    out.to_csv(f'results/{output}.tsv', sep='\t')
+    out.to_csv(output, sep='\t')
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
 import pandas as pd
 import os
 from pathlib import Path
@@ -27,11 +26,11 @@ known = {k: v for k, v in vars(known).items() if v is not None}
 
 subject = known.get("subject")
 if os.path.isfile(subject): subject = Path(subject).stem
-df = f.load(subject)
+df = pd.read_csv(subject, index_col=0, sep='\t')
 pval = known.get("pval")
 change = known.get("change")
 sig = known.get("sig")
 
 output = change_summary(df, change=change, pval=pval, sig=sig)
 print(output.to_string())
-f.save(output, f'{subject}Summary')
+output.to_csv(f'results/{subject}_summary.tsv', sep='\t')

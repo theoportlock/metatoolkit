@@ -20,6 +20,18 @@ def heatmap(df, sig=None, ax=None, center=0, **kwargs):
     )
     plt.setp(g.get_xticklabels(), rotation=40, ha="right")
     return g
+
+def load(subject):
+    if os.path.isfile(subject):
+        return pd.read_csv(subject, sep='\t', index_col=0)
+    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
+
+def savefig(subject, tl=False, show=False):
+    if os.path.isfile(subject): subject = Path(subject).stem
+    if tl: plt.tight_layout()
+    plt.savefig(f'results/{subject}.svg')
+    plt.clf()
+
 parser = argparse.ArgumentParser(description='''
 Heatmap - Produces a heatmap of a given dataset
 ''')
@@ -28,8 +40,9 @@ known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 
 subject = known.get("subject"); known.pop("subject")
+
 if os.path.isfile(subject): subject = Path(subject).stem
-df = pd.read_csv(subject, index_col=0, sep='\t')
+df = load(subject)
 
 heatmap(df)
-plt.savefig(f'results/{subject}heatmap.svg')
+savefig(f'{subject}_heatmap')

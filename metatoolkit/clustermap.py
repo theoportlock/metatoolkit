@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -13,8 +14,6 @@ def load(subject):
     return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def savefig(subject, tl=False, show=False):
-    if os.path.isfile(subject):
-        subject = Path(subject).stem
     plt.savefig(f'results/{subject}.svg')
     plt.clf()
 
@@ -86,8 +85,7 @@ def clustermap(df, effect_col, sig_col, sig_thresh, figsize=(4,4), cluster=True)
                 continue  # Skip missing combinations
 
     # Adjust label rotation
-    g.ax_heatmap.set_xticklabels(g.ax_heatmap.get_xticklabels(), 
-                                rotation=40, ha='right')
+    g.ax_heatmap.set_xticklabels(g.ax_heatmap.get_xticklabels(), rotation=40, ha='right')
     plt.tight_layout()
     return g
 
@@ -108,6 +106,7 @@ def main():
     )
 
     output_path = args.output or f"{args.subject}_clustermap.png"
+    print(output_path)
     savefig(output_path)
 
 if __name__ == "__main__":

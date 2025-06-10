@@ -4,7 +4,6 @@
 from pathlib import Path
 import matplotlib.pyplot as plt
 import argparse
-import functions as f
 import numpy as np
 import os
 import pandas as pd
@@ -59,10 +58,8 @@ arguments = ['../../fellowship/m4efad/baseline/results/shap_interactsmeanformatf
 arguments = sys.argv[1:]
 args = parse_args(arguments)
 
-#edgelist = f.load(args.subject)
-subject = args.subject
-edgelist = f.load(subject)
-labels = f.load(args.labels)
+edgelist = pd.read_csv(subject, index_col=0, sep='\t')
+labels = pd.read_csv(args.labels, index_col=0, sep='\t')
 weight = args.weight
 
 if os.path.isfile(args.subject):
@@ -71,4 +68,4 @@ else:
     subject = args.subject
 
 circos(edgelist, labels, weight=weight)
-f.savefig(f'{subject}circos')
+plt.savefig(f'results/{subject}_circos.svg')
