@@ -1,3 +1,4 @@
+#!/usr/bin/env R
 # Step 1: Simulate Data
 
 set.seed(123)
