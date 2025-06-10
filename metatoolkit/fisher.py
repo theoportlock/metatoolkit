@@ -1,8 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
 Author: Theo Portlock
 '''
+
 import argparse
 import pandas as pd
 import numpy as np
@@ -77,7 +78,7 @@ def main():
 
     # load data
     file = args.file
-    cats = pd.read_csv(file, index_col=0, sep='\t')
+    cats = pd.read_csv(file, sep='\t', index_col=0)
 
     # calculate fisher exact
     out = fisher(cats)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
@@ -40,6 +40,7 @@ known = parser.parse_args()
 known = {k: v for k, v in vars(known).items() if v is not None}
 
 subject = known.get("subject"); known.pop("subject")
+
 if os.path.isfile(subject): subject = Path(subject).stem
 df = load(subject)
 
