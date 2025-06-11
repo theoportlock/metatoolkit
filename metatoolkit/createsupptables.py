@@ -2,11 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import os
 import pandas as pd
-import shutil
-import subprocess
-import sys
 
 parser = argparse.ArgumentParser(description='''
 Createsupptables - Combines tables to make final supplementary table in excel

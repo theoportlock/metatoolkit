@@ -9,7 +9,6 @@ import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from skbio.stats.ordination import cca
 import os
-from scipy.stats import f_oneway
 
 
 def parse_arguments():

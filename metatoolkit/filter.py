@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import sys
-import shlex
 import pandas as pd
 import numpy as np
 from pathlib import Path

@@ -4,6 +4,10 @@
 import argparse
 import matplotlib.pyplot as plt
 import os
+import pandas as pd
+import seaborn as sns
+from pathlib import Path
+
 
 def heatmap(df, sig=None, ax=None, center=0, **kwargs):
     pd.set_option("use_inf_as_na", True)
@@ -27,7 +31,7 @@ def load(subject):
     return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
 def savefig(subject, tl=False, show=False):
-    if os.path.isfile(subject): subject = Path(subject).stem
+    if subject is not None and os.path.isfile(subject): subject = Path(subject).stem
     if tl: plt.tight_layout()
     plt.savefig(f'results/{subject}.svg')
     plt.clf()
@@ -41,7 +45,7 @@ known = {k: v for k, v in vars(known).items() if v is not None}
 
 subject = known.get("subject"); known.pop("subject")
 
-if os.path.isfile(subject): subject = Path(subject).stem
+if subject is not None and os.path.isfile(subject): subject = Path(subject).stem
 df = load(subject)
 
 heatmap(df)

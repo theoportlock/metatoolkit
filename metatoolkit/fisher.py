@@ -84,7 +84,7 @@ def main():
     out = fisher(cats)
 
     # save fisher results
-    out.to_csv(f'results/{file}_Fisher.tsv', sep='\t', index_col=0)
+    out.to_csv(f'results/{file}_Fisher.tsv', sep='\t')
 
 if __name__ == '__main__':
     main()

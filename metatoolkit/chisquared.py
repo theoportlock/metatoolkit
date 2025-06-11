@@ -8,7 +8,7 @@ This script calculates the Chi Squared test and Cramér's V for all pairs of cat
 
 import argparse
 import pandas as pd
-import numpy as np
+import os
 from itertools import permutations
 from scipy.stats import chi2_contingency
 from scipy.stats.contingency import association

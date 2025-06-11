@@ -154,13 +154,6 @@ def change(df: pd.DataFrame,
     result = pd.concat(all_results)
     result = result.reorder_levels(['source','comparison','feature'])
     return result
-    result = pd.concat(all_results)
-    result = result.reorder_levels(['source','comparison','feature'])
-    return result
-    # combine all, swap levels so (source,comparison,feature)
-    result = pd.concat(all_results)
-    result = result.reorder_levels(['source','comparison','feature'])
-    return result
 
 
 def main():

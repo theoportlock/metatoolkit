@@ -9,7 +9,6 @@ and then either prints or saves the resulting matrix.
 
 import argparse
 import pandas as pd
-import functions
 
 def parse_arguments():
     parser = argparse.ArgumentParser(

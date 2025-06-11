@@ -6,6 +6,8 @@ import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from pathlib import Path
+
 
 parser = argparse.ArgumentParser(description='''
 Line - Produces a Lineplot of a given dataset
@@ -22,9 +24,15 @@ known = {k: v for k, v in vars(known).items() if v is not None}
 
 # Load data
 subject = known.get('subject')
-if os.path.isfile(subject): subject = Path(subject).stem
+if subject is not None and os.path.isfile(subject): subject = Path(subject).stem
+if subject is None:
+    raise ValueError("The 'subject' argument must be provided and not None.")
 df = pd.read_csv(subject, sep='\t', index_col=0)
-df2 = pd.read_csv(known.get('df2'), index_col=0, sep='\t')
+
+df2_path = known.get('df2')
+if df2_path is None:
+    raise ValueError("The 'df2' argument must be provided and not None.")
+df2 = pd.read_csv(df2_path, index_col=0, sep='\t')
 
 # Merge metadata
 plotdf = df.join(df2)

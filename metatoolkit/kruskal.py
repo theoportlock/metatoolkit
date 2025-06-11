@@ -3,9 +3,7 @@
 
 import argparse
 import pandas as pd
-import os
 from scipy.stats import kruskal
-from pathlib import Path
 
 def parse_args():
     parser = argparse.ArgumentParser(description='''

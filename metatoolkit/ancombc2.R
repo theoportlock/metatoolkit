@@ -37,7 +37,7 @@ output <- ancombc2(
   data = t(otu_data),
   meta_data = meta_data,
   fix_formula = args$formula,
-  rand_formula = args$rand_formula,  # NULL if not provided
+  rand_formula = args$rand_formula,
   group = args$group_col,
   p_adj_method = "holm",
   pseudo_sens = TRUE,

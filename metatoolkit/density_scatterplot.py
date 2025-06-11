@@ -7,12 +7,11 @@ from matplotlib import cm
 from matplotlib.colors import Normalize 
 from scipy.interpolate import interpn
 
-def density_scatter( x , y, ax = None, sort = True, bins = 20, **kwargs )   :
+def density_scatter( x , y, sort = True, bins = 20, **kwargs )   :
     """
     Scatter plot colored by 2d histogram
     """
-    if ax is None :
-        fig , ax = plt.subplots()
+    fig , ax = plt.subplots()
     data , x_e, y_e = np.histogram2d( x, y, bins = bins, density = True )
     z = interpn( ( 0.5*(x_e[1:] + x_e[:-1]) , 0.5*(y_e[1:]+y_e[:-1]) ) , data , np.vstack([x,y]).T , method = "splinef2d", bounds_error = False)
 
@@ -26,7 +25,7 @@ def density_scatter( x , y, ax = None, sort = True, bins = 20, **kwargs )   :
 
     ax.scatter( x, y, c=z, **kwargs )
 
-    norm = Normalize(vmin = np.min(z), vmax = np.max(z))
+    norm = Normalize(vmin = np.min(z).real, vmax = np.max(z).real)
     cbar = fig.colorbar(cm.ScalarMappable(norm = norm), ax=ax)
     cbar.ax.set_ylabel('Density')
 
@@ -37,4 +36,4 @@ if "__main__" == __name__ :
 
     x = np.random.normal(size=100000)
     y = x * 3 + np.random.normal(size=100000)
-    density_scatter( x, y, bins = [30,30] )
+    density_scatter(x, y, bins=30)
