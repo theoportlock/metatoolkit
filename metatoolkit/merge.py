@@ -14,8 +14,12 @@ def save(df, subject, index=True):
     df.to_csv(subject, sep='\t', index=index)
 
 def merge(datasets=None, join='inner', append=False, add_filename_column=False, filenames=None):
+    if datasets is None:
+        raise ValueError("datasets argument must not be None")
+    if join not in ('inner', 'outer'):
+        raise ValueError("join argument must be either 'inner' or 'outer'")
     if append:
-        if add_filename_column and filenames:
+        if add_filename_column and filenames is not None:
             for df, fname in zip(datasets, filenames):
                 df['filename'] = os.path.basename(fname)
         return pd.concat(datasets, axis=0, join=join)

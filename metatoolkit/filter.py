@@ -22,10 +22,12 @@ def save(df, subject, index=True):
 def filter(df, **kwargs):
     df.index = df.index.astype(str)
     if kwargs.get('filter_df') is not None:
-        if kwargs.get('filter_df_axis') == 1:
-            df = df.loc[:, kwargs.get('filter_df').index]
-        else:
-            df = df.loc[kwargs.get('filter_df').index]
+        filter_df = kwargs.get('filter_df')
+        if filter_df is not None:
+            if kwargs.get('filter_df_axis') == 1:
+                df = df.loc[:, filter_df.index]
+            else:
+                df = df.loc[filter_df.index]
     if kwargs.get('colfilt'):
         df = df.loc[:, df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
     if kwargs.get('rowfilt'):
@@ -88,7 +90,7 @@ def main():
     # Load the original DataFrame
     original_df = load(subject)
 
-    if os.path.isfile(subject):
+    if subject is not None and os.path.isfile(subject):
         subject = Path(subject).stem
     
     if known.get("filter_df"):
@@ -113,9 +115,12 @@ def main():
         if known.get("outfile"):
             save(output, known.get("outfile"))
         elif known.get("suffix"):
-            save(output, subject + known.get("suffix"))
+            subj = str(subject) if subject is not None else ""
+            suffix = str(known.get("suffix")) if known.get("suffix") is not None else ""
+            save(output, subj + suffix)
         else:
-            save(output, subject + 'filter')
+            subj = subject if subject is not None else ""
+            save(output, subj + 'filter')
 
 if __name__ == "__main__":
     main()

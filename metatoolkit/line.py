@@ -46,7 +46,8 @@ hue = known.get("hue")
 logy = known.get("logy")
 
 # Sort
-plotdf = plotdf.sort_values(x)
+if x is not None:
+    plotdf = plotdf.sort_values(x)
 
 # Plot and save
 sns.lineplot(data=plotdf,
