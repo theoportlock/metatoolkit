@@ -1,111 +1,103 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Author: Theo Portlock
-'''
+Join two TSV files using pandas merge with optional smart handling of identical suffixed columns.
+"""
 
 import argparse
 import pandas as pd
 import os
 
-def load(subject):
-    if os.path.isfile(subject):
-        return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
+def load(filepath):
+    """Load TSV file from path or from 'results/' subfolder if not a full path."""
+    if os.path.isfile(filepath):
+        return pd.read_csv(filepath, sep='\t', index_col=0)
+    return pd.read_csv(f'results/{filepath}.tsv', sep='\t', index_col=0)
 
-def save(df, subject, index=True):
-    output_path = f'results/{subject}.tsv' 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df.to_csv(output_path, sep='\t', index=index)
+def save(df, name):
+    """Save DataFrame"""
+    os.makedirs(os.path.dirname(name), exist_ok=True)
+    df.to_csv(name, sep='\t')
 
 def combine_identical_columns(df, suffixes):
-    """
-    Combine columns with identical values that received suffixes during merging.
-    Preserves the original column name if both suffixed versions are identical.
-    """
+    """Drop duplicated suffixed columns if values are identical, restoring base name."""
     suffix1, suffix2 = suffixes
-    base_columns = {}
-    
-    # Identify potential columns to combine
-    for col in df.columns:
-        if col.endswith(suffix1):
-            base = col[:-len(suffix1)]
-            base_columns.setdefault(base, {})[suffix1] = col
-        elif col.endswith(suffix2):
-            base = col[:-len(suffix2)]
-            base_columns.setdefault(base, {})[suffix2] = col
+    to_drop, to_add = [], {}
 
-    # Process matching column pairs
-    to_drop = []
-    to_add = {}
-    
-    for base, cols in base_columns.items():
-        if suffix1 in cols and suffix2 in cols:
-            col1 = cols[suffix1]
-            col2 = cols[suffix2]
-            
-            if df[col1].equals(df[col2]):
-                to_add[base] = df[col1]
-                to_drop.extend([col1, col2])
+    for base in set(col.removesuffix(suffix1).removesuffix(suffix2) for col in df.columns):
+        col1, col2 = f'{base}{suffix1}', f'{base}{suffix2}'
+        if col1 in df.columns and col2 in df.columns and df[col1].equals(df[col2]):
+            to_add[base] = df[col1]
+            to_drop.extend([col1, col2])
 
     return df.drop(columns=to_drop).assign(**to_add)
 
-def main():
-    parser = argparse.ArgumentParser(description='Join two dataframes using pandas merge functionality.')
-    parser.add_argument('file1', type=str, help='Path to the first input file.')
-    parser.add_argument('file2', type=str, help='Path to the second input file.')
-    parser.add_argument('-o', '--output', type=str, default='joined', help='Output file name prefix.')
-    parser.add_argument('--how', type=str, default='inner', 
-                      choices=['inner', 'outer', 'left', 'right', 'cross'],
-                      help='Type of merge to be performed.')
-    parser.add_argument('--on', type=str, help='Common column name(s) (comma-separated) to join on.')
-    parser.add_argument('--left_on', type=str, help='Column name(s) from left dataframe (comma-separated).')
-    parser.add_argument('--right_on', type=str, help='Column name(s) from right dataframe (comma-separated).')
-    parser.add_argument('--suffixes', type=str, default='_x,_y',
-                      help='Suffixes to apply to overlapping columns (comma-separated).')
-    
-    args = parser.parse_args()
+def join_dataframes(file1, file2, how='inner', on=None, left_on=None, right_on=None, suffixes=('_x', '_y')):
+    """Join two DataFrames loaded from file1 and file2 using the specified merge options."""
+    df1 = load(file1)
+    df2 = load(file2)
 
-    # Load dataframes
-    #df1 = pd.read_csv('results/'+args.file1+'.tsv', sep='\t')
-    #df2 = pd.read_csv('results/'+args.file2+'.tsv', sep='\t')
-    df1 = load(args.file1).reset_index()
-    df2 = load(args.file2).reset_index()
+    merge_kwargs = {'how': how, 'suffixes': suffixes}
 
-    # Process suffixes
-    suffixes = args.suffixes.split(',')
-    if len(suffixes) != 2:
-        raise ValueError("Must provide exactly two suffixes separated by a comma")
-
-    # Determine merge parameters
-    merge_params = {}
-    if args.on:
-        merge_params['on'] = args.on.split(',')
-    elif args.left_on and args.right_on:
-        merge_params['left_on'] = args.left_on.split(',')
-        merge_params['right_on'] = args.right_on.split(',')
+    # Handle join keys
+    if on:
+        merge_kwargs['on'] = on
+        df1 = df1.reset_index()
+        df2 = df2.reset_index()
+    elif left_on and right_on:
+        merge_kwargs['left_on'] = left_on
+        merge_kwargs['right_on'] = right_on
+        df1 = df1.reset_index()
+        df2 = df2.reset_index()
     else:
-        merge_params['left_index'] = True
-        merge_params['right_index'] = True
+        # Join on index — do NOT reset index
+        merge_kwargs['left_index'] = True
+        merge_kwargs['right_index'] = True
 
-    # Perform merge
-    merged_df = pd.merge(
-        df1,
-        df2,
+    merged = pd.merge(df1, df2, **merge_kwargs)
+
+    # Clean up duplicated columns if identical
+    merged = combine_identical_columns(merged, suffixes)
+
+    # If merged on columns, restore index from first column
+    if 'left_index' not in merge_kwargs:
+        merged.set_index(merged.columns[0], inplace=True)
+
+    return merged
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Join two dataframes using pandas merge.')
+    parser.add_argument('file1', help='First input file.')
+    parser.add_argument('file2', help='Second input file.')
+    parser.add_argument('-o', '--output', default='joined', help='Output filename prefix.')
+    parser.add_argument('--how', default='inner', choices=['inner', 'outer', 'left', 'right', 'cross'],
+                        help='Merge method.')
+    parser.add_argument('--on', help='Column(s) to join on (comma-separated).')
+    parser.add_argument('--left_on', help='Left join key(s) (comma-separated).')
+    parser.add_argument('--right_on', help='Right join key(s) (comma-separated).')
+    parser.add_argument('--suffixes', default='_x,_y', help='Suffixes for overlapping columns (comma-separated).')
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    suffixes = tuple(args.suffixes.split(','))
+    if len(suffixes) != 2:
+        raise ValueError("Please provide exactly two comma-separated suffixes (e.g., '_x,_y')")
+
+    merged_df = join_dataframes(
+        file1=args.file1,
+        file2=args.file2,
         how=args.how,
-        suffixes=suffixes,
-        **merge_params
+        on=args.on.split(',') if args.on else None,
+        left_on=args.left_on.split(',') if args.left_on else None,
+        right_on=args.right_on.split(',') if args.right_on else None,
+        suffixes=suffixes
     )
-
-    # Combine identical columns that received suffixes
-    merged_df = combine_identical_columns(merged_df, suffixes)
-
-    # Set index as first column
-    merged_df = merged_df.set_index(merged_df.columns[0])
-
-    # Save results
     save(merged_df, args.output)
 
 if __name__ == '__main__':
     main()
+
