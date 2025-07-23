@@ -39,32 +39,41 @@ def is_classification_target(y):
     )
 
 
-def split_and_balance(input_path, output_dir, y_col, test_size, random_state, apply_smote, scaler_name):
+def split_and_balance(input_path, output_dir, y_col, test_size, random_state, apply_smote, scaler_name, y_file=None):
     df = load_dataset(input_path)
 
-    if y_col not in df.columns:
-        raise ValueError(f"Column '{y_col}' not found in input data.")
-
-    y = df[y_col]
-    X = df.drop(columns=[y_col])
+    if y_file:
+        df2 = load_dataset(y_file)
+        if y_col not in df2.columns:
+            raise ValueError(f"Column '{y_col}' not found in y_file '{y_file}'.")
+        y = df2[y_col]
+    else:
+        if y_col not in df.columns:
+            raise ValueError(f"Column '{y_col}' not found in input data.")
+        y = df[y_col]
+        df = df.drop(columns=[y_col])
 
     classification = is_classification_target(y)
-
     if classification and y.dtype == object:
         y = y.astype("category")
 
     if apply_smote and not classification:
         raise ValueError("SMOTE can only be used with classification (categorical y).")
 
-    stratify = y if classification else None
-
     scaler = get_scaler(scaler_name)
     if scaler is not None:
         X_scaled = pd.DataFrame(
-            scaler.fit_transform(X), columns=X.columns, index=X.index
+            scaler.fit_transform(df), columns=df.columns, index=df.index
         )
     else:
-        X_scaled = X.copy()
+        X_scaled = df.copy()
+
+    # Align X and y on index (inner join) to avoid mismatches
+    Xy = X_scaled.join(y, how="inner")
+    X_scaled = Xy.drop(columns=[y_col])
+    y = Xy[y_col]
+
+    stratify = y if classification else None
 
     X_train, X_test, y_train, y_test = train_test_split(
         X_scaled, y, test_size=test_size, random_state=random_state, stratify=stratify
@@ -83,17 +92,17 @@ def split_and_balance(input_path, output_dir, y_col, test_size, random_state, ap
     save_tsv(y_test_df, output_dir, "y_test")
 
     print(f"✅ Saved train/test splits to: {output_dir}")
-    print(f"🧠 Task type: {'classification' if classification else 'regression'}")
+    print(f"🔍 Task type: {'classification' if classification else 'regression'}")
     print(f"📊 Shapes: X_train={X_train.shape}, X_test={X_test.shape}")
-    print(f"⚙️ Scaler used: {scaler_name}")
+    print(f"🧪 Scaler used: {scaler_name}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train/test splitter with optional SMOTE and scaling"
+        description="Train/test splitter with optional SMOTE and scaling, supporting separate y file"
     )
     parser.add_argument("--input", type=str, required=True,
-                        help="Path to input TSV file")
+                        help="Path to input TSV file (features)")
     parser.add_argument("--output_dir", type=str, required=True,
                         help="Directory to save X_train, X_test, y_train, y_test")
     parser.add_argument("--y_col", type=str, required=True,
@@ -107,6 +116,8 @@ def main():
     parser.add_argument("--scaler", type=str, default="standard",
                         choices=["standard", "minmax", "none"],
                         help="Feature scaling method (default: standard)")
+    parser.add_argument("--y_file", type=str, default=None,
+                        help="Optional path to TSV file containing y_col to join on index")
 
     args = parser.parse_args()
 
@@ -118,6 +129,7 @@ def main():
         random_state=args.random_state,
         apply_smote=args.smote,
         scaler_name=args.scaler,
+        y_file=args.y_file,
     )
 
 
