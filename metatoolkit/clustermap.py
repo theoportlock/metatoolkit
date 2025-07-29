@@ -22,6 +22,14 @@ def parse_arguments():
     parser.add_argument('--sig', default='qval', help="Column for significance")
     parser.add_argument('--effect', default='cor', help="Column for effect")
     parser.add_argument(
+        '--source-col', default='source',
+        help="Column representing the source nodes (default: 'source')"
+    )
+    parser.add_argument(
+        '--target-col', default='target',
+        help="Column representing the target nodes (default: 'target')"
+    )
+    parser.add_argument(
         '--sig_thresh', type=float, default=0.05,
         help="Threshold for significance"
     )
@@ -47,7 +55,7 @@ def parse_arguments():
     )
     return parser.parse_args()
 
-def clustermap(df, effect_col, sig_col, sig_thresh,
+def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
                figsize=(4,4), cluster=True, filter_sig='none'):
     """Generate and return a clustered heatmap with centered significance markers."""
     # Clean infinities
@@ -55,10 +63,10 @@ def clustermap(df, effect_col, sig_col, sig_thresh,
 
     # Pivot to matrices
     cor = df.reset_index().pivot(
-        index='source', columns='target', values=effect_col
+        index=source_col, columns=target_col, values=effect_col
     ).fillna(0)
     sig_df = df.reset_index().pivot(
-        index='source', columns='target', values=sig_col
+        index=source_col, columns=target_col, values=sig_col
     ).fillna(1)
 
     mask = sig_df < sig_thresh
@@ -165,14 +173,22 @@ def main():
     df = load(args.subject)
 
     # Validate
-    req = {'source', 'target', args.effect, args.sig}
+    req = {args.source_col, args.target_col, args.effect, args.sig}
+    # Check if the required columns (including user-defined source/target) exist
     if not req.issubset(df.reset_index().columns):
-        raise ValueError("Input dataframe missing required columns")
+        raise ValueError(
+            f"Input dataframe missing required columns. "
+            f"Expected: {', '.join(req)}. "
+            f"Available: {', '.join(df.reset_index().columns)}"
+        )
+
 
     g = clustermap(
         df,
         effect_col=args.effect,
         sig_col=args.sig,
+        source_col=args.source_col,
+        target_col=args.target_col,
         sig_thresh=args.sig_thresh,
         cluster=not args.no_cluster,
         figsize=tuple(args.figsize),
@@ -188,4 +204,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
