@@ -64,16 +64,12 @@ if (length(fixed_effects) < 1) {
 # Subset X to fixed_effects only
 X_sub <- X[, fixed_effects, drop = FALSE]
 
-# --- MODIFICATION STARTS HERE ---
-# Explicitly convert character columns to factors
-# This prevents the `scale` function from being called on non-numeric data
 for (col in colnames(X_sub)) {
   if (is.character(X_sub[[col]])) {
     X_sub[[col]] <- as.factor(X_sub[[col]])
     message(paste("Converted character column", col, "to factor."))
   }
 }
-# --- MODIFICATION ENDS HERE ---
 
 # Build the full formula and run the full RDA model
 full_formula <- as.formula(paste("Y ~", paste(paste0("`", fixed_effects, "`"), collapse = " + ")))
@@ -82,31 +78,33 @@ full_rda <- rda(full_formula, data = X_sub)
 # Get marginal R2 and p-values for each term using anova.cca
 anova_marginal <- anova.cca(full_rda, by = "margin", permutations = 999)
 
-# Calculate the total variance for manual R2 calculation.
-total_variance <- sum(anova_marginal$Variance, anova_marginal["Residual", "Variance"])
+# Get the total R2 and adjusted R2
+total_constrained_r2 <- RsquareAdj(full_rda)$r.squared
+full_adj_r2 <- RsquareAdj(full_rda)$adj.r.squared
+unconstrained_r2 <- 1 - total_constrained_r2
+
+# Get the overall p-value for the full model
+anova_full <- anova.cca(full_rda, permutations = 999)
+overall_pval <- anova_full$`Pr(>F)`[1]
 
 # Prepare results from the anova_marginal table
 term_stats <- data.frame(
   explainer = rownames(anova_marginal),
-  R2 = round(anova_marginal$Variance / total_variance, 5),
+  R2 = round(anova_marginal$Variance / sum(anova_marginal$Variance, anova_marginal["Residual", "Variance"]), 5),
   adj_R2 = NA,
   pval = round(anova_marginal$`Pr(>F)`, 5),
   stringsAsFactors = FALSE
 )
 
-# Exclude the "Residual" row from the term statistics to avoid redundancy
+# Exclude the "Residual" row from the term statistics
 term_stats <- term_stats[term_stats$explainer != "Residual", ]
-
-# Get the total R2 and adjusted R2
-total_constrained_r2 <- RsquareAdj(full_rda)$r.squared
-full_adj_r2 <- RsquareAdj(full_rda)$adj.r.squared
 
 # Add the final summary stats
 summary_stats <- data.frame(
   explainer = c("Total_Constrained_R2", "Unconstrained_R2", "Adjusted_Full_Model"),
-  R2 = c(round(total_constrained_r2, 5), round(1 - total_constrained_r2, 5), NA),
+  R2 = c(round(total_constrained_r2, 5), round(unconstrained_r2, 5), NA),
   adj_R2 = c(NA, NA, round(full_adj_r2, 5)),
-  pval = c(NA, NA, NA),
+  pval = c(round(overall_pval, 5), NA, NA),
   stringsAsFactors = FALSE
 )
 

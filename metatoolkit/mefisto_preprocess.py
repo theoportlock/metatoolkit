@@ -1,70 +1,109 @@
 #!/usr/bin/env python3
-# mefisto_preprocess.py
-
 import argparse
 import pandas as pd
+import anndata as ad
+import scanpy as sc
 import os
-from pathlib import Path
 import numpy as np
 
+def preprocess_data(input_files, time_metadata_file, output_h5ad, skip_log_transform):
+    """
+    Loads multiple raw count data files and metadata, performs basic
+    preprocessing, and saves the result as an AnnData object.
 
-def load_data(file_paths):
-    data_dict = {}
-    for file_path in file_paths:
-        name = Path(file_path).stem
-        df = pd.read_csv(file_path, sep="\t", index_col=0)
-        data_dict[name] = df
-    return data_dict
+    Args:
+        input_files (list): A list of paths to the raw count data CSV files.
+        time_metadata_file (str): Path to the time metadata CSV file.
+        output_h5ad (str): Path to save the preprocessed AnnData file.
+        skip_log_transform (bool): If True, skips the log1p transformation.
+    """
+    try:
+        # Load time metadata
+        metadata = pd.read_csv(time_metadata_file, index_col=0, sep='\t')
+
+        # Find intersection of samples across all datasets
+        common_samples = set(metadata.index)
+        for file_path in input_files:
+            counts = pd.read_csv(file_path, index_col=0, sep='\t')
+            common_samples &= set(counts.index)
+
+        if not common_samples:
+            raise ValueError("No common samples found across all datasets.")
+
+        common_samples = list(common_samples)
+        metadata = metadata.loc[common_samples]
+
+        # Load and preprocess each data view
+        adatas = []
+        for i, file_path in enumerate(input_files):
+            view_name = os.path.basename(file_path).split('.')[0]
+
+            # Assuming the counts are tab-separated
+            counts = pd.read_csv(file_path, index_col=0, sep='\t')
+
+            # Ensure consistent sample order
+            counts = counts.loc[common_samples]
+
+            # Create AnnData object for the view
+            adata = ad.AnnData(X=counts.values, obs=metadata.copy(), var=pd.DataFrame(index=counts.columns))
+            adata.var['view'] = view_name
+
+            # Basic preprocessing
+            sc.pp.normalize_total(adata)
+
+            if not skip_log_transform:
+                sc.pp.log1p(adata)
+            else:
+                print(f"Skipping log1p transformation for view '{view_name}' as requested.")
+
+            adatas.append(adata)
+
+        # Concatenate AnnData objects if there are multiple views
+        if len(adatas) > 1:
+            # Make var names unique before concatenating
+            for i, adata in enumerate(adatas):
+                adata.var_names = adata.var['view'][0] + '_' + adata.var_names
+            
+            # Concatenate along features
+            full_adata = ad.concat(adatas, axis=1, join='outer', label='view', uns_merge='unique')
+        else:
+            full_adata = adatas[0]
 
 
-def harmonize_samples(data_dict, time_df):
-    # Keep only samples that have time metadata and are shared across time-aware datasets
-    time_samples = set(time_df.index)
-    time_aware_views = {k: df for k, df in data_dict.items() if df.index.isin(time_samples).all()}
-    common_samples = set.intersection(*(set(df.index) for df in time_aware_views.values()))
-    harmonized_data = {}
-    for k, df in data_dict.items():
-        df_h = df.loc[df.index.intersection(common_samples)]
-        harmonized_data[k] = df_h
-    return harmonized_data, list(common_samples)
+        # Save the AnnData object
+        directory = os.path.dirname(output_h5ad)
+        os.makedirs(directory, exist_ok=True)
+        full_adata.write(output_h5ad)
+        print(f"Preprocessed AnnData object saved to '{output_h5ad}'")
 
-
-def build_metadata(common_samples, time_file):
-    time_df = pd.read_csv(time_file, sep="\t", index_col=0)
-    missing = set(common_samples) - set(time_df.index)
-    if missing:
-        raise ValueError(f"Missing time metadata for samples: {missing}")
-    meta_df = time_df.loc[common_samples]
-    return meta_df
-
-
-def write_outputs(data_dict, metadata, outdir):
-    outdir = Path(outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
-    for name, df in data_dict.items():
-        df.to_csv(outdir / f"{name}.tsv", sep="\t")
-    metadata.to_csv(outdir / "metadata.tsv", sep="\t")
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Preprocess multiomic datasets for MEFISTO.")
-    parser.add_argument("-i", "--input", nargs="+", required=True,
-                        help="List of .tsv files (samples x features). All will be written. Time-aware views will be aligned.")
-    parser.add_argument("-t", "--time", required=True,
-                        help="TSV file with time variable, indexed by sample IDs.")
-    parser.add_argument("-o", "--outdir", required=True,
-                        help="Output directory for harmonized data.")
-    args = parser.parse_args()
-
-    data_dict = load_data(args.input)
-    time_df = pd.read_csv(args.time, sep="\t", index_col=0)
-
-    harmonized_data, common_samples = harmonize_samples(data_dict, time_df)
-    metadata = build_metadata(common_samples, args.time)
-
-    write_outputs(harmonized_data, metadata, args.outdir)
-
+    except Exception as e:
+        print(f"An error occurred during preprocessing: {e}")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Preprocess multiple microbiome count datasets for MEFISTO analysis."
+    )
+    parser.add_argument(
+        "-i", "--inputs",
+        nargs='+', # Accepts one or more arguments
+        required=True,
+        help="Paths to the raw count data CSV files. Samples in columns, features in rows."
+    )
+    parser.add_argument(
+        "-t", "--time_metadata",
+        required=True,
+        help="Path to the time metadata CSV file. Samples in rows, features in columns."
+    )
+    parser.add_argument(
+        "-o", "--output",
+        required=True,
+        help="Path to save the output AnnData file (.h5ad)."
+    )
+    parser.add_argument(
+        "--skip_log_transform",
+        action='store_true', # No value needed, just presence of flag
+        help="Skips the log1p transformation, useful for data with negative values (e.g., EEG)."
+    )
+    args = parser.parse_args()
 
+    preprocess_data(args.inputs, args.time_metadata, args.output, args.skip_log_transform)
