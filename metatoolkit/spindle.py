@@ -26,11 +26,11 @@ def parse_arguments():
     )
     return parser.parse_args()
 
-def load_subject_df(path_or_name):
+def load_subject_df(path):
     """Load main data from results/{stem}.tsv"""
-    path = Path(path_or_name)
-    stem = path.stem if path.is_file() else path_or_name
-    df = pd.read_csv(Path('results') / f'{stem}.tsv', sep='\t', index_col=0)
+    path = Path(path)
+    stem = path.stem
+    df = pd.read_csv(path, sep='\t', index_col=0)
     return df, stem
 
 def load_and_merge_meta(df, meta_path, group_col):
