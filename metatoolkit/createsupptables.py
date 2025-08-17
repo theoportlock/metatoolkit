@@ -1,13 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
-import os
 import pandas as pd
-import shutil
-import subprocess
-import sys
 
 parser = argparse.ArgumentParser(description='''
 Createsupptables - Combines tables to make final supplementary table in excel

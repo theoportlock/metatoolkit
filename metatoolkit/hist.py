@@ -17,8 +17,10 @@ def hist(df, **kwargs):
     kwargs['column'] = kwargs.get('column', 'sig')
 
     sns.histplot(data=df, x=kwargs['column'], ax=kwargs['ax'])
-    plt.setp(kwargs['ax'].get_xticklabels(), rotation=45, ha="right")
-    return kwargs['ax']
+    ax = kwargs['ax']
+    if ax is not None:
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+    return ax
 
 parser.add_argument('subject')
 parser.add_argument('-c', '--column')

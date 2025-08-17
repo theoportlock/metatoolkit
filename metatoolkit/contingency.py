@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -9,7 +9,6 @@ and then either prints or saves the resulting matrix.
 
 import argparse
 import pandas as pd
-import functions
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -48,7 +47,7 @@ def main():
     args = parse_arguments()
 
     # Read input CSV file
-    df = f.load(args.file)
+    df = pd.read_csv(args.file, sep='\t', index_col=0)
 
     # Ensure the specified columns exist in the data
     for col in (args.column1, args.column2):
@@ -64,9 +63,11 @@ def main():
 
     # Output the result
     if args.output:
-        f.save(matrix, args.output)
+        matrix.to_csv(args.output, sep='\t')
     else:
-        f.save(out, f'{file}Fisher')
+        from pathlib import Path
+        stem = Path(args.file).stem
+        matrix.to_csv(f'results/{stem}_Fisher.tsv', sep='\t')
 
 if __name__ == '__main__':
     main()

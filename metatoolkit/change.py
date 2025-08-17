@@ -1,9 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
 import os
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -36,7 +37,8 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def load_table(path_or_name: str) -> (pd.DataFrame, str):
+
+def load_table(path_or_name: str) -> Tuple[pd.DataFrame, str]:
     """Load a TSV from file or results/{name}.tsv; return (df, stem)."""
     p = Path(path_or_name)
     if p.is_file():
@@ -66,7 +68,7 @@ def splitter(df: pd.DataFrame, df2: pd.DataFrame, column: str) -> dict:
         if len(idx_common) == 0:
             print(f"[WARNING] No overlapping indices in df for level '{level}' of column '{column}'")
             continue
-        merged = df.loc[idx_common, df.columns.difference([column])].copy()
+        merged = df.loc[idx_common, list(df.columns.difference([column]))].copy()
         output[level] = merged
     return output
 
@@ -104,16 +106,20 @@ def summary(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     })
 
 
+from typing import List, Optional
+
 def change(df: pd.DataFrame,
            df2: pd.DataFrame,
-           columns: list = None,
-           analyses: list = None) -> pd.DataFrame:
+           columns: Optional[List] = None,
+           analyses: Optional[List] = None) -> pd.DataFrame:
     """
     For each split column and each pair of levels within it, perform analyses.
     Returns a MultiIndexed DataFrame indexed by (column, level1_vs_level2, feature).
     """
     if columns is None:
         columns = df2.columns.tolist()
+    if analyses is None:
+        analyses = ['mww', 'fc', 'diffmean', 'summary']
 
     available = {'mww': mww, 'fc': fc, 'diffmean': diffmean, 'summary': summary}
     all_results = []
@@ -151,13 +157,6 @@ def change(df: pd.DataFrame,
     if not all_results:
         return pd.DataFrame()  # empty
 
-    result = pd.concat(all_results)
-    result = result.reorder_levels(['source','comparison','feature'])
-    return result
-    result = pd.concat(all_results)
-    result = result.reorder_levels(['source','comparison','feature'])
-    return result
-    # combine all, swap levels so (source,comparison,feature)
     result = pd.concat(all_results)
     result = result.reorder_levels(['source','comparison','feature'])
     return result

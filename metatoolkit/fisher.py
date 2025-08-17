@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
 Author: Theo Portlock
 '''
-import functions as f
+
 import argparse
 import pandas as pd
 import numpy as np
@@ -52,11 +52,11 @@ def fisher(df: pd.DataFrame) -> pd.DataFrame:
             oddsratio, pvalue = fisher_exact(contingency_table)
             true_count = contingency_table.loc[True, True]
             true_total = contingency_table.loc[:, True].sum()
-            true_percentage = round(100 * true_count / true_total, 1)
+            true_percentage = round(100 * float(true_count) / float(true_total), 1)
             source_true_summary = f"{true_count}/{true_total} ({true_percentage}%)"
             false_count = contingency_table.loc[True, False]
             false_total = contingency_table.loc[:, False].sum()
-            false_percentage = round(100 * false_count / false_total, 1)
+            false_percentage = round(100 * float(false_count) / float(false_total), 1)
             source_false_summary = f"{false_count}/{false_total} ({false_percentage}%)"
         else:
             oddsratio, pvalue = np.nan, np.nan
@@ -78,13 +78,13 @@ def main():
 
     # load data
     file = args.file
-    cats = f.load(file)
+    cats = pd.read_csv(file, sep='\t', index_col=0)
 
     # calculate fisher exact
     out = fisher(cats)
 
     # save fisher results
-    f.save(out, f'{file}Fisher')
+    out.to_csv(f'results/{file}_Fisher.tsv', sep='\t')
 
 if __name__ == '__main__':
     main()

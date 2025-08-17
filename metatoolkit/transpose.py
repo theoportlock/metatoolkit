@@ -2,25 +2,44 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import functions as f
-import matplotlib.pyplot as plt
 import pandas as pd
 import os
 from pathlib import Path
 
-parser = argparse.ArgumentParser(description='''
-Transpose - Produces a transposition of a given dataset
-''')
-parser.add_argument('subject')
-known = parser.parse_args()
-known = {k: v for k, v in vars(known).items() if v is not None}
+def main():
+    parser = argparse.ArgumentParser(
+        description='Transpose a TSV file, optionally specifying an output file path.'
+    )
+    parser.add_argument(
+        'subject',
+        help='Input TSV file path or subject name (if file not found, "results/{subject}.tsv" will be used)'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        help='Output file path (default: results/{subject}_T.tsv)'
+    )
 
-subject = known.get("subject")
-if os.path.isfile(subject):
-    subject = Path(subject).stem
-df = f.load(subject)
+    args = parser.parse_args()
+    subject_path = args.subject
 
-outdf = df.T
+    # Try using subject as a direct file path
+    if not os.path.isfile(subject_path):
+        subject_path = f'results/{args.subject}.tsv'
+        if not os.path.isfile(subject_path):
+            raise FileNotFoundError(f'File not found: {args.subject} or results/{args.subject}.tsv')
 
-f.save(outdf, f'{subject}_T')
+    # Read and transpose
+    df = pd.read_csv(subject_path, sep='\t', index_col=0)
+    outdf = df.T
+
+    # Determine output path
+    subject_stem = Path(subject_path).stem
+    output_path = args.output or f'results/{subject_stem}_T.tsv'
+
+    # Write output
+    outdf.to_csv(output_path, sep='\t')
+    print(f'Transposed file saved to: {output_path}')
+
+if __name__ == '__main__':
+    main()
 

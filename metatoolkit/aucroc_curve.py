@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from pathlib import Path
@@ -57,7 +57,7 @@ def parse_args(args):
 arguments = sys.argv[1:]
 args = parse_args(arguments)
 
-df = load(args.subject)
+df = load_data(args.subject)
 
 if os.path.isfile(args.subject):
     subject = Path(args.subject).stem
@@ -65,4 +65,4 @@ else:
     subject = args.subject
 
 aucroc(df)
-savefig(f'{subject}aucroc_curve')
+save_plots(f'{subject}aucroc_curve', show=False)

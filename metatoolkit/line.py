@@ -3,10 +3,11 @@
 
 import seaborn as sns
 import argparse
-import functions as f
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from pathlib import Path
+
 
 parser = argparse.ArgumentParser(description='''
 Line - Produces a Lineplot of a given dataset
@@ -23,9 +24,15 @@ known = {k: v for k, v in vars(known).items() if v is not None}
 
 # Load data
 subject = known.get('subject')
-if os.path.isfile(subject): subject = Path(subject).stem
-df = f.load(subject)
-df2 = f.load(known.get('df2'))
+if subject is not None and os.path.isfile(subject): subject = Path(subject).stem
+if subject is None:
+    raise ValueError("The 'subject' argument must be provided and not None.")
+df = pd.read_csv(subject, sep='\t', index_col=0)
+
+df2_path = known.get('df2')
+if df2_path is None:
+    raise ValueError("The 'df2' argument must be provided and not None.")
+df2 = pd.read_csv(df2_path, index_col=0, sep='\t')
 
 # Merge metadata
 plotdf = df.join(df2)
@@ -39,10 +46,10 @@ hue = known.get("hue")
 logy = known.get("logy")
 
 # Sort
-plotdf = plotdf.sort_values(x)
+if x is not None:
+    plotdf = plotdf.sort_values(x)
 
 # Plot and save
-f.setupplot()
 sns.lineplot(data=plotdf,
              x=x,
              y=y,
@@ -50,5 +57,5 @@ sns.lineplot(data=plotdf,
              hue=hue,
              estimator=None)
 if logy: plt.yscale('log')
-f.savefig(f'{subject}line')
+plt.savefig(f'results/{subject}_line.svg')
 

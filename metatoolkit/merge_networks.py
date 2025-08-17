@@ -51,7 +51,7 @@ def merge_graphs(graph_files, xgap, directed=False):
             current_offset += offset
 
         # Rename nodes to avoid name collision
-        G = nx.relabel_nodes(G, lambda n: f"{os.path.basename(file)}::{n}")
+        G = nx.relabel_nodes(G, lambda n: f"{os.path.basename(file)}::{n}", copy=True)
 
         merged = nx.compose(merged, G)
 

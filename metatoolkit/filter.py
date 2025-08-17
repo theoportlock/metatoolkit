@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import argparse
-import sys
-import shlex
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -24,10 +22,12 @@ def save(df, subject, index=True):
 def filter(df, **kwargs):
     df.index = df.index.astype(str)
     if kwargs.get('filter_df') is not None:
-        if kwargs.get('filter_df_axis') == 1:
-            df = df.loc[:, kwargs.get('filter_df').index]
-        else:
-            df = df.loc[kwargs.get('filter_df').index]
+        filter_df = kwargs.get('filter_df')
+        if filter_df is not None:
+            if kwargs.get('filter_df_axis') == 1:
+                df = df.loc[:, filter_df.index]
+            else:
+                df = df.loc[filter_df.index]
     if kwargs.get('colfilt'):
         df = df.loc[:, df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
     if kwargs.get('rowfilt'):
@@ -40,7 +40,6 @@ def filter(df, **kwargs):
         df = df.loc[:, df.nunique().gt(kwargs.get('min_unique'))]
     if kwargs.get('nonzero'):
         df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
-    # New filtering options for minimum non-zero counts:
     if kwargs.get('min_nonzero_rows') is not None:
         df = df[df.astype(bool).sum(axis=1) >= kwargs.get('min_nonzero_rows')]
     if kwargs.get('min_nonzero_cols') is not None:
@@ -48,8 +47,10 @@ def filter(df, **kwargs):
     if kwargs.get('numeric_only'):
         if ~(df.apply(lambda s: pd.to_numeric(s, errors='coerce').notnull().all())).any():
             df = pd.DataFrame()
-    if kwargs.get('query'):
-        df = df.query(kwargs.get('query'))
+    queries = kwargs.get('query')
+    if queries:
+        combined_query = ' & '.join(f"({q})" for q in queries)
+        df = df.query(combined_query)
     if kwargs.get('dtype'):
         df = df.select_dtypes(kwargs.get('dtype'))
     if df.empty:
@@ -62,7 +63,7 @@ def parse_args():
     parser.add_argument('subject', help='Input file or subject name')
     parser.add_argument('-rf', '--rowfilt', type=str, help='Regex for index filtering')
     parser.add_argument('-cf', '--colfilt', type=str, help='Regex for column filtering')
-    parser.add_argument('-q', '--query', type=str, help='Pandas custom query')
+    parser.add_argument('-q', '--query', action='append', help='Pandas custom query (can be used multiple times)')
     parser.add_argument('-m', '--min_unique', type=int, help='Minimum number of unique values')
     parser.add_argument('-fdf', '--filter_df', help='CSV file for filtering indices')
     parser.add_argument('-fdfx', '--filter_df_axis', type=int, help='Axis to filter the dataframe indices (0 or 1)')
@@ -81,25 +82,20 @@ def parse_args():
     return {k: v for k, v in vars(args).items() if v is not None}
 
 def main():
-    #sys.argv = shlex.split('format.py results/formatted/species.tsv -fdf results/specieschange/significant_results.tsv -fdfx 1')
     known = parse_args()
-    
     subject = known.get("subject")
     known.pop('subject')
-    
-    # Load the original DataFrame
+
     original_df = load(subject)
 
-    if os.path.isfile(subject):
+    if subject is not None and os.path.isfile(subject):
         subject = Path(subject).stem
-    
+
     if known.get("filter_df"):
         known['filter_df'] = load(known.get("filter_df"))
-    
-    # Filter the DataFrame using the provided options
+
     output = filter(original_df.copy(), **known)
-    
-    # If print_counts flag is set, print the differences in rows and columns
+
     if known.get("print_counts"):
         if output is None:
             print("All rows and columns have been filtered out.")
@@ -108,16 +104,20 @@ def main():
             filtered_rows, filtered_cols = output.shape
             print(f"Rows filtered: {original_rows - filtered_rows} out of {original_rows}")
             print(f"Columns filtered: {original_cols - filtered_cols} out of {original_cols}")
-    
+
     print(output)
-    
+
     if output is not None:
         if known.get("outfile"):
             save(output, known.get("outfile"))
         elif known.get("suffix"):
-            save(output, subject + known.get("suffix"))
+            subj = str(subject) if subject is not None else ""
+            suffix = str(known.get("suffix")) if known.get("suffix") is not None else ""
+            save(output, subj + suffix)
         else:
-            save(output, subject + 'filter')
+            subj = subject if subject is not None else ""
+            save(output, subj + 'filter')
 
 if __name__ == "__main__":
     main()
+

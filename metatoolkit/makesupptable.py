@@ -55,7 +55,8 @@ for sheet_name in workbook.sheetnames:
     # Set column width based on content
     for col in sheet.columns:
         max_length = max(len(str(cell.value)) for cell in col if cell.value) + 2
-        col_letter = get_column_letter(col[0].column)
+        col_idx = col[0].column if col[0].column is not None else 1
+        col_letter = get_column_letter(col_idx)
         sheet.column_dimensions[col_letter].width = max(max_length, 12)
 
 # Save formatted workbook

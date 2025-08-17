@@ -26,7 +26,7 @@ def parse_arguments():
     )
     return parser.parse_args()
 
-def load_subject_df(path_or_name):
+def load_subject_df(path):
     """Load main data from results/{stem}.tsv"""
     path = Path(path_or_name)
     stem = path.stem if path.is_file() else path_or_name
