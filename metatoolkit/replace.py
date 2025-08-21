@@ -7,24 +7,25 @@ import json
 import os
 
 def parse_argument(val):
-    # Try to interpret the argument as a JSON-like structure (dict or list)
     try:
         return json.loads(val)
     except Exception:
-        # Fallback: treat as comma-separated list or scalar
         if "," in val:
             return val.split(",")
         return val
 
 def load(filepath):
-    return pd.read_csv(filepath, sep='\t', index_col=0)
+    # Load all columns (don't force index yet)
+    return pd.read_csv(filepath, sep='\t')
 
-def save(df, filepath, index=True):
-    df.to_csv(filepath, sep='\t', index=index)
+def save(df, filepath):
+    # First column becomes the index again before saving
+    df.set_index(df.columns[0], inplace=True)
+    df.to_csv(filepath, sep='\t', index=True)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Replace values in a DataFrame using pandas replace()')
-    parser.add_argument('input', help='Input .tsv file (tab-separated, with index column)')
+    parser.add_argument('input', help='Input .tsv file (tab-separated)')
     parser.add_argument('--to_replace', required=True,
                         help='Value(s) to replace. Accepts scalar, list, or dict (as JSON string)')
     parser.add_argument('--value',
@@ -39,17 +40,14 @@ def main():
     args = parse_args()
     df = load(args.input)
 
-    # Parse the to_replace and value inputs
     to_replace = parse_argument(args.to_replace)
     value = parse_argument(args.value) if args.value is not None else None
 
-    # Perform replacement, handling nested dict cases
     if isinstance(to_replace, dict) and value is None:
         df_replaced = df.astype(str).replace(to_replace=to_replace, regex=args.regex)
     else:
         df_replaced = df.astype(str).replace(to_replace=to_replace, value=value, regex=args.regex)
 
-    # Save result
     if args.inplace:
         save(df_replaced, args.input)
     else:
