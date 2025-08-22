@@ -13,7 +13,7 @@ def parse_arguments():
     parser.add_argument('-x', help='Column name for x-axis')
     parser.add_argument('-y', help='Column name for y-axis')
     parser.add_argument('--hue', help='Column name for hue grouping')
-    parser.add_argument('--logy', action='store_true', help='Set y-axis to log scale')
+    parser.add_argument('--logy', action='store_true', help='Set y-axis to log scale (or x-axis if horizontal)')
     parser.add_argument('--show', action='store_true', help='Display the plot window')
     parser.add_argument('--figsize', default='2,2', help='Figure size as width,height')
     parser.add_argument('-o', '--output', help='Output filename without extension')
@@ -25,6 +25,11 @@ def parse_arguments():
     parser.add_argument(
         '--rc',
         help='Path to matplotlibrc file to use for styling'
+    )
+    parser.add_argument(
+        '--horizontal',
+        action='store_true',
+        help='Plot horizontally (swap x and y axes)'
     )
     return parser.parse_args()
 
@@ -42,9 +47,14 @@ def merge_meta(df, meta_paths):
         df = df.join(mdf, how='inner')
     return df
 
-def plot_box(df, x, y, hue, figsize):
+def plot_box(df, x, y, hue, figsize, horizontal=False):
     df = df.reset_index()
     fig, ax = plt.subplots(figsize=figsize)
+
+    # swap x/y if horizontal
+    if horizontal:
+        x, y = y, x
+
     sns.boxplot(
         data=df,
         x=x or df.columns[0],
@@ -106,13 +116,20 @@ def main():
     figsize = tuple(map(float, args.figsize.split(',')))
 
     # plot
-    ax = plot_box(df, args.x, args.y, args.hue, figsize)
+    ax = plot_box(df, args.x, args.y, args.hue, figsize, horizontal=args.horizontal)
+
+    # handle log scaling
     if args.logy:
-        ax.set_yscale('log')
+        if args.horizontal:
+            ax.set_xscale('log')
+        else:
+            ax.set_yscale('log')
+
     plt.tight_layout()
 
-    # save (and optionally show) 
+    # save (and optionally show)
     save_plots(args.output or f'{Path(args.subject).stem}_box', args.show)
 
 if __name__ == '__main__':
     main()
+
