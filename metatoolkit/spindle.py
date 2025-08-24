@@ -26,24 +26,35 @@ def parse_arguments():
     )
     return parser.parse_args()
 
-def load_subject_df(path_or_name):
+def load_subject_df(path):
     """Load main data from results/{stem}.tsv"""
     path = Path(path_or_name)
     stem = path.stem if path.is_file() else path_or_name
     df = pd.read_csv(Path('results') / f'{stem}.tsv', sep='\t', index_col=0)
+    df.index = df.index.astype(str)  # Force index to string
     return df, stem
 
 def load_and_merge_meta(df, meta_path, group_col):
-    """Load metadata, check group_col exists, set it as the index, then inner-join to df."""
-    # auto-detect delimiter
-    mdf = pd.read_csv(meta_path, sep='\t', index_col=0)
+    """Load metadata and assign group labels from group_col."""
+    # auto-detect delimiter, load with default index
+    mdf = pd.read_csv(meta_path, sep=None, engine='python', index_col=0)
+    mdf.index = mdf.index.astype(str)  # Force index to string
+
     if group_col not in mdf.columns:
         sys.exit(f"ERROR: metadata file {meta_path} does not contain column '{group_col}'")
-    return df.join(mdf, how='inner').set_index(group_col)
+
+    if not df.index.equals(mdf.index):
+        print("WARNING: Index mismatch between subject and metadata. Trying inner join.")
+        df = df.join(mdf[[group_col]], how='inner')
+    else:
+        df[group_col] = mdf[group_col]
+
+    df = df.dropna(subset=[group_col])  # remove any rows missing group info
+    df = df.set_index(group_col)        # group_col becomes the new index
+    return df
 
 def spindle(df, ax=None, palette=None):
     """Draw a spindle plot grouping by df.index."""
-    # build palette if none supplied
     groups = df.index.unique()
     if palette is None:
         palette = pd.Series(
@@ -56,15 +67,12 @@ def spindle(df, ax=None, palette=None):
 
     x, y = df.columns[:2]
 
-    # compute group centers
     centers = df.groupby(df.index)[[x, y]].mean()
     centers.columns = ['nPC1', 'nPC2']
 
-    # join centers back onto each row
     j = df.join(centers, how='inner')
     j['colour'] = j.index.map(palette)
 
-    # draw spokes + points
     for _, row in j.iterrows():
         ax.plot(
             [row[x], row['nPC1']],
@@ -76,7 +84,6 @@ def spindle(df, ax=None, palette=None):
         )
         ax.scatter(row[x], row[y], color=row['colour'], s=1, zorder=1)
 
-    # draw and label centers
     for grp, cen in centers.iterrows():
         ax.scatter(cen['nPC1'], cen['nPC2'], c='black', s=10, marker='+', zorder=2)
         ax.text(cen['nPC1'] + 0.002, cen['nPC2'] + 0.002, str(grp), zorder=3)
@@ -90,22 +97,20 @@ def spindle(df, ax=None, palette=None):
 def savefig(stem):
     out = Path('results')
     out.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out / f'{stem}.svg')
+    plt.savefig(out / f'{stem}_spindle.svg')
     plt.clf()
 
 def main():
     args = parse_arguments()
 
-    # load subject data
     df, stem = load_subject_df(args.subject)
-
-    # load metadata, ensure group-col present, set as index, then join
     df = load_and_merge_meta(df, args.meta, args.group_col)
 
-    # now df.index holds your explainer groups
-    ax = spindle(df)
+    if df.empty:
+        sys.exit("ERROR: No data left after merging subject and metadata. Check for index mismatch.")
 
-    savefig(f'{stem}_spindle')
+    ax = spindle(df)
+    savefig(stem)
 
 if __name__ == '__main__':
     main()
