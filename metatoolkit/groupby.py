@@ -7,7 +7,7 @@ import pandas as pd
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Group - Groups a dataset')
     parser.add_argument('subject', help="Path to the input data file")
-    parser.add_argument('--group_by', nargs='+', help="Columns to group by")
+    parser.add_argument('--group_by', nargs='+', help="Columns to group by (+ nargs)")
     parser.add_argument('--func', required=True, help="Aggregation function (e.g., sum, mean)")
     parser.add_argument('--axis', type=int, default=0, help="Axis to apply function on, 0 for rows and 1 for columns")
     parser.add_argument('-o', '--output', help="Path to save the output file")

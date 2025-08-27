@@ -32,7 +32,7 @@ def onehot(df, include_cols=None, exclude_cols=None, prefix_sep='.'):
         df_to_encode = df
         df_remaining = pd.DataFrame(index=df.index)
 
-    df_encoded = pd.get_dummies(df_to_encode, prefix_sep=prefix_sep, dtype=bool)
+    df_encoded = pd.get_dummies(df_to_encode, prefix_sep=prefix_sep, dtype=int)
     return pd.concat([df_encoded, df_remaining], axis=1)
 
 def parse_args():

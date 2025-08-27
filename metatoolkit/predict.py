@@ -107,19 +107,20 @@ def parse_args(args):
     parser.add_argument('--shap_interact', action='store_true', help='SHAP interaction interpreted output')
     return parser.parse_args(args)
 
-arguments = sys.argv[1:]
-args = parse_args(arguments)
+if __name__ == "__main__":
+    arguments = sys.argv[1:]
+    args = parse_args(arguments)
 
-# Check if the provided subject is a valid file path
-if os.path.isfile(args.subject):
-    subject = Path(args.subject).stem
-else:
-    subject = args.subject
+    # Check if the provided subject is a valid file path
+    if os.path.isfile(args.subject):
+        subject = Path(args.subject).stem
+    else:
+        subject = args.subject
 
-df = load(subject)
-analysis = args.analysis
-shap_val = args.shap_val
-shap_interact = args.shap_interact
-n_iter = args.n_iter
+    df = load(subject)
+    analysis = args.analysis
+    shap_val = args.shap_val
+    shap_interact = args.shap_interact
+    n_iter = args.n_iter
 
-predict(df, args.analysis, shap_val=args.shap_val, shap_interact=args.shap_interact, n_iter=args.n_iter)
+    predict(df, args.analysis, shap_val=args.shap_val, shap_interact=args.shap_interact, n_iter=args.n_iter)
