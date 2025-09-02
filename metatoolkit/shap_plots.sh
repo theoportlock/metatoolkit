@@ -4,7 +4,7 @@
 export PATH="metatoolkit/metatoolkit/:$PATH"
 
 SHAP_VALUES_INPUT="results/dataset_rf_shap/shap_values_test.joblib"
-SHAP_INTERACTION_VALUES_INPUT="results/dataset_rf_shap/shap_interaction_values_test.joblib"
+#SHAP_INTERACTION_VALUES_INPUT="results/dataset_rf_shap/shap_interaction_values_test.joblib"
 OUTPUT_DIR="results/shap_plots_test_data"
 
 SAMPLE_INDEX=0

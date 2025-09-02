@@ -39,9 +39,23 @@ def is_classification_target(y):
     )
 
 
-def split_and_balance(input_path, output_dir, y_col, test_size, random_state, apply_smote, scaler_name, y_file=None):
+def merge_meta(df, meta_paths):
+    """Inner-join metadata TSV(s) with main dataframe on the index."""
+    for mpath in meta_paths:
+        mdf = pd.read_csv(mpath, sep='\t', index_col=0)
+        df = df.join(mdf, how='inner')
+    return df
+
+
+def split_and_balance(input_path, output_dir, y_col, test_size, random_state,
+                      apply_smote, scaler_name, y_file=None, meta_files=None):
     df = load_dataset(input_path)
 
+    # Merge metadata if provided
+    if meta_files:
+        df = merge_meta(df, meta_files)
+
+    # Handle separate y_file
     if y_file:
         df2 = load_dataset(y_file)
         if y_col not in df2.columns:
@@ -53,6 +67,19 @@ def split_and_balance(input_path, output_dir, y_col, test_size, random_state, ap
         y = df[y_col]
         df = df.drop(columns=[y_col])
 
+    # Align X and y on index
+    Xy = df.join(y, how='inner')
+
+    # Warn about missing values and drop them
+    if Xy.isna().any().any():
+        missing_count = Xy.isna().sum().sum()
+        print(f"WARNING: Found {missing_count} missing values. Dropping all samples with missing values.")
+        Xy = Xy.dropna()
+
+    # Split back into X and y
+    y = Xy[y_col]
+    X_scaled = Xy.drop(columns=[y_col])
+
     classification = is_classification_target(y)
     if classification and y.dtype == object:
         y = y.astype("category")
@@ -63,15 +90,8 @@ def split_and_balance(input_path, output_dir, y_col, test_size, random_state, ap
     scaler = get_scaler(scaler_name)
     if scaler is not None:
         X_scaled = pd.DataFrame(
-            scaler.fit_transform(df), columns=df.columns, index=df.index
+            scaler.fit_transform(X_scaled), columns=X_scaled.columns, index=X_scaled.index
         )
-    else:
-        X_scaled = df.copy()
-
-    # Align X and y on index (inner join) to avoid mismatches
-    Xy = X_scaled.join(y, how="inner")
-    X_scaled = Xy.drop(columns=[y_col])
-    y = Xy[y_col]
 
     stratify = y if classification else None
 
@@ -91,15 +111,15 @@ def split_and_balance(input_path, output_dir, y_col, test_size, random_state, ap
     save_tsv(y_train_df, output_dir, "y_train")
     save_tsv(y_test_df, output_dir, "y_test")
 
-    print(f"✅ Saved train/test splits to: {output_dir}")
-    print(f"🔍 Task type: {'classification' if classification else 'regression'}")
-    print(f"📊 Shapes: X_train={X_train.shape}, X_test={X_test.shape}")
-    print(f"🧪 Scaler used: {scaler_name}")
+    print(f"Saved train/test splits to: {output_dir}")
+    print(f"Task type: {'classification' if classification else 'regression'}")
+    print(f"Shapes: X_train={X_train.shape}, X_test={X_test.shape}")
+    print(f"Scaler used: {scaler_name}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train/test splitter with optional SMOTE and scaling, supporting separate y file"
+        description="Train/test splitter with optional SMOTE, scaling, metadata merge, and missing value handling"
     )
     parser.add_argument("--input", type=str, required=True,
                         help="Path to input TSV file (features)")
@@ -118,6 +138,8 @@ def main():
                         help="Feature scaling method (default: standard)")
     parser.add_argument("--y_file", type=str, default=None,
                         help="Optional path to TSV file containing y_col to join on index")
+    parser.add_argument("--meta", nargs='+', default=None,
+                        help="Optional path(s) to metadata TSV file(s) to inner-join with input data")
 
     args = parser.parse_args()
 
@@ -130,6 +152,7 @@ def main():
         apply_smote=args.smote,
         scaler_name=args.scaler,
         y_file=args.y_file,
+        meta_files=args.meta,
     )
 
 
