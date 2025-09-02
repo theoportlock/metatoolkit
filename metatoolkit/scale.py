@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from skbio.stats.composition import clr, multiplicative_replacement as mul
+from skbio.stats.composition import clr, multi_replace
 import warnings
 
 def load(subject):
@@ -44,13 +44,16 @@ def log(df, axis=0):
 
 def CLR(df, axis=0):
     if axis != 0:
-        warnings.warn("CLR transformation is only defined for axis=0 (features on columns). Ignoring axis.")
-    return df.T.apply(clr).T
+        raise ValueError("CLR is only defined for axis=0 (features in columns).")
+    # Mandatory multiplicative replacement before CLR
+    tdf = multi_replace(df)
+    clr_values = clr(tdf)
+    return pd.DataFrame(clr_values, index=df.index, columns=df.columns)
 
 def mult(df, axis=0):
     if axis != 0:
-        warnings.warn("Multiplicative replacement only supports axis=0. Ignoring axis.")
-    return pd.DataFrame(mul(df.T).T, index=df.index, columns=df.columns)
+        raise ValueError("Multiplicative replacement only supports axis=0.")
+    return pd.DataFrame(multi_replace(df), index=df.index, columns=df.columns)
 
 def hellinger(df, axis=0):
     return np.sqrt(norm(df, axis=axis))
@@ -89,7 +92,7 @@ def parse_args():
     )
     parser.add_argument('analysis', help="Method: norm, standard, minmax, log, CLR, mult, hellinger, zscore_rows, ALR")
     parser.add_argument('subject', help="Input filename or identifier under results/")
-    parser.add_argument('--output', '-o', help="Output file path (default: results/{subject}{analysis}.tsv)")
+    parser.add_argument('--output', '-o', help="Output file path (default: results/{subject}_{analysis}.tsv)")
     parser.add_argument('--refcol', help="Reference column for ALR (default: last column)")
     parser.add_argument('--axis', type=int, choices=[0, 1], default=0,
                         help="Apply transform by columns (0, default) or rows (1) where applicable.")
@@ -101,7 +104,7 @@ def main():
     analysis = args.analysis
     refcol = args.refcol
     axis = args.axis
-    output_file = args.output or f"results/{subject}{analysis}.tsv"
+    output_file = args.output or f"results/{subject}_{analysis}.tsv"
 
     df = load(subject)
     output = scale(analysis, df, refcol=refcol, axis=axis)
