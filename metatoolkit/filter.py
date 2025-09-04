@@ -25,9 +25,11 @@ def filter(df, **kwargs):
         filter_df = kwargs.get('filter_df')
         if filter_df is not None:
             if kwargs.get('filter_df_axis') == 1:
-                df = df.loc[:, filter_df.index]
+                common_cols = df.columns.intersection(filter_df.index)
+                df = df.loc[:, common_cols]
             else:
-                df = df.loc[filter_df.index]
+                common_rows = df.index.intersection(filter_df.index)
+                df = df.loc[common_rows]
     if kwargs.get('colfilt'):
         df = df.loc[:, df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
     if kwargs.get('rowfilt'):
