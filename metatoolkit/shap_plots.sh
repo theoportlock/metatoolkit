@@ -3,9 +3,9 @@
 # --- Configuration ---
 export PATH="metatoolkit/metatoolkit/:$PATH"
 
-SHAP_VALUES_INPUT="results/dataset_rf_shap/shap_values_test.joblib"
-#SHAP_INTERACTION_VALUES_INPUT="results/dataset_rf_shap/shap_interaction_values_test.joblib"
-OUTPUT_DIR="results/shap_plots_test_data"
+SHAP_VALUES_INPUT="results/prediction/dataset_rf_shap/shap_values_train.joblib"
+#SHAP_VALUES_INPUT="results/prediction/dataset_rf_shap/shap_values_test.joblib"
+OUTPUT_DIR="results/prediction/plots"
 
 SAMPLE_INDEX=0
 
@@ -35,17 +35,17 @@ shap_plot_waterfall.py \
   --output "$OUTPUT_DIR/waterfall_sample_${SAMPLE_INDEX}.svg" \
   --sample_index "$SAMPLE_INDEX"
 
-#echo "Generating force plot..."
-#shap_plot_force.py \
-#  --input "$SHAP_VALUES_INPUT" \
-#  --output "$OUTPUT_DIR/force_sample_${SAMPLE_INDEX}.svg" \
-#  --sample_index "$SAMPLE_INDEX"
+echo "Generating force plot..."
+shap_plot_force.py \
+  --input "$SHAP_VALUES_INPUT" \
+  --output "$OUTPUT_DIR/force_sample_${SAMPLE_INDEX}.svg" \
+  --sample_index "$SAMPLE_INDEX"
 
-#echo "Generating decision plot..."
-#shap_plot_decision.py \
-#  --input "$SHAP_VALUES_INPUT" \
-#  --output "$OUTPUT_DIR/decision_sample_${SAMPLE_INDEX}.svg" \
-#  --sample_index "$SAMPLE_INDEX"
+echo "Generating decision plot..."
+shap_plot_decision.py \
+  --input "$SHAP_VALUES_INPUT" \
+  --output "$OUTPUT_DIR/decision_sample_${SAMPLE_INDEX}.svg" \
+  --sample_index "$SAMPLE_INDEX"
 
 echo "Generating scatter plot..."
 shap_plot_scatter.py \
