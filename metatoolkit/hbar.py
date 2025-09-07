@@ -19,13 +19,22 @@ def parse_args():
     parser.add_argument('--xlabel', default='Explained variance (R2)', help='Label for the x-axis')
     parser.add_argument('--ylabel', default='Entry', help='Label for the y-axis')
     parser.add_argument('--title', default='Horizontal Barplot', help='Plot title')
+    parser.add_argument('--figsize', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
+                        help='Optional: Figure size in inches (width height). If not set, height adjusts dynamically.')
     return parser.parse_args()
 
-def plot_horizontal_bar(df, coef_col, hue_col, output_path, xscale, xlabel, ylabel, title):
+def plot_horizontal_bar(df, coef_col, hue_col, output_path, xscale, xlabel, ylabel, title, figsize):
     # Sort by coefficient column
     df = df.sort_values(coef_col, ascending=False)
 
-    plt.figure(figsize=(5, max(4, len(df) * 0.15)))  # dynamic height
+    # If user does not provide figsize, use dynamic height
+    if figsize:
+        width, height = figsize
+    else:
+        width = 5
+        height = max(4, len(df) * 0.15)
+
+    plt.figure(figsize=(width, height))
 
     # Set up barplot parameters
     barplot_kwargs = {
@@ -51,7 +60,6 @@ def plot_horizontal_bar(df, coef_col, hue_col, output_path, xscale, xlabel, ylab
     if hue_col:
         plt.legend(title=hue_col, bbox_to_anchor=(1.05, 1), loc='upper left')
     else:
-        # No hue: no legend
         if ax.get_legend() is not None:
             ax.get_legend().remove()
 
@@ -77,7 +85,7 @@ def main():
 
     # Drop NaN values
     df = df.dropna()
-    
+
     # Call plot
     plot_horizontal_bar(
         df,
@@ -87,7 +95,8 @@ def main():
         xscale=args.xscale,
         xlabel=args.xlabel,
         ylabel=args.ylabel,
-        title=args.title
+        title=args.title,
+        figsize=args.figsize
     )
 
 if __name__ == '__main__':
