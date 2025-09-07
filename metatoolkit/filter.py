@@ -52,7 +52,7 @@ def filter(df, **kwargs):
     queries = kwargs.get('query')
     if queries:
         combined_query = ' & '.join(f"({q})" for q in queries)
-        df = df.query(combined_query)
+        df = df.query(combined_query, engine='python')
     if kwargs.get('dtype'):
         df = df.select_dtypes(kwargs.get('dtype'))
     if df.empty:
