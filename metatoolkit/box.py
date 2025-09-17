@@ -13,7 +13,15 @@ def parse_arguments():
     parser.add_argument('-x', help='Column name for x-axis')
     parser.add_argument('-y', help='Column name for y-axis')
     parser.add_argument('--hue', help='Column name for hue grouping')
-    parser.add_argument('--logy', action='store_true', help='Set y-axis to log scale (or x-axis if horizontal)')
+    parser.add_argument(
+        '--order',
+        help='Comma-separated order of categories for x-axis (or y-axis if horizontal)'
+    )
+    parser.add_argument(
+        '--logy',
+        action='store_true',
+        help='Set y-axis to log scale (or x-axis if horizontal)'
+    )
     parser.add_argument('--show', action='store_true', help='Display the plot window')
     parser.add_argument('--figsize', default='2,2', help='Figure size as width,height')
     parser.add_argument('-o', '--output', help='Output filename without extension')
@@ -43,11 +51,11 @@ def load_data(path_or_name):
 
 def merge_meta(df, meta_paths):
     for mpath in meta_paths:
-        mdf = pd.read_csv(mpath, sep=None, engine='python', index_col=0)
+        mdf = pd.read_csv(mpath, sep='\t', index_col=0)
         df = df.join(mdf, how='inner')
     return df
 
-def plot_box(df, x, y, hue, figsize, horizontal=False):
+def plot_box(df, x, y, hue, figsize, horizontal=False, order=None):
     df = df.reset_index()
     fig, ax = plt.subplots(figsize=figsize)
 
@@ -55,12 +63,15 @@ def plot_box(df, x, y, hue, figsize, horizontal=False):
     if horizontal:
         x, y = y, x
 
+    order_list = order.split(",") if order else None
+
     sns.boxplot(
         data=df,
         x=x or df.columns[0],
         y=y or df.columns[1],
         hue=hue,
         ax=ax,
+        order=order_list,
         showfliers=False,
         showcaps=False,
         linewidth=0.4,
@@ -75,6 +86,7 @@ def plot_box(df, x, y, hue, figsize, horizontal=False):
         y=y or df.columns[1],
         hue=hue,
         ax=ax,
+        order=order_list,
         size=1,
         color='black',
         dodge=bool(hue)
@@ -112,11 +124,20 @@ def main():
     if args.meta:
         df = merge_meta(df, args.meta)
 
+    print(df.columns)
     # parse figsize
     figsize = tuple(map(float, args.figsize.split(',')))
 
     # plot
-    ax = plot_box(df, args.x, args.y, args.hue, figsize, horizontal=args.horizontal)
+    ax = plot_box(
+        df,
+        args.x,
+        args.y,
+        args.hue,
+        figsize,
+        horizontal=args.horizontal,
+        order=args.order
+    )
 
     # handle log scaling
     if args.logy:
