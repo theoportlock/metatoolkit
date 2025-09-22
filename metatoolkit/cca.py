@@ -4,136 +4,79 @@
 import argparse
 import pandas as pd
 import numpy as np
+from sklearn.cross_decomposition import CCA
 from sklearn.preprocessing import StandardScaler
-from skbio.stats.ordination import cca
+import itertools
 import os
 
 
 def parse_arguments():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Perform Canonical Correspondence Analysis (CCA)")
-    parser.add_argument("-d", "--data", required=True,
-                       help="Path to response variables data file (TSV)")
-    parser.add_argument("-m", "--metadata", required=True,
-                       help="Path to metadata file with explanatory variables (TSV)")
-    parser.add_argument("-e", "--explanatory_vars", required=True,
-                       help="Comma-separated list of explanatory variables (e.g. 'recovery,timepoint,refeed_method')")
-    parser.add_argument("-o", "--output", default="results/cca_results",
-                       help="Path to output directory")
-    parser.add_argument("--scale_data", action="store_true",
-                       help="Standardize response variables")
+    parser = argparse.ArgumentParser(description="Pairwise Canonical Correlation Analysis (CCA)")
+    parser.add_argument("inputs", nargs="+",
+                        help="List of dataset TSVs (rows=samples, cols=features)")
+    parser.add_argument("-o", "--output", default="pairwise_cca.tsv",
+                        help="Path to output summary TSV")
+    parser.add_argument("--scale", action="store_true",
+                        help="Standardize features before CCA")
     parser.add_argument("--n_permutations", type=int, default=999,
-                       help="Number of permutations for significance testing")
-
+                        help="Number of permutations for significance testing")
     return parser.parse_args()
 
 
-def load_and_prepare_data(data_path, metadata_path, explanatory_vars):
-    """Load and align the response and metadata tables."""
-    # Load data
-    response_data = pd.read_csv(data_path, sep="\t", index_col=0)
-    metadata = pd.read_csv(metadata_path, sep="\t", index_col=0)
-
-    # Align sample IDs
-    common_samples = response_data.index.intersection(metadata.index)
-    response_data = response_data.loc[common_samples]
-    metadata = metadata.loc[common_samples]
-
-    # Select explanatory variables
-    X = metadata[explanatory_vars].copy()
-    Y = response_data
-
-    return Y, X
+def load_dataset(path):
+    name = os.path.splitext(os.path.basename(path))[0]
+    df = pd.read_csv(path, sep="\t", index_col=0)
+    return name, df
 
 
-def perform_cca(Y, X, scale_data=False):
-    """Perform Canonical Correspondence Analysis."""
-    if scale_data:
-        Y = pd.DataFrame(StandardScaler().fit_transform(Y),
-                         index=Y.index, columns=Y.columns)
+def run_cca(X, Y, scale=False):
+    if scale:
+        X = StandardScaler().fit_transform(X)
+        Y = StandardScaler().fit_transform(Y)
+    else:
+        X, Y = X.values, Y.values
 
-    # Convert categorical variables to dummies
-    X = pd.get_dummies(X, drop_first=True)
-
-    # Run CCA
-    result = cca(Y.values, X.values, scaling=2)
-
-    return result, Y, X
+    n_components = min(X.shape[1], Y.shape[1], 1)  # just first canonical dimension
+    cca = CCA(n_components=n_components)
+    X_c, Y_c = cca.fit_transform(X, Y)
+    corr = np.corrcoef(X_c[:, 0], Y_c[:, 0])[0, 1]
+    return corr
 
 
-def permutation_test(Y, X, observed_eigenvalue, n_permutations=999):
-    """Perform permutation test for CCA significance."""
-    permuted_eigenvalues = []
-
+def permutation_test(X, Y, observed_corr, n_permutations=999, scale=False):
+    max_corrs = []
     for _ in range(n_permutations):
-        permuted_Y = Y.copy().sample(frac=1).values
-        permuted_result = cca(permuted_Y, X.values, scaling=2)
-        permuted_eigenvalues.append(permuted_result.eigvals[0])
-
-    p_value = (np.sum(np.array(permuted_eigenvalues) >= observed_eigenvalue) + 1) / (n_permutations + 1)
-
+        Y_perm = Y.sample(frac=1).values  # shuffle rows
+        corr = run_cca(X, pd.DataFrame(Y_perm, index=Y.index), scale=scale)
+        max_corrs.append(corr)
+    p_value = (np.sum(np.array(max_corrs) >= observed_corr) + 1) / (n_permutations + 1)
     return p_value
-
-
-def save_results(result, Y, X, output_dir, p_value=None):
-    """Save CCA results to files."""
-    os.makedirs(output_dir, exist_ok=True)
-
-    summary_df = pd.DataFrame({
-        "Eigenvalues": result.eigvals,
-        "Explained_variance_percent": result.proportion_explained * 100,
-        "Cumulative_variance_percent": np.cumsum(result.proportion_explained * 100)
-    })
-    summary_df.to_csv(os.path.join(output_dir, "cca_summary.tsv"), sep="\t")
-
-    sample_scores = pd.DataFrame(result.samples, index=Y.index)
-    sample_scores.to_csv(os.path.join(output_dir, "sample_scores.tsv"), sep="\t")
-
-    species_scores = pd.DataFrame(result.features, index=Y.columns)
-    species_scores.to_csv(os.path.join(output_dir, "species_scores.tsv"), sep="\t")
-
-    biplot_scores = pd.DataFrame(result.biplot_scores, index=X.columns)
-    biplot_scores.to_csv(os.path.join(output_dir, "biplot_scores.tsv"), sep="\t")
-
-    if p_value is not None:
-        with open(os.path.join(output_dir, "permutation_test.txt"), "w") as f:
-            f.write("Permutation test results:\n")
-            f.write(f"First eigenvalue: {result.eigvals[0]:.4f}\n")
-            f.write(f"P-value: {p_value:.4f}\n")
-
-    return summary_df
-
-
-def print_summary(summary_df, p_value):
-    """Print summary of results to console."""
-    print("\nCCA Results Summary:")
-    print("="*50)
-    print(f"Total variance explained by CCA axes: {summary_df['Explained_variance_percent'].sum():.2f}%")
-    print("Variance explained by each axis:")
-    for i, row in summary_df.iterrows():
-        print(f"  CCA{i+1}: {row['Explained_variance_percent']:.2f}%")
-    if p_value:
-        print(f"\nPermutation test p-value: {p_value:.4f}")
-    print("="*50)
 
 
 def main():
     args = parse_arguments()
 
-    # Load and prepare data
-    Y, X = load_and_prepare_data(args.data, args.metadata, args.explanatory_vars.split(','))
+    # Load all datasets
+    datasets = [load_dataset(path) for path in args.inputs]
 
-    # Perform CCA
-    result, Y, X = perform_cca(Y, X, args.scale_data)
+    results = []
+    for (name1, df1), (name2, df2) in itertools.combinations(datasets, 2):
+        # Align samples
+        common = df1.index.intersection(df2.index)
+        if len(common) < 3:
+            print(f"Skipping {name1} vs {name2}: not enough overlapping samples")
+            continue
+        X, Y = df1.loc[common], df2.loc[common]
 
-    # Permutation test
-    p_value = permutation_test(Y, X, result.eigvals[0], args.n_permutations)
+        corr = run_cca(X, Y, scale=args.scale)
+        pval = permutation_test(X, Y, corr, args.n_permutations, scale=args.scale)
+
+        results.append([name1, name2, corr, pval])
+        print(f"{name1} vs {name2}: corr={corr:.3f}, p={pval:.3f}")
 
     # Save results
-    summary_df = save_results(result, Y, X, args.output, p_value)
-
-    # Print summary
-    print_summary(summary_df, p_value)
+    out_df = pd.DataFrame(results, columns=["source", "target", "corr", "pval"])
+    out_df.to_csv(args.output, sep="\t", index=False)
 
 
 if __name__ == "__main__":
