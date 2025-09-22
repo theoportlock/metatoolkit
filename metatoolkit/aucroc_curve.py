@@ -11,10 +11,7 @@ import sys
 
 def load_data(path_or_name):
     path = Path(path_or_name)
-    if path.is_file():
-        return pd.read_csv(path, sep='\t', index_col=0)
-    else:
-        return pd.read_csv(Path('results') / f'{path_or_name}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(path, sep='\t', index_col=0)
 
 def save_plots(filename, show):
     filename = Path(filename)
