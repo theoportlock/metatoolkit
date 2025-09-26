@@ -42,7 +42,13 @@ def parse_args():
     parser.add_argument('--include-cols', type=str, help='Comma-separated list of columns to include in one-hot encoding')
     parser.add_argument('--exclude-cols', type=str, help='Comma-separated list of columns to exclude from one-hot encoding')
     parser.add_argument('--prefix-sep', type=str, default='.', help='Prefix separator used in one-hot encoding (default: ".")')
-    parser.add_argument('--sanitize-headers', action='store_true', help='Sanitize column headers in output to letters, digits, and underscores only')
+    parser.add_argument('--sanitize-headers', action='store_true',
+                        help='Sanitize column headers in output to letters, digits, and underscores only')
+    parser.add_argument('--min-prevalence', type=float, default=None,
+                        help='Drop one-hot columns whose fraction of TRUE (1) values is below this threshold (0–1)')
+    parser.add_argument('--drop-onehot-values', type=str, default=None,   # NEW
+                        help='Comma-separated list of level names to drop from one-hot columns '
+                             '(matches the string after the prefix separator)')
     return parser.parse_args()
 
 def main():
@@ -53,7 +59,27 @@ def main():
     include_cols = args.include_cols.split(',') if args.include_cols else None
     exclude_cols = args.exclude_cols.split(',') if args.exclude_cols else None
 
-    df_encoded = onehot(df, include_cols=include_cols, exclude_cols=exclude_cols, prefix_sep=args.prefix_sep)
+    df_encoded = onehot(df, include_cols=include_cols, exclude_cols=exclude_cols,
+                        prefix_sep=args.prefix_sep)
+
+    # --- Drop low-prevalence one-hot columns
+    if args.min_prevalence is not None:
+        mask = df_encoded.mean(axis=0) >= args.min_prevalence
+        df_encoded = df_encoded.loc[:, mask]
+
+    # --- NEW: Drop columns where the level name after the separator matches given strings
+    if args.drop_onehot_values:
+        drop_values = [v.strip() for v in args.drop_onehot_values.split(',')]
+        sep = args.prefix_sep
+        keep_cols = []
+        for c in df_encoded.columns:
+            if sep in c:
+                # Take the part after the last separator
+                level = c.split(sep)[-1]
+                if level in drop_values:
+                    continue
+            keep_cols.append(c)
+        df_encoded = df_encoded[keep_cols]
 
     if args.sanitize_headers:
         df_encoded.columns = sanitize_headers(df_encoded.columns)
