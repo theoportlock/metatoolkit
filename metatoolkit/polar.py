@@ -9,7 +9,7 @@ import numpy as np
 import os
 
 
-def polar_plot(df, output_path="polar_plot.svg"):
+def polar_plot(df, output_path="polar_plot.svg", figsize=(4, 4)):
     """
     Creates a polar plot (radar chart) from a DataFrame.
 
@@ -20,6 +20,8 @@ def polar_plot(df, output_path="polar_plot.svg"):
         Columns represent variables to plot on the polar axes.
     output_path : str
         File path where the polar plot will be saved.
+    figsize : tuple
+        Figure size (width, height) in inches.
     """
 
     # Ensure only numeric columns are used
@@ -38,7 +40,7 @@ def polar_plot(df, output_path="polar_plot.svg"):
     palette = sns.color_palette("hls", len(df)).as_hex()
 
     # Create figure and polar axis
-    fig = plt.figure(figsize=(8, 8))
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, polar=True)
 
     # Plot each row as a separate line
@@ -60,14 +62,17 @@ def polar_plot(df, output_path="polar_plot.svg"):
     plt.tight_layout()
     plt.savefig(output_path)
     plt.close()
-    print(f"✅ Polar plot saved to {output_path}")
+    print(f"✔ Polar plot saved to {output_path}")
 
 
 def main():
     # Argument parser for command-line usage
     parser = argparse.ArgumentParser(description="Generate a polar plot (radar chart) from a dataset.")
     parser.add_argument("input", help="Input TSV or CSV file.")
-    parser.add_argument("-o", "--output", default=None, help="Output file path for the polar plot (default: same name with _polar.svg).")
+    parser.add_argument("-o", "--output", default=None,
+                        help="Output file path for the polar plot (default: same name with _polar.svg).")
+    parser.add_argument("--figsize", default="4,4",
+                        help="Figure size as 'width,height' in inches (default: 4,4).")
 
     args = parser.parse_args()
 
@@ -81,8 +86,11 @@ def main():
     # Define output path
     output_path = args.output if args.output else os.path.splitext(input_file)[0] + "_polar.svg"
 
+    # Parse figsize
+    figsize = tuple(map(float, args.figsize.split(",")))
+
     # Generate and save polar plot
-    polar_plot(df, output_path=output_path)
+    polar_plot(df, output_path=output_path, figsize=figsize)
 
 
 if __name__ == "__main__":
