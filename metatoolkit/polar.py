@@ -43,6 +43,10 @@ def polar_plot(df, output_path="polar_plot.svg", figsize=(4, 4)):
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, polar=True)
 
+    # Make the plot go clockwise and start from the top
+    ax.set_theta_direction(-1)
+    ax.set_theta_offset(np.pi / 2)
+
     # Plot each row as a separate line
     for idx, (label, row) in enumerate(df.iterrows()):
         values = row.tolist()
@@ -66,7 +70,6 @@ def polar_plot(df, output_path="polar_plot.svg", figsize=(4, 4)):
 
 
 def main():
-    # Argument parser for command-line usage
     parser = argparse.ArgumentParser(description="Generate a polar plot (radar chart) from a dataset.")
     parser.add_argument("input", help="Input TSV or CSV file.")
     parser.add_argument("-o", "--output", default=None,
