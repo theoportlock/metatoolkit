@@ -1,3 +1,4 @@
+Need to sort out a docker image for this for workforce
 Format scripts have input and output
 Spindle script doesn't need stratified input
 pca.py script

@@ -1,6 +1,6 @@
 # MetaToolkit
 
-MetaToolkit is a collection of command-line and script-based tools for microbial community analysis, statistical profiling, visualization, and network construction. It supports workflows downstream of tools like [MetaPhlAn](https://huttenhower.sph.harvard.edu/metaphlan/), [HUMAnN](https://huttenhower.sph.harvard.edu/humann/), and other metagenomic pipelines.
+MetaToolkit is a collection of command-line and script-based tools for microbial community analysis, statistical profiling, visualization, and network construction. All scripts are standalone and can be sent and ran individually.
 
 ## Features
 
