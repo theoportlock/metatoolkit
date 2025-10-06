@@ -66,17 +66,17 @@ def fast_spearman(df1, df2=None, fdr=False, min_unique=1):
 
     # Convert to edge list
     cor_long = cor_matrix.stack().reset_index()
-    cor_long.columns = ["source", "target", "cor"]
+    cor_long.columns = ["source", "target", "statistic"]
 
     pval_long = pval_matrix.stack().reset_index()
-    pval_long.columns = ["source", "target", "pval"]
+    pval_long.columns = ["source", "target", "p_value"]
 
     result = cor_long.merge(pval_long, on=["source", "target"], how="left")
 
     if fdr and not result.empty:
-        result["qval"] = fdrcorrection(result["pval"].fillna(1))[1]
+        result["qval"] = fdrcorrection(result["p_value"].fillna(1))[1]
 
-    return result.dropna(subset=["cor", "pval"])
+    return result.dropna(subset=["statistic", "p_value"])
 
 
 def main():
@@ -95,7 +95,7 @@ def main():
         output = fast_spearman(df, fdr=args.mult)
         if not output.empty:
             if not args.output:
-                outfile = output_dir / f"{Path(args.files[0]).stem}.corr.tsv"
+                outfile = output_dir / f"{Path(args.files[0]).stem}_corr.tsv"
             else:
                 outfile = args.output
             output.to_csv(outfile, sep='\t', index=False)
@@ -108,7 +108,7 @@ def main():
         output = fast_spearman(df1, df2, fdr=args.mult)
         if not output.empty:
             if not args.output:
-                outname = f"{Path(args.files[0]).stem}_{Path(args.files[1]).stem}.corr.tsv"
+                outname = f"{Path(args.files[0]).stem}_{Path(args.files[1]).stem}_corr.tsv"
                 outfile = output_dir / outname
             else: 
                 outfile = args.output

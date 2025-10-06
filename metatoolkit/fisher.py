@@ -9,82 +9,51 @@ import pandas as pd
 import numpy as np
 from itertools import permutations
 from scipy.stats import fisher_exact
-from statsmodels.stats.multitest import fdrcorrection
 
-def fisher(df: pd.DataFrame) -> pd.DataFrame:
+def fisher_log_odds(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calculate Fisher's exact test odds ratio and p-value for all pairs of columns in a DataFrame.
-    Additionally, compute the mean and standard deviation of counts for each pair of columns.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input DataFrame where columns are categories and rows are observations.
-        
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with MultiIndex of column pairs, containing odds ratio, p-value, 
-        mean count and standard deviation for first and second categories.
-    
-    Example
-    -------
-    >>> data = {
-    ...     'MAM': [False, True, False, False, True, False],
-    ...     'Fem': [False, True, False, True, True, False],
-    ...     'Fat': [False, True, True, True, False, True],
-    ... }
-    >>> df = pd.DataFrame(data)
-    >>> fisher(df)
+    Calculate Fisher's exact test for all binary column pairs in a DataFrame.
+    Returns a DataFrame with columns: source, target, statistic (log odds), p_value.
+    Symmetric entries are included.
     """
-    column_pairs = list(permutations(df.columns, 2))
-    results = {
-        'odds': [],
-        'pval': [],
-        'source_true_summary': [],
-        'source_false_summary': []
-    }
+    results = []
 
-    for source, target in column_pairs:
-        contingency_table = pd.crosstab(df[target], df[source], dropna=False)
-        valid = contingency_table.shape == (2, 2)
-        if valid:
-            oddsratio, pvalue = fisher_exact(contingency_table)
-            true_count = contingency_table.loc[True, True]
-            true_total = contingency_table.loc[:, True].sum()
-            true_percentage = round(100 * float(true_count) / float(true_total), 1)
-            source_true_summary = f"{true_count}/{true_total} ({true_percentage}%)"
-            false_count = contingency_table.loc[True, False]
-            false_total = contingency_table.loc[:, False].sum()
-            false_percentage = round(100 * float(false_count) / float(false_total), 1)
-            source_false_summary = f"{false_count}/{false_total} ({false_percentage}%)"
+    for source, target in permutations(df.columns, 2):
+        # Build 2x2 contingency table
+        contingency = pd.crosstab(df[target], df[source], dropna=False)
+
+        if contingency.shape == (2, 2):
+            oddsratio, pvalue = fisher_exact(contingency)
+            # Log of odds ratio
+            if oddsratio == 0:
+                log_odds = -np.inf
+            elif oddsratio == np.inf:
+                log_odds = np.inf
+            else:
+                log_odds = np.log(oddsratio)
         else:
-            oddsratio, pvalue = np.nan, np.nan
-            source_true_summary = np.nan
-            source_false_summary = np.nan
-        results['odds'].append(oddsratio)
-        results['pval'].append(pvalue)
-        results['source_true_summary'].append(source_true_summary)
-        results['source_false_summary'].append(source_false_summary)
-    index = pd.MultiIndex.from_tuples(column_pairs, names=['source', 'target'])
-    result_df = pd.DataFrame(results, index=index)
-    result_df['qval'] = fdrcorrection(result_df.pval)[1]
-    return result_df
+            log_odds, pvalue = np.nan, np.nan
+
+        results.append({
+            "source": source,
+            "target": target,
+            "statistic": log_odds,
+            "p_value": pvalue
+        })
+
+    return pd.DataFrame(results)
 
 def main():
-    parser = argparse.ArgumentParser(description='Calculate Fisher\'s exact test for all pairs of columns in a DataFrame.')
-    parser.add_argument('file', type=str, help='Path to the input file.')
+    parser = argparse.ArgumentParser(description='Fisher exact test with log odds output.')
+    parser.add_argument('file', type=str, help='Path to the input TSV file.')
+    parser.add_argument('-o', '--output', type=str, required=True, help='Path to output TSV file.')
     args = parser.parse_args()
 
-    # load data
-    file = args.file
-    cats = pd.read_csv(file, sep='\t', index_col=0)
+    df = pd.read_csv(args.file, sep='\t', index_col=0)
 
-    # calculate fisher exact
-    out = fisher(cats)
+    out = fisher_log_odds(df)
+    out.to_csv(args.output, sep='\t', index=False)
 
-    # save fisher results
-    out.to_csv(f'results/{file}_Fisher.tsv', sep='\t')
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
+

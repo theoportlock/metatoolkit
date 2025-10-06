@@ -4,46 +4,56 @@ import argparse
 import os
 import pandas as pd
 
-def load(subject):
-    if os.path.isfile(subject):
-        return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
+def load(path):
+    """Load a TSV file (must exist)."""
+    path = path.strip()
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"❌ File not found: {path}")
+    return pd.read_csv(path, sep='\t', index_col=0)
 
-def save(df, subject, index=True):
-    df.to_csv(subject, sep='\t', index=index)
+def save(df, path, index=True):
+    """Save a DataFrame as TSV, ensuring the directory exists."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    df.to_csv(path, sep='\t', index=index)
+    print(f"✅ Saved {df.shape[0]} rows × {df.shape[1]} columns to {path}")
 
-def merge(datasets=None, join='inner', append=False, add_filename_column=False, filenames=None, filename_format='base'):
-    if datasets is None:
-        raise ValueError("datasets argument must not be None")
+def merge(datasets, join='inner', append=False, add_filename_column=False,
+          filenames=None, filename_format='base'):
+    """Merge (columns) or append (rows) multiple TSV files."""
     if join not in ('inner', 'outer'):
-        raise ValueError("join argument must be either 'inner' or 'outer'")
+        raise ValueError("join must be 'inner' or 'outer'")
     if filename_format not in ('path', 'base'):
-        raise ValueError("filename_format argument must be either 'path' or 'base'")
+        raise ValueError("filename_format must be 'path' or 'base'")
 
     if append:
         if add_filename_column and filenames is not None:
             for df, fname in zip(datasets, filenames):
-                if filename_format == 'base':
-                    df['filename'] = os.path.splitext(os.path.basename(fname))[0]
-                else:  # filename_format == 'path'
-                    df['filename'] = os.path.splitext(fname)[0]
+                label = os.path.basename(fname) if filename_format == 'base' else fname
+                df['filename'] = os.path.splitext(label)[0]
         return pd.concat(datasets, axis=0, join=join)
-    return pd.concat(datasets, axis=1, join=join)
+    else:
+        return pd.concat(datasets, axis=1, join=join)
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Merge - Combines datasets')
-    parser.add_argument('datasets', nargs='+', help='List of dataset files to merge')
-    parser.add_argument('-j', '--join', default='inner', help='Join method: inner, outer, etc.')
-    parser.add_argument('-a', '--append', action='store_true', help='Append vertically instead of joining horizontally')
-    parser.add_argument('--add-filename', action='store_true', help='When appending, add a column with the source filename')
+    parser = argparse.ArgumentParser(
+        description='Merge multiple TSV datasets horizontally or vertically.'
+    )
+    parser.add_argument('datasets', nargs='+', help='List of dataset TSV files to merge')
+    parser.add_argument('-j', '--join', default='inner', choices=['inner', 'outer'],
+                        help='Join method: inner (default) or outer')
+    parser.add_argument('-a', '--append', action='store_true',
+                        help='Append vertically instead of joining columns')
+    parser.add_argument('--add-filename', action='store_true',
+                        help='Add a filename column when appending')
     parser.add_argument('--filename-format', choices=['path', 'base'], default='base',
-                       help='Format for filename column: "path" for full path, "base" for basename only (default: base)')
-    parser.add_argument('-o', '--output', help='Name of the output file')
+                        help='Format for filename column: base (default) or path')
+    parser.add_argument('-o', '--output', required=True,
+                        help='Output file path (required)')
     return parser.parse_args()
 
 def main():
     args = parse_args()
-    dfs = [load(df) for df in args.datasets]
+    dfs = [load(path) for path in args.datasets]
     result = merge(
         datasets=dfs,
         join=args.join,
@@ -52,9 +62,8 @@ def main():
         filenames=args.datasets,
         filename_format=args.filename_format
     )
-    print(result)
-    output_name = args.output if args.output else f'results/{"_".join(args.datasets)}'
-    save(result, output_name)
+    save(result, args.output)
 
 if __name__ == '__main__':
     main()
+

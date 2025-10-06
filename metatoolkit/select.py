@@ -5,6 +5,7 @@ import argparse
 import pandas as pd
 import os
 from pathlib import Path
+import fnmatch
 
 def load_table(path):
     """Load TSV file with first column as index."""
@@ -15,15 +16,26 @@ def save_table(df, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     df.to_csv(path, sep='\t')
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Select specific rows and/or columns from a TSV file using pandas .loc[]"
-    )
-    parser.add_argument("input", help="Input TSV file (with header and index column)")
-    parser.add_argument("-r", "--rows", help="Comma-separated list of row labels to keep")
-    parser.add_argument("-c", "--cols", help="Comma-separated list of column labels to keep")
-    parser.add_argument("-o", "--output", help="Output TSV file (default: <input>_select.tsv)")
-    return parser.parse_args()
+def parse_list(value):
+    """Parse comma/newline-separated values with wildcard support"""
+    if not value:
+        return None
+    parts = [x.strip() for x in value.replace("\r", "").split("\n")]
+    items = []
+    for p in parts:
+        items.extend([x.strip() for x in p.split(",")])
+    return [x for x in items if x]
+
+def expand_wildcards(patterns, available):
+    """Expand wildcard patterns using fnmatch over available columns/index"""
+    matched = set()
+    for p in patterns:
+        if "*" in p or "?" in p:
+            matched.update(fnmatch.filter(available, p))
+        else:
+            if p in available:
+                matched.add(p)
+    return list(matched)
 
 def main():
     args = parse_args()
@@ -31,9 +43,19 @@ def main():
     # Load file
     df = load_table(args.input)
 
-    # Row and column selections
-    rows = args.rows.split(",") if args.rows else df.index
-    cols = args.cols.split(",") if args.cols else df.columns
+    # Row selections
+    if args.rows:
+        raw_rows = parse_list(args.rows)
+        rows = expand_wildcards(raw_rows, df.index)
+    else:
+        rows = df.index
+
+    # Column selections
+    if args.cols:
+        raw_cols = parse_list(args.cols)
+        cols = expand_wildcards(raw_cols, df.columns)
+    else:
+        cols = df.columns
 
     # Apply .loc[] safely
     df_sel = df.loc[df.index.intersection(rows), df.columns.intersection(cols)]
@@ -48,6 +70,16 @@ def main():
     # Save
     save_table(df_sel, output_path)
     print(f"Saved {df_sel.shape[0]} rows × {df_sel.shape[1]} columns to {output_path}")
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Select specific rows and/or columns from a TSV file using pandas .loc[] with wildcard and multiline support"
+    )
+    parser.add_argument("input", help="Input TSV file (with header and index column)")
+    parser.add_argument("-r", "--rows", help="Comma OR newline separated list of row labels (supports wildcards *, ?)")
+    parser.add_argument("-c", "--cols", help="Comma OR newline separated list of column labels (supports wildcards *, ?)")
+    parser.add_argument("-o", "--output", help="Output TSV file (default: <input>_select.tsv)")
+    return parser.parse_args()
 
 if __name__ == "__main__":
     main()
