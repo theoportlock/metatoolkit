@@ -31,9 +31,15 @@ def filter(df, **kwargs):
                 common_rows = df.index.intersection(filter_df.index)
                 df = df.loc[common_rows]
     if kwargs.get('colfilt'):
-        df = df.loc[:, df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
+        if kwargs.get('drop'):
+            df = df.loc[:, ~df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
+        else:
+            df = df.loc[:, df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
     if kwargs.get('rowfilt'):
-        df = df.loc[df.index.str.contains(kwargs.get('rowfilt'), regex=True)]
+        if kwargs.get('drop'):
+            df = df.loc[~df.index.str.contains(kwargs.get('rowfilt'), regex=True)]
+        else:
+            df = df.loc[df.index.str.contains(kwargs.get('rowfilt'), regex=True)]
     if kwargs.get('prevail'):
         df = df.loc[:, df.agg(np.count_nonzero, axis=0).gt(df.shape[0]*kwargs.get('prevail'))]
     if kwargs.get('abund'):
@@ -80,6 +86,7 @@ def parse_args():
     parser.add_argument('--min_nonzero_cols', type=int, help='Minimum number of non-zero values required in a column')
     parser.add_argument('--print_counts', action='store_true', help='Print the number of rows and columns that have been filtered')
     parser.add_argument('-dt', '--dtype', type=str, help='Select columns with a specific dtype')
+    parser.add_argument('--drop', action='store_true', help='Drop (rather than select) rows/columns matching filters')
     args = parser.parse_args()
     return {k: v for k, v in vars(args).items() if v is not None}
 

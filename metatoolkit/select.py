@@ -11,10 +11,10 @@ def load_table(path):
     """Load TSV file with first column as index."""
     return pd.read_csv(path, sep='\t', index_col=0)
 
-def save_table(df, path):
-    """Save DataFrame as TSV, creating directories if needed."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    df.to_csv(path, sep='\t')
+def save_table(df, path, drop_index=False):
+        """Save DataFrame as TSV, creating directories if needed."""
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        df.to_csv(path, sep='\t', index=not drop_index)
 
 def parse_list(value):
     """Parse comma/newline-separated values with wildcard support"""
@@ -68,8 +68,9 @@ def main():
         output_path = f"results/{stem}_select.tsv"
 
     # Save
-    save_table(df_sel, output_path)
-    print(f"Saved {df_sel.shape[0]} rows × {df_sel.shape[1]} columns to {output_path}")
+    save_table(df_sel, output_path, drop_index=args.drop_index)
+    print(f"Saved {df_sel.shape[0]} rows × {df_sel.shape[1]} columns to {output_path} "
+          f"(index {'dropped' if args.drop_index else 'kept'})")
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -79,6 +80,7 @@ def parse_args():
     parser.add_argument("-r", "--rows", help="Comma OR newline separated list of row labels (supports wildcards *, ?)")
     parser.add_argument("-c", "--cols", help="Comma OR newline separated list of column labels (supports wildcards *, ?)")
     parser.add_argument("-o", "--output", help="Output TSV file (default: <input>_select.tsv)")
+    parser.add_argument("--drop-index", action="store_true", help="Exclude index column when saving")
     return parser.parse_args()
 
 if __name__ == "__main__":
