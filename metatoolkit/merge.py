@@ -3,12 +3,14 @@
 import argparse
 import os
 import pandas as pd
+import glob
+import sys
 
 def load(path):
     """Load a TSV file (must exist)."""
     path = path.strip()
     if not os.path.isfile(path):
-        raise FileNotFoundError(f"❌ File not found: {path}")
+        raise FileNotFoundError(f"⚠️ File not found: {path}")
     return pd.read_csv(path, sep='\t', index_col=0)
 
 def save(df, path, index=True):
@@ -34,11 +36,21 @@ def merge(datasets, join='inner', append=False, add_filename_column=False,
     else:
         return pd.concat(datasets, axis=1, join=join)
 
+def expand_wildcards(paths):
+    """Expand wildcard expressions (e.g., *.tsv) into actual file lists."""
+    expanded = []
+    for p in paths:
+        matches = glob.glob(p)
+        if not matches:
+            print(f"⚠️ No files matched: {p}", file=sys.stderr)
+        expanded.extend(sorted(matches))
+    return expanded
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Merge multiple TSV datasets horizontally or vertically.'
     )
-    parser.add_argument('datasets', nargs='+', help='List of dataset TSV files to merge')
+    parser.add_argument('datasets', nargs='+', help='List of dataset TSV files (supports wildcards)')
     parser.add_argument('-j', '--join', default='inner', choices=['inner', 'outer'],
                         help='Join method: inner (default) or outer')
     parser.add_argument('-a', '--append', action='store_true',
@@ -53,13 +65,16 @@ def parse_args():
 
 def main():
     args = parse_args()
-    dfs = [load(path) for path in args.datasets]
+    expanded = expand_wildcards(args.datasets)
+    if not expanded:
+        sys.exit("❌ No valid input files found.")
+    dfs = [load(path) for path in expanded]
     result = merge(
         datasets=dfs,
         join=args.join,
         append=args.append,
         add_filename_column=args.add_filename,
-        filenames=args.datasets,
+        filenames=expanded,
         filename_format=args.filename_format
     )
     save(result, args.output)

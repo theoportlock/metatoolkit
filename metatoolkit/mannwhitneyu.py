@@ -23,6 +23,7 @@ def parse_args():
     parser.add_argument("numeric", type=str, help="Input table with numeric columns")
     parser.add_argument("categorical", type=str, help="Input table with binary categorical columns")
     parser.add_argument("-o", "--output", type=str, required=True, help="Output TSV file path")
+    parser.add_argument("--dropna", action="store_true", help="Drop rows with any missing values before testing")
     return parser.parse_args()
 
 def cohens_d_tanh(a, b):
@@ -32,8 +33,7 @@ def cohens_d_tanh(a, b):
     s1, s2 = np.std(a, ddof=1), np.std(b, ddof=1)
 
     # Pooled standard deviation with small epsilon
-    s_pooled = np.sqrt(((n1-1)*s1**2 + (n2-1)*s2**2) / (n1 + n2 - 2) + 1e-9)
-
+    s_pooled = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2) + 1e-9)
     d = (mean1 - mean2) / s_pooled
     return np.tanh(d)
 
@@ -53,7 +53,7 @@ def mann_whitney_cohensd(df_num, df_cat):
 
             if all(len(g) > 0 for g in groups):
                 # Mann–Whitney U test
-                stat, p = mannwhitneyu(groups[0], groups[1], alternative='two-sided')
+                stat, p = mannwhitneyu(groups[0], groups[1], alternative="two-sided")
 
                 # Cohen's d + tanh statistic
                 tstat = cohens_d_tanh(groups[0], groups[1])
@@ -66,7 +66,7 @@ def mann_whitney_cohensd(df_num, df_cat):
                     "p_value": p,
                     "method": "mwu"
                 })
-                # Symmetric
+                # Symmetric entry
                 results.append({
                     "source": num_col,
                     "target": cat_col,
@@ -82,10 +82,22 @@ def main():
     df_num = load(args.numeric)
     df_cat = load(args.categorical)
 
-    output_df = mann_whitney_cohensd(df_num, df_cat)
-    print(output_df)
+    if args.dropna:
+        combined = pd.concat([df_num, df_cat], axis=1)
+        before = combined.shape[0]
+        combined = combined.dropna(axis=0, how="any")
+        after = combined.shape[0]
+        print(f"[INFO] Dropped {before - after} rows with missing values ({before} → {after}).")
+        df_num = combined[df_num.columns]
+        df_cat = combined[df_cat.columns]
 
-    save(output_df, args.output, index=False)
+    output_df = mann_whitney_cohensd(df_num, df_cat)
+
+    if output_df.empty:
+        print("[WARN] No valid results produced.")
+    else:
+        print(f"[INFO] Generated {len(output_df)} test results.")
+        save(output_df, args.output, index=False)
 
 if __name__ == "__main__":
     main()

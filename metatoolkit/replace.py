@@ -33,7 +33,7 @@ def parse_args():
                              'Omit this if using nested dicts in --to_replace')
     parser.add_argument('--regex', action='store_true', help='Interpret to_replace as regex')
     parser.add_argument('--inplace', action='store_true', help='Modify the input file directly')
-    parser.add_argument('--output', help='Output file path (if not using --inplace)')
+    parser.add_argument('-o', '--output', help='Output file path (if not using --inplace)')
     return parser.parse_args()
 
 def main():
