@@ -1,57 +1,69 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-Script to compute and save distance matrices.
+Script to compute and save distance matrices as an edgelist.
 """
 
 import argparse
 import os
 from pathlib import Path
-
 import pandas as pd
 from scipy.spatial.distance import pdist, squareform
 
 
 def parse_args():
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description='Compute distance matrix from a data table')
-    parser.add_argument('subject', type=str,
-                        help='Path to input data file (TSV) or subject name to look up in results')
-    parser.add_argument('-m', '--metric', type=str, default='braycurtis',
-                        help='Distance metric (e.g., braycurtis, euclidean, cosine, etc.)')
-    parser.add_argument('-o', '--outfile', type=str,
-                        help='Output file path (TSV). If not provided, saved to results/<subject><suffix>.tsv')
-    parser.add_argument('-s', '--suffix', type=str,
-                        help='Suffix to append to subject name for output filename when --outfile not given')
+    parser = argparse.ArgumentParser(description='Compute distance edgelist from a data table')
+    parser.add_argument(
+        'subject',
+        type=str,
+        help='Path to input data file (TSV) or subject name to look up in results/'
+    )
+    parser.add_argument(
+        '-m', '--metric',
+        type=str,
+        default='braycurtis',
+        help='Distance metric (e.g., braycurtis, euclidean, cosine, etc.)'
+    )
+    parser.add_argument(
+        '-o', '--outfile',
+        type=str,
+        required=True,
+        help='Output file path (TSV). Required.'
+    )
     return parser.parse_args()
 
 
-def dist(df: pd.DataFrame, metric: str = 'braycurtis') -> pd.DataFrame:
-    """Compute a square distance matrix from input DataFrame."""
-    arr = squareform(pdist(df.values, metric=metric))
-    return pd.DataFrame(arr, index=df.index, columns=df.index)
+def dist_edgelist(df: pd.DataFrame, metric: str = 'braycurtis') -> pd.DataFrame:
+    """Compute pairwise distances and return as a full edgelist (includes duplicates and self-distances)."""
+    dist_array = squareform(pdist(df.values, metric=metric))
+    dist_df = pd.DataFrame(dist_array, index=df.index, columns=df.index)
+    dist_df.index.name = 'source'
+    dist_df.columns.name = 'target'
+    edge_df = dist_df.stack().rename_axis(['source', 'target']).reset_index(name='distance')
+    return edge_df
 
 
 def load(subject: str) -> pd.DataFrame:
     """Load the data table from file or from results folder."""
-    if os.path.isfile(subject):
-        path = subject
-    else:
-        path = f'results/{subject}.tsv'
-    return pd.read_csv(path, sep='\t', index_col=0)
+    if not os.path.exists(subject):
+        raise FileNotFoundError(f"Input file not found: {subject}")
+    return pd.read_csv(subject, sep='\t', index_col=0)
 
 
-def save(df: pd.DataFrame, outpath: str, index: bool = True) -> None:
+def save(df: pd.DataFrame, outpath: str) -> None:
     """Save DataFrame to TSV, creating directories as needed."""
-    os.makedirs(os.path.dirname(outpath), exist_ok=True)
-    df.to_csv(outpath, sep='\t', index=index)
+    outdir = os.path.dirname(outpath)
+    if outdir:  # only create directories if path includes a folder
+        os.makedirs(outdir, exist_ok=True)
+    df.to_csv(outpath, sep='\t', index=False)
 
 
 def main():
     args = parse_args()
 
-    # Determine base subject name
+    # Determine subject name (for logging)
     subject_arg = args.subject
     if os.path.isfile(subject_arg):
         subject_name = Path(subject_arg).stem
@@ -61,19 +73,15 @@ def main():
     # Load data
     df = load(subject_arg)
 
-    # Compute distances
-    dist_df = dist(df, metric=args.metric)
-    print(dist_df)
+    # Compute edgelist
+    edge_df = dist_edgelist(df, metric=args.metric)
 
-    # Determine output path
-    if args.outfile:
-        outpath = args.outfile
-    else:
-        outpath = f'results/{subject_name}{args.suffix}.tsv'
-
-    # Save
-    save(dist_df, outpath)
+    # Save output
+    save(edge_df, args.outfile)
+    print(f"Distance edgelist saved to: {args.outfile}")
+    print(f"Rows: {len(edge_df)} (includes duplicates and self-distances)")
 
 
 if __name__ == '__main__':
     main()
+
