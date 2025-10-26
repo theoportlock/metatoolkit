@@ -4,113 +4,64 @@
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
-from pathlib import Path
 import seaborn as sns
-import sys
+import os
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='''
-    Spindle - Produces a spindleplot of a given dataset
-    ''')
-    parser.add_argument('subject', help='Path to dataset file or subject name')
-    parser.add_argument(
-        '--meta',
-        help='Path to a metadata file (TSV/CSV) containing your explainer column',
-        required=True
-    )
-    parser.add_argument(
-        '--group-col',
-        help='Name of the column in the metadata file to use for grouping/spindle labels',
-        required=True
-    )
+    parser = argparse.ArgumentParser(description='Spindle - Produce a spindle plot')
+    parser.add_argument('subject', help='Path to dataset file (TSV)')
+    parser.add_argument('--meta', required=True, help='Path to metadata file (TSV)')
+    parser.add_argument('--group-col', required=True, help='Column in metadata to group by')
+    parser.add_argument('--x', help='Column to use for x-axis (default: first column)')
+    parser.add_argument('--y', help='Column to use for y-axis (default: second column)')
+    parser.add_argument('--figsize', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
+                        default=(4, 4), help='Figure size in inches, e.g. --figsize 4 4')
+    parser.add_argument('-o', '--output', help='Output image filename (default: spindle.svg)')
     return parser.parse_args()
 
-def load_subject_df(path):
-    """Load main data from results/{stem}.tsv"""
-    path = Path(path_or_name)
-    stem = path.stem if path.is_file() else path_or_name
-    df = pd.read_csv(Path('results') / f'{stem}.tsv', sep='\t', index_col=0)
-    df.index = df.index.astype(str)  # Force index to string
-    return df, stem
+def load_tsv(path):
+    return pd.read_csv(path, sep='\t', index_col=0)
 
-def load_and_merge_meta(df, meta_path, group_col):
-    """Load metadata and assign group labels from group_col."""
-    # auto-detect delimiter, load with default index
-    mdf = pd.read_csv(meta_path, sep=None, engine='python', index_col=0)
-    mdf.index = mdf.index.astype(str)  # Force index to string
+def merge_data(subject_df, meta_df, group_col):
+    if group_col not in meta_df.columns:
+        raise ValueError(f"Metadata missing column '{group_col}'")
+    merged = subject_df.join(meta_df[group_col], how='inner').dropna(subset=[group_col])
+    return merged.set_index(group_col)
 
-    if group_col not in mdf.columns:
-        sys.exit(f"ERROR: metadata file {meta_path} does not contain column '{group_col}'")
-
-    if not df.index.equals(mdf.index):
-        print("WARNING: Index mismatch between subject and metadata. Trying inner join.")
-        df = df.join(mdf[[group_col]], how='inner')
-    else:
-        df[group_col] = mdf[group_col]
-
-    df = df.dropna(subset=[group_col])  # remove any rows missing group info
-    df = df.set_index(group_col)        # group_col becomes the new index
-    return df
-
-def spindle(df, ax=None, palette=None):
-    """Draw a spindle plot grouping by df.index."""
+def spindle(df, x=None, y=None, figsize=(6, 6)):
+    if x is None or y is None:
+        x, y = df.columns[:2]
     groups = df.index.unique()
-    if palette is None:
-        palette = pd.Series(
-            sns.color_palette("hls", len(groups)).as_hex(),
-            index=groups
-        )
+    palette = dict(zip(groups, sns.color_palette("hls", len(groups)).as_hex()))
 
-    if ax is None:
-        fig, ax = plt.subplots()
+    centers = df.groupby(df.index)[[x, y]].mean().rename(columns={x: "mx", y: "my"})
+    j = df.join(centers)
 
-    x, y = df.columns[:2]
+    plt.figure(figsize=figsize)
+    for grp, sub in j.groupby(j.index):
+        plt.plot([sub[x], sub["mx"]], [sub[y], sub["my"]], linewidth=0.5, color=palette[grp], alpha=0.3)
+        plt.scatter(sub[x], sub[y], color=palette[grp], s=1)
+        plt.scatter(sub["mx"].iloc[0], sub["my"].iloc[0], c='black', s=10, marker='+')
+        plt.text(sub["mx"].iloc[0] + 0.002, sub["my"].iloc[0] + 0.002, str(grp))
 
-    centers = df.groupby(df.index)[[x, y]].mean()
-    centers.columns = ['nPC1', 'nPC2']
-
-    j = df.join(centers, how='inner')
-    j['colour'] = j.index.map(palette)
-
-    for _, row in j.iterrows():
-        ax.plot(
-            [row[x], row['nPC1']],
-            [row[y], row['nPC2']],
-            linewidth=0.5,
-            color=row['colour'],
-            alpha=0.3,
-            zorder=1
-        )
-        ax.scatter(row[x], row[y], color=row['colour'], s=1, zorder=1)
-
-    for grp, cen in centers.iterrows():
-        ax.scatter(cen['nPC1'], cen['nPC2'], c='black', s=10, marker='+', zorder=2)
-        ax.text(cen['nPC1'] + 0.002, cen['nPC2'] + 0.002, str(grp), zorder=3)
-
-    ax.set_xlabel(x)
-    ax.set_ylabel(y)
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    return ax
-
-def savefig(stem):
-    out = Path('results')
-    out.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out / f'{stem}_spindle.svg')
-    plt.clf()
+    plt.xlabel(x)
+    plt.ylabel(y)
+    sns.despine()
 
 def main():
     args = parse_arguments()
+    df = load_tsv(args.subject)
+    meta = load_tsv(args.meta)
 
-    df, stem = load_subject_df(args.subject)
-    df = load_and_merge_meta(df, args.meta, args.group_col)
+    df = merge_data(df, meta, args.group_col)
 
-    if df.empty:
-        sys.exit("ERROR: No data left after merging subject and metadata. Check for index mismatch.")
+    spindle(df)
 
-    ax = spindle(df)
-    savefig(stem)
+    output = args.output or "spindle.svg"
+    os.makedirs(os.path.dirname(output), exist_ok=True)
+    plt.savefig(output, dpi=300, bbox_inches='tight')
+    print(f"Saved to {output}")
 
 if __name__ == '__main__':
     main()
+

@@ -1,86 +1,80 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+Perform PCoA on a distance edge list (source, target, distance).
+"""
+
 import argparse
 import os
 import pandas as pd
 import skbio
 
+
 def parse_arguments():
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Perform PCoA on a distance matrix")
-    parser.add_argument("-i", "--input", type=str, help="Distance matrix path")
-    parser.add_argument("-o", "--output", type=str, help="Output file path")
+    parser = argparse.ArgumentParser(description="Perform PCoA on a distance edge list (source, target, distance)")
+    parser.add_argument(
+        "-i", "--input",
+        type=str,
+        required=True,
+        help="Input edge list file (TSV) with columns: source, target, distance"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        type=str,
+        required=True,
+        help="Output file path (TSV)"
+    )
     return parser.parse_args()
 
-def perform_pcoa(df):
-    """
-    Perform PCoA on the given distance matrix DataFrame.
-    Parameters:
-    df (pd.DataFrame): A square DataFrame representing a distance matrix, where
-                       rows and columns are samples, and values are distances.
-    Returns:
-    pd.DataFrame: A DataFrame with the first two PCoA components (PCo1 and PCo2) for each sample.
-    Example:
-    --------
-    Test data input:
-    Consider the following sample distance matrix:
-        A      B      C
-    A  0.0    0.1    0.3
-    B  0.1    0.0    0.4
-    C  0.3    0.4    0.0
-    Create the DataFrame and run PCoA:
-    >>> import pandas as pd
-    >>> import skbio
-    >>> data = {'A': [0.0, 0.1, 0.3], 'B': [0.1, 0.0, 0.4], 'C': [0.3, 0.4, 0.0]}
-    >>> df = pd.DataFrame(data, index=['A', 'B', 'C'])
-    >>> perform_pcoa(df)
-       PCo1 (100.0%)  PCo2 (0.0%)
-    A      -0.066667          0.0
-    B      -0.166667         -0.0
-    C       0.233333          0.0
-    """
-    DM_dist = skbio.stats.distance.DistanceMatrix(df)
-    PCoA = skbio.stats.ordination.pcoa(DM_dist, number_of_dimensions=2)
-    label = PCoA.proportion_explained.apply(" ({:.1%})".format)
-    results = PCoA.samples.copy()
-    result = pd.DataFrame(index=df.index)
-    result["PCo1" + label.loc["PC1"]] = results.iloc[:, 0].values
-    result["PCo2" + label.loc["PC2"]] = results.iloc[:, 1].values
+
+def load_edge_list(path: str) -> pd.DataFrame:
+    """Load an edge list and convert it into a square distance matrix."""
+    df = pd.read_csv(path, sep='\t')
+
+    required_cols = {"source", "target", "distance"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError("Edge list must contain columns: source, target, distance")
+
+    # Pivot to create square distance matrix
+    dist_mat = df.pivot(index="source", columns="target", values="distance")
+
+    return dist_mat
+
+
+def perform_pcoa(df: pd.DataFrame) -> pd.DataFrame:
+    """Perform PCoA and return the first two coordinates."""
+    DM = skbio.stats.distance.DistanceMatrix(df.values, ids=df.index)
+    pcoa_res = skbio.stats.ordination.pcoa(DM, number_of_dimensions=2)
+
+    explained = pcoa_res.proportion_explained
+    result = pd.DataFrame({
+        f"PCo1 ({explained['PC1']:.1%})": pcoa_res.samples.iloc[:, 0],
+        f"PCo2 ({explained['PC2']:.1%})": pcoa_res.samples.iloc[:, 1],
+    }, index=df.index)
+
     return result
 
-def main():
-    """Main function to execute the script."""
-    args = parse_arguments()
-    subject = args.input
 
-    # Read input data
-    try:
-        df = pd.read_csv(subject, sep='\t', index_col=0)
-    except Exception as e:
-        print(f"Error reading input file {subject}: {e}")
-        return
+def main():
+    args = parse_arguments()
+
+    # Load edge list
+    df = load_edge_list(args.input)
 
     # Perform PCoA
     result = perform_pcoa(df)
 
-    # Determine output path
-    if args.output:
-        output_path = args.output
-    else:
-        # Default output path
-        base_name = os.path.splitext(os.path.basename(subject))[0]
-        output_path = f'results/{base_name}_pcoa.tsv'
+    # Save output
+    outdir = os.path.dirname(args.output)
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
 
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    result.to_csv(args.output, sep='\t')
+    print(f"PCoA results saved to: {args.output}")
 
-    # Save results to file
-    try:
-        result.to_csv(output_path, sep='\t')
-        print(f"PCoA results saved to: {output_path}")
-    except Exception as e:
-        print(f"Error saving results to {output_path}: {e}")
 
 if __name__ == "__main__":
     main()
+
