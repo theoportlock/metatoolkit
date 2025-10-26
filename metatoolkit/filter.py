@@ -84,7 +84,7 @@ def parse_args():
     parser.add_argument('--nonzero', action='store_true', help='Remove rows and columns that sum to zero')
     parser.add_argument('--min_nonzero_rows', type=int, help='Minimum number of non-zero values required in a row')
     parser.add_argument('--min_nonzero_cols', type=int, help='Minimum number of non-zero values required in a column')
-    parser.add_argument('--print_counts', action='store_true', help='Print the number of rows and columns that have been filtered')
+    parser.add_argument('--silence_counts', action='store_true', help='Print the number of rows and columns that have been filtered')
     parser.add_argument('-dt', '--dtype', type=str, help='Select columns with a specific dtype')
     parser.add_argument('--drop', action='store_true', help='Drop (rather than select) rows/columns matching filters')
     args = parser.parse_args()
@@ -105,7 +105,7 @@ def main():
 
     output = filter(original_df.copy(), **known)
 
-    if known.get("print_counts"):
+    if not known.get("silence_counts"):
         if output is None:
             print("All rows and columns have been filtered out.")
         else:
