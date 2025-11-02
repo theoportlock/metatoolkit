@@ -9,8 +9,17 @@ from pathlib import Path
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Group - Groups a dataset')
     parser.add_argument('subject', help="Path to the input data file or subject name")
-    parser.add_argument('--group_by', nargs='+', help="Columns to group by (+ nargs)")
-    parser.add_argument('--func', required=True, help="Aggregation function (e.g., sum, mean)")
+    parser.add_argument(
+        '--group_by',
+        nargs='+',
+        help="Columns to group by (+ nargs), or 'all' to aggregate all samples together"
+    )
+    parser.add_argument(
+        '--func',
+        nargs='+',
+        required=True,
+        help="Aggregation function(s), e.g. mean median sum"
+    )
     parser.add_argument('--axis', type=int, default=0, help="Axis to apply function on, 0 for rows and 1 for columns")
     parser.add_argument('-o', '--output', help="Path to save the output file")
     parser.add_argument(
@@ -25,43 +34,78 @@ def load_data(path_or_name):
     if path.is_file():
         return pd.read_csv(path, sep='\t', index_col=0)
     else:
-        # assume subject name: look for results/{subject}.tsv
         return pd.read_csv(Path('results') / f'{path_or_name}.tsv', sep='\t', index_col=0)
 
 
 def merge_meta(df, meta_path, group_by):
     mdf = pd.read_csv(meta_path, sep='\t', index_col=0)
 
-    if not group_by:
-        raise ValueError("--group_by must be specified when using --meta")
+    # Only join metadata if we’re actually grouping by something
+    if group_by and (len(group_by) != 1 or group_by[0].lower() != 'all'):
+        missing = [col for col in group_by if col not in mdf.columns]
+        if missing:
+            raise ValueError(f"Metadata file missing required columns: {missing}")
+        mdf = mdf[group_by]
+        df = df.join(mdf, how='inner')
 
-    # keep only required grouping columns
-    missing = [col for col in group_by if col not in mdf.columns]
-    if missing:
-        raise ValueError(f"Metadata file missing required columns: {missing}")
-
-    mdf = mdf[group_by]
-    df = df.join(mdf, how='inner')
     return df
 
 
-def group(df, group_by=None, func='sum', axis=0):
-    """
-    Group the DataFrame by specified columns or index and apply the aggregation function.
+def flatten_columns(df):
+    """Flatten MultiIndex columns to 'col_func' form if needed."""
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = ["{}_{}".format(col, func) for col, func in df.columns]
+    return df
 
-    Parameters:
-    - df: DataFrame to group
-    - group_by: Columns to group by (None to group by index)
-    - func: Aggregation function to apply
-    - axis: Axis to apply the function on if not grouping by columns
 
-    Returns:
-    - Grouped and aggregated DataFrame
+def group(df, group_by=None, funcs=None, axis=0):
     """
+    Group the DataFrame by specified columns or aggregate everything if 'all' is given.
+    Supports multiple aggregation functions and consistent output formatting.
+    """
+    if funcs is None:
+        funcs = ['sum']
+
+    # --- Case 1: aggregate all samples together (no stratification) ---
+    if group_by and len(group_by) == 1 and group_by[0].lower() == 'all':
+        outdf = df.agg(funcs, axis=axis)
+
+        # If multiple funcs, flatten into one row
+        if isinstance(outdf, pd.DataFrame):
+            # outdf looks like:
+            #        Mreads
+            # mean   61.96
+            # std    10.71
+            outdf = outdf.T
+            if isinstance(outdf.columns, pd.MultiIndex):
+                outdf.columns = [f"{col}_{func}" for func, col in outdf.columns.to_flat_index()]
+            else:
+                outdf.columns = [f"{col}_{func}" for col, func in zip(outdf.columns, funcs)]
+            outdf.index = ['all']
+        else:
+            # Single function
+            outdf = pd.DataFrame(outdf).T
+            outdf.index = ['all']
+        return outdf
+
+    # --- Case 2: group by specific columns ---
     if group_by:
-        outdf = df.groupby(group_by).agg(func)
+        outdf = df.groupby(group_by).agg(funcs)
+        if isinstance(outdf.columns, pd.MultiIndex):
+            outdf.columns = [f"{col}_{func}" for col, func in outdf.columns.to_flat_index()]
     else:
-        outdf = df.agg(func, axis=axis).to_frame(f'{func}')
+        # No grouping, just aggregate over axis
+        outdf = df.agg(funcs, axis=axis)
+        if isinstance(outdf, pd.DataFrame):
+            outdf = outdf.T
+            if isinstance(outdf.columns, pd.MultiIndex):
+                outdf.columns = [f"{col}_{func}" for func, col in outdf.columns.to_flat_index()]
+            else:
+                outdf.columns = [f"{col}_{func}" for col, func in zip(outdf.columns, funcs)]
+        else:
+            outdf = pd.DataFrame(outdf).T
+        outdf.index = ['all']
+
     return outdf
 
 
@@ -70,7 +114,8 @@ def main():
     subject = args.subject
 
     # Determine output filename
-    outname = args.output or f"results/{Path(subject).stem}_{args.func}.tsv"
+    func_str = "_".join(args.func)
+    outname = args.output or f"results/{Path(subject).stem}_{func_str}.tsv"
     outpath = Path(outname)
     outpath.parent.mkdir(parents=True, exist_ok=True)
 
@@ -82,7 +127,7 @@ def main():
         df = merge_meta(df, args.meta, args.group_by)
 
     # Apply grouping
-    out = group(df, group_by=args.group_by, func=args.func, axis=args.axis)
+    out = group(df, group_by=args.group_by, funcs=args.func, axis=args.axis)
 
     # Print and save
     print(out)
