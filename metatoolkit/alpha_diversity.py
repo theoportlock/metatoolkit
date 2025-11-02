@@ -58,7 +58,7 @@ def parse_args():
     )
     parser.add_argument(
         '--tax-level',
-        choices=['t__', 's__'],
+        #choices=['t__', 's__'],
         default='t__',
         help='Taxonomic prefix of interest in column names (default: t__).'
     )

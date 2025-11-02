@@ -39,15 +39,14 @@ def parse_arguments():
         action='store_true',
         help='Plot horizontally (swap x and y axes)'
     )
+    # 🟢 NEW: y-axis (or x-axis if horizontal) limits
+    parser.add_argument('--ymin', type=float, help='Minimum value for y-axis')
+    parser.add_argument('--ymax', type=float, help='Maximum value for y-axis')
     return parser.parse_args()
 
 def load_data(path_or_name):
     path = Path(path_or_name)
-    if path.is_file():
-        return pd.read_csv(path, sep='\t', index_col=0)
-    else:
-        # assume subject name: look for results/{subject}.tsv
-        return pd.read_csv(Path('results') / f'{path_or_name}.tsv', sep='\t', index_col=0)
+    return pd.read_csv(path, sep='\t', index_col=0)
 
 def merge_meta(df, meta_paths):
     for mpath in meta_paths:
@@ -145,6 +144,14 @@ def main():
             ax.set_xscale('log')
         else:
             ax.set_yscale('log')
+
+    # 🟢 NEW: apply y-axis (or x-axis) limits
+    if args.horizontal:
+        if args.ymin is not None or args.ymax is not None:
+            ax.set_xlim(args.ymin, args.ymax)
+    else:
+        if args.ymin is not None or args.ymax is not None:
+            ax.set_ylim(args.ymin, args.ymax)
 
     plt.tight_layout()
 
