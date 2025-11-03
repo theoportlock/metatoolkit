@@ -15,7 +15,7 @@ def parse_arguments():
     parser.add_argument('--x', help='Column to use for x-axis (default: first column)')
     parser.add_argument('--y', help='Column to use for y-axis (default: second column)')
     parser.add_argument('--figsize', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
-                        default=(4, 4), help='Figure size in inches, e.g. --figsize 4 4')
+                        default=(3, 3), help='Figure size in inches, e.g. --figsize 3 3')
     parser.add_argument('-o', '--output', help='Output image filename (default: spindle.svg)')
     return parser.parse_args()
 
@@ -28,7 +28,7 @@ def merge_data(subject_df, meta_df, group_col):
     merged = subject_df.join(meta_df[group_col], how='inner').dropna(subset=[group_col])
     return merged.set_index(group_col)
 
-def spindle(df, x=None, y=None, figsize=(6, 6)):
+def spindle(df, x=None, y=None, figsize=(3, 3)):
     if x is None or y is None:
         x, y = df.columns[:2]
     groups = df.index.unique()

@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument("--replace", help="Replacement pattern.", required=True)
     parser.add_argument("--axis", choices=["columns", "index"], default="columns",
                         help="Axis to rename (default: columns).")
-    parser.add_argument("--output", help="Output filename for the renamed dataframe")
+    parser.add_argument("-o", "--output", help="Output filename for the renamed dataframe")
 
     known, unknown = parser.parse_known_args()
     return vars(known), unknown
@@ -58,8 +58,6 @@ if __name__ == "__main__":
     )
 
     output_filename = known_args.get("output")
-    if output_filename is None:
-        output_filename = f"{subject_name}_regexrenamed.tsv"
     save_dataframe(df, output_filename)
     print(f"Saved regex-renamed dataframe to: {output_filename}")
 
