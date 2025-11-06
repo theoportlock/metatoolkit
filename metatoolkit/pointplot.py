@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument("--hue", required=True, help="Grouping variable for color (e.g., Feed)")
     parser.add_argument("--id", required=True, help="Unique subject ID column name (e.g., subjectID)")
     parser.add_argument("--logy", action="store_true", help="Use log scale for Y-axis")
+    parser.add_argument("--xorder", help="Comma-separated list defining X-axis order, e.g. 'T0,T1,T2'")
     parser.add_argument("-o", "--output", default="output.svg", help="Output SVG file path")
     parser.add_argument(
         "--figsize", nargs=2, type=float, default=[3, 3], metavar=("WIDTH", "HEIGHT"),
@@ -26,7 +27,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def plot(df, x, y, hue, id_col, output, logy=False, figsize=(3, 3)):
+def plot(df, x, y, hue, id_col, output, logy=False, figsize=(3, 3), xorder=None):
     # Drop missing values in relevant columns
     df = df.dropna(subset=[x, y, hue, id_col])
 
@@ -37,17 +38,30 @@ def plot(df, x, y, hue, id_col, output, logy=False, figsize=(3, 3)):
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Add individual points with light transparency (for subject-level info)
+    # Add individual points (subject-level)
     sns.stripplot(
         data=df, x=x, y=y, hue=hue, palette=palette,
-        alpha=0.5, jitter=True, size=2, ax=ax, legend=False
+        alpha=0.5, jitter=False, size=1, ax=ax, legend=False, order=xorder
     )
+
+    # 🔹 Connect paired samples by subject
+    for subj, subdf in df.groupby(id_col):
+        subdf = subdf.sort_values(x, key=lambda s: pd.Categorical(s, categories=xorder, ordered=True) if xorder else s)
+        hue_val = subdf[hue].iloc[0]
+        ax.plot(
+            subdf[x],
+            subdf[y],
+            color=palette[hue_val],
+            alpha=0.2,
+            linewidth=0.5,
+            zorder=0
+        )
 
     # Add group means and CIs
     sns.pointplot(
         data=df, x=x, y=y, hue=hue, palette=palette,
         join=True, markers="o", scale=0.8,
-        errwidth=1, linewidth=1, ax=ax, errorbar="se"
+        errwidth=1, linewidth=1, ax=ax, errorbar="se", order=xorder
     )
 
     if logy:
@@ -71,7 +85,10 @@ def main():
     df_meta = pd.read_csv(args.meta, sep="\t", index_col=0)
     df = df_subject.join(df_meta)
 
-    plot(df, args.x, args.y, args.hue, args.id, args.output, args.logy, tuple(args.figsize))
+    # Parse xorder if provided
+    xorder = args.xorder.split(",") if args.xorder else None
+
+    plot(df, args.x, args.y, args.hue, args.id, args.output, args.logy, tuple(args.figsize), xorder)
 
 
 if __name__ == "__main__":
