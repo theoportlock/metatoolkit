@@ -12,7 +12,7 @@ def parse_arguments():
     parser.add_argument("meta", help="Path to metadata file (TSV with columns: sampleID, subjectID, timepoint)")
     parser.add_argument("-m", "--metric", default="bray-curtis",
                         help="Column name of the distance metric (default: bray-curtis)")
-    parser.add_argument("-b", "--baseline", type=float, default=0.0,
+    parser.add_argument("-b", "--baseline", default=0.0,
                         help="Timepoint value to use as baseline (default: 0.0)")
     parser.add_argument("-o", "--output", required=True, help="Output TSV file path")
     return parser.parse_args()
