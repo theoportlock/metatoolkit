@@ -48,7 +48,9 @@ def merge_meta(df, meta_paths):
 
 
 def split_and_balance(input_path, output_dir, y_col, test_size, random_state,
-                      apply_smote, scaler_name, y_file=None, meta_files=None):
+                      apply_smote, scaler_name, y_file=None, meta_files=None,
+                      dropna_flag=True):
+
     df = load_dataset(input_path)
 
     # Merge metadata if provided
@@ -70,11 +72,21 @@ def split_and_balance(input_path, output_dir, y_col, test_size, random_state,
     # Align X and y on index
     Xy = df.join(y, how='inner')
 
-    # Warn about missing values and drop them
-    if Xy.isna().any().any():
-        missing_count = Xy.isna().sum().sum()
-        print(f"WARNING: Found {missing_count} missing values. Dropping all samples with missing values.")
-        Xy = Xy.dropna()
+    # Handle missing values
+    # Drop rows where y is missing (required for XGBoost)
+    y_missing = Xy[y_col].isna().sum()
+    if y_missing > 0:
+        print(f"⚠️ Found {y_missing} missing target values. Dropping those rows (mandatory).")
+        Xy = Xy[Xy[y_col].notna()]
+
+    # Feature NaNs only if dropna_flag
+    if dropna_flag:
+        feature_missing = Xy.drop(columns=[y_col]).isna().sum().sum()
+        if feature_missing > 0:
+            print(f"⚠️ Found {feature_missing} missing feature values. Dropping those rows.")
+            Xy = Xy.dropna()
+    else:
+        print("➡️ Keeping missing feature values (XGBoost supports NaN in X).")
 
     # Split back into X and y
     y = Xy[y_col]
@@ -103,15 +115,12 @@ def split_and_balance(input_path, output_dir, y_col, test_size, random_state,
         smoter = SMOTE(random_state=random_state)
         X_train, y_train = smoter.fit_resample(X_train, y_train)
 
-    y_train_df = pd.DataFrame(y_train, columns=[y_col], index=X_train.index)
-    y_test_df = pd.DataFrame(y_test, columns=[y_col], index=X_test.index)
-
     save_tsv(X_train, output_dir, "X_train")
     save_tsv(X_test, output_dir, "X_test")
-    save_tsv(y_train_df, output_dir, "y_train")
-    save_tsv(y_test_df, output_dir, "y_test")
+    save_tsv(pd.DataFrame(y_train, columns=[y_col], index=X_train.index), output_dir, "y_train")
+    save_tsv(pd.DataFrame(y_test, columns=[y_col], index=X_test.index), output_dir, "y_test")
 
-    print(f"Saved train/test splits to: {output_dir}")
+    print(f"✅ Saved train/test splits to: {output_dir}")
     print(f"Task type: {'classification' if classification else 'regression'}")
     print(f"Shapes: X_train={X_train.shape}, X_test={X_test.shape}")
     print(f"Scaler used: {scaler_name}")
@@ -121,27 +130,26 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train/test splitter with optional SMOTE, scaling, metadata merge, and missing value handling"
     )
-    parser.add_argument("--input", type=str, required=True,
-                        help="Path to input TSV file (features)")
-    parser.add_argument("--output_dir", type=str, required=True,
-                        help="Directory to save X_train, X_test, y_train, y_test")
-    parser.add_argument("--y_col", type=str, required=True,
-                        help="Name of the target column to predict")
-    parser.add_argument("--test_size", type=float, default=0.2,
-                        help="Fraction of the data to use for testing (default: 0.2)")
-    parser.add_argument("--random_state", type=int, default=42,
-                        help="Random seed for reproducibility (default: 42)")
-    parser.add_argument("--smote", action="store_true",
-                        help="Apply SMOTE to balance training data (only for classification)")
+    parser.add_argument("--input", type=str, required=True)
+    parser.add_argument("--output_dir", type=str, required=True)
+    parser.add_argument("--y_col", type=str, required=True)
+    parser.add_argument("--test_size", type=float, default=0.2)
+    parser.add_argument("--random_state", type=int, default=42)
+    parser.add_argument("--smote", action="store_true")
     parser.add_argument("--scaler", type=str, default="standard",
-                        choices=["standard", "minmax", "none"],
-                        help="Feature scaling method (default: standard)")
-    parser.add_argument("--y_file", type=str, default=None,
-                        help="Optional path to TSV file containing y_col to join on index")
-    parser.add_argument("--meta", nargs='+', default=None,
-                        help="Optional path(s) to metadata TSV file(s) to inner-join with input data")
+                        choices=["standard", "minmax", "none"])
+    parser.add_argument("--y_file", type=str, default=None)
+    parser.add_argument("--meta", nargs='+', default=None)
+
+    # NEW ARGUMENT
+    parser.add_argument("--dropna", action="store_true",
+                        help="Drop rows with missing values (default)")
+    parser.add_argument("--keepna", action="store_true",
+                        help="Keep missing values instead of dropping")
 
     args = parser.parse_args()
+
+    dropna_flag = not args.keepna  # default = drop NA
 
     split_and_balance(
         input_path=args.input,
@@ -153,6 +161,7 @@ def main():
         scaler_name=args.scaler,
         y_file=args.y_file,
         meta_files=args.meta,
+        dropna_flag=dropna_flag,
     )
 
 
