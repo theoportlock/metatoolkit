@@ -23,8 +23,6 @@ def load_table(table_path, tax_level):
     # Extract numeric SGB ID (remove everything before the prefix)
     df.columns = df.columns.str.replace(fr'.*{tax_level}SGB', '', regex=True)
 
-    # Ensure numeric values
-    df = df.apply(pd.to_numeric, errors='coerce').fillna(0)
     return df
 
 
@@ -57,13 +55,15 @@ def parse_args():
         help='Which alpha diversity metrics to calculate (default: all).'
     )
     parser.add_argument(
-        '--tax-level',
+        '--tax_level',
         #choices=['t__', 's__'],
         default='t__',
         help='Taxonomic prefix of interest in column names (default: t__).'
     )
     return parser.parse_args()
 
+
+# ... (imports and functions load_table, load_tree, save, parse_args remain unchanged) ...
 
 def main():
     args = parse_args()
@@ -102,12 +102,26 @@ def main():
         if 'shannon' in metrics:
             row['Shannon'] = shannon(values)
         if 'richness' in metrics:
+            # Richness is calculated as the count of non-zero values
             row['Richness'] = np.count_nonzero(values > 0)
         if 'faiths' in metrics:
             if sample_id in table_for_faith.index:
                 faith_values = table_for_faith.loc[sample_id].values
                 faith_taxa = table_for_faith.columns.values
-                row['Faiths_PD'] = faith_pd(counts=faith_values, taxa=faith_taxa, tree=tree)
+
+                # ==========================================================
+                # CRITICAL FIX: Ensure Faith's PD is unweighted by abundance.
+                # Faith's PD is a presence/absence metric (like richness).
+                # Converting the abundance vector to a binary (0 or 1) vector
+                # prevents large absolute counts from incorrectly scaling the result.
+                binary_counts = (faith_values > 0).astype(int)
+
+                row['Faiths_PD'] = faith_pd(
+                    counts=binary_counts, # Pass the binary vector
+                    taxa=faith_taxa,
+                    tree=tree
+                )
+                # ==========================================================
             else:
                 row['Faiths_PD'] = np.nan
         results[sample_id] = row
