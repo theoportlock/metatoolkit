@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
+import numpy as np
 import argparse
 
 def parse_args():
@@ -28,7 +29,7 @@ def main():
     colname, expr = [x.strip() for x in args.assign.split("=", 1)]
 
     # Use pandas.eval for flexible boolean logic
-    df[colname] = pd.eval(expr, engine="python", local_dict={"df": df, **locals(), **globals()}, target=df)
+    df[colname] = eval(expr, {"df": df, "np": np})
 
     df.to_csv(args.output, sep="\t", index=False)
 

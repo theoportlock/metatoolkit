@@ -10,59 +10,62 @@ import re
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="General Linear Mixed Effects Models (LMM) for multiple response variables."
+        description="General Linear / Linear Mixed Models for multiple response variables."
     )
-    parser.add_argument("-i", "--response_data", required=True,
-                        help="Input TSV/CSV with samples as rows and response variables as columns (e.g., genes, metabolites, diversity metrics).")
-    parser.add_argument("-m", "--metadata", required=True,
-                        help="Metadata TSV/CSV file containing predictors and grouping variables (index_col=0).")
-    parser.add_argument("-f", "--formula", required=True,
-                        help="Formula Right-Hand Side (e.g. 'Timepoint * Treatment + Age'). Do not include the dependent variable name.")
-    parser.add_argument("-g", "--grouping_variable", required=True,
-                        help="Column name for the Random Effect (e.g. SubjectID, PatientID).")
-    parser.add_argument("-o", "--output", required=True, help="Output filename for results (TSV).")
+    parser.add_argument(
+        "-i", "--response_data", required=True,
+        help="Input TSV/CSV with samples as rows and response variables as columns."
+    )
+    parser.add_argument(
+        "-m", "--metadata", required=True,
+        help="Metadata TSV/CSV file containing predictors (index_col=0)."
+    )
+    parser.add_argument(
+        "-f", "--formula", required=False,
+        help="Right-hand side formula. If omitted, uses ALL metadata columns: col1 + col2 + ..."
+    )
+    parser.add_argument(
+        "-g", "--grouping_variable", required=False,
+        help="Optional Random Effect grouping variable. If omitted, uses OLS."
+    )
+    parser.add_argument("-o", "--output", required=True, help="Output filename (TSV).")
     return parser.parse_args()
 
+
 def sanitize_colnames(df):
-    """
-    Statsmodels/Patsy struggles with column names containing '.', spaces, or starting with numbers.
-    We replace '.' and spaces with '_' to ensure formulas work.
-    """
     new_cols = {col: col.replace('.', '_').replace(' ', '_').replace('-', '_') for col in df.columns}
     return df.rename(columns=new_cols), new_cols
 
-def fit_mixed_model(y, metadata, formula, group_col):
-    # Combine response and metadata
+
+def build_default_formula(metadata):
+    """Construct RHS formula from all metadata columns."""
+    cols = metadata.columns
+    rhs = " + ".join(cols)
+    return rhs
+
+
+def fit_model(y, metadata, formula, group_col):
     df = metadata.copy()
-    # We use a generic internal name for the response variable to simplify the formula injection
     target_col_name = "__target_response__"
     df[target_col_name] = y
+    df[target_col_name] = pd.to_numeric(df[target_col_name], errors="coerce")
 
-    # Ensure numeric data is numeric
-    df[target_col_name] = pd.to_numeric(df[target_col_name], errors='coerce')
+    # Extract predictor names for NaN filtering
+    formula_vars = [x.strip() for x in re.split(r"[+*():]", formula) if x.strip()]
 
-    # Drop NaN values specifically for the columns involved in this model
-    # We extract variables from formula to check for NaNs
-    formula_vars = [x.strip() for x in re.split(r'[+*():]', formula) if x.strip()]
-
-    # Clean out interaction terms or function calls from the variable list for NaN checking
-    # This removes things like "C(Var)" or "np.log(Var)" to just get "Var" ideally,
-    # though simple splitting works for 90% of cases.
     clean_vars = []
     for v in formula_vars:
-        # Remove patsy wrappers like C(), I(), etc if simple
-        v_clean = re.sub(r'^[A-Z]+\((.*)\)$', r'\1', v)
+        v_clean = re.sub(r"^[A-Z]+\((.*)\)$", r"\1", v)
         if v_clean in df.columns:
             clean_vars.append(v_clean)
         elif v in df.columns:
             clean_vars.append(v)
 
-    cols_to_check = [group_col, target_col_name] + clean_vars
+    cols_to_check = [target_col_name] + clean_vars
+    if group_col and group_col in df.columns:
+        cols_to_check.append(group_col)
 
-    # Filter df to only existing columns to avoid errors if parsing failed
-    cols_to_check = [c for c in cols_to_check if c in df.columns]
-
-    df_clean = df.dropna(subset=cols_to_check)
+    df_clean = df.dropna(subset=[c for c in cols_to_check if c in df.columns])
 
     if df_clean.empty:
         return pd.DataFrame([{
@@ -70,27 +73,33 @@ def fit_mixed_model(y, metadata, formula, group_col):
             "status": "ERROR: No data after dropping NaNs"
         }])
 
+    full_formula = f"{target_col_name} ~ {formula}"
+
     try:
-        # Fit Model
-        full_formula = f"{target_col_name} ~ {formula}"
+        # OLS if group_col is None
+        if group_col is None:
+            result = smf.ols(full_formula, df_clean).fit()
+            model_type = "OLS"
+        else:
+            model = smf.mixedlm(full_formula, df_clean, groups=df_clean[group_col])
+            result = model.fit(reml=False)
+            model_type = "LMM"
 
-        model = smf.mixedlm(full_formula, df_clean, groups=df_clean[group_col])
-        result = model.fit(reml=False)
-
-        # Extract Results
         results_df = pd.DataFrame({
             "term": result.params.index,
             "coef": result.params.values,
             "std_err": result.bse.values,
-            "z_score": result.tvalues.values,
-            "pval": result.pvalues.values,
-            "conf_lower": result.conf_int()[0].values,
-            "conf_upper": result.conf_int()[1].values
+            "z_score": result.tvalues,
+            "pval": result.pvalues,
+            "conf_lower": result.conf_int()[0],
+            "conf_upper": result.conf_int()[1],
         })
 
-        results_df["status"] = "Converged"
+        results_df["status"] = f"Converged ({model_type})"
         results_df["n_obs"] = result.nobs
-        results_df["n_groups"] = df_clean[group_col].nunique()
+        results_df["n_groups"] = (
+            df_clean[group_col].nunique() if group_col else np.nan
+        )
 
         return results_df
 
@@ -102,73 +111,73 @@ def fit_mixed_model(y, metadata, formula, group_col):
             "status": f"ERROR: {str(e)}"
         }])
 
+
 def main():
     args = parse_args()
 
-    # 1. Load Data
-    print("Loading data...")
-    try:
-        # Detect separator based on extension, default to tab
-        sep_resp = ',' if args.response_data.endswith('.csv') else '\t'
-        sep_meta = ',' if args.metadata.endswith('.csv') else '\t'
+    # Load data
+    sep_resp = ',' if args.response_data.endswith('.csv') else '\t'
+    sep_meta = ',' if args.metadata.endswith('.csv') else '\t'
 
+    try:
         response_df = pd.read_csv(args.response_data, sep=sep_resp, index_col=0)
         metadata = pd.read_csv(args.metadata, sep=sep_meta, index_col=0)
     except Exception as e:
-        sys.exit(f"Error reading files: {e}")
+        sys.exit(f"Error reading input files: {e}")
 
-    # 2. Sanitize Metadata Column Names
+    # Sanitize metadata column names
     metadata, name_map = sanitize_colnames(metadata)
 
-    print(f"Sanitized metadata columns (dots/spaces replaced by underscores).")
+    # Auto-build formula if missing
+    if args.formula:
+        sanitized_formula = args.formula.replace('.', '_')
+    else:
+        sanitized_formula = build_default_formula(metadata)
+        print(f"No formula supplied → Using all metadata columns:\n  {sanitized_formula}")
 
-    # Adjust user formula arguments to match sanitized names
-    # CRITICAL FIX: Only replace dots in formula. Do NOT replace spaces or hyphens as they are syntax.
-    sanitized_formula = args.formula.replace('.', '_')
+    # Optional grouping variable
+    if args.grouping_variable:
+        sanitized_group = (
+            args.grouping_variable.replace('.', '_').replace(' ', '_').replace('-', '_')
+        )
+        print(f"Using Random Effect grouping variable: {sanitized_group}")
+    else:
+        sanitized_group = None
+        print("No grouping variable supplied → Models will be OLS")
 
-    # Grouping variable IS a column name, so it needs full sanitization
-    sanitized_group = args.grouping_variable.replace('.', '_').replace(' ', '_').replace('-', '_')
-
-    print(f"Using formula: Response ~ {sanitized_formula}")
-    print(f"Grouping by: {sanitized_group}")
-
-    # 3. Align samples
+    # Align samples
     shared_samples = response_df.index.intersection(metadata.index)
-    if len(shared_samples) == 0:
-        sys.exit("Error: No matching sample IDs found between response data and metadata files.")
+    if not len(shared_samples):
+        sys.exit("No matching sample IDs found between response data and metadata.")
 
-    print(f"Found {len(shared_samples)} shared samples.")
     response_df = response_df.loc[shared_samples]
     metadata = metadata.loc[shared_samples]
 
     results = []
 
-    # 4. Iterate and Model
-    # We iterate over every column in the response dataframe
-    for feature_name in tqdm(response_df.columns, desc="Fitting mixed models"):
+    # Fit models
+    for feature_name in tqdm(response_df.columns, desc="Fitting models"):
         y = response_df[feature_name]
 
-        # Skip non-numeric columns in response data
         if not pd.api.types.is_numeric_dtype(y):
             continue
 
-        res = fit_mixed_model(y, metadata, sanitized_formula, sanitized_group)
+        res = fit_model(y, metadata, sanitized_formula, sanitized_group)
         res.insert(0, "response_variable", feature_name)
         results.append(res)
 
-    # 5. Save
     if not results:
-        sys.exit("No models were successfully run. Check if your input data is numeric.")
+        sys.exit("No models successfully run.")
 
     final = pd.concat(results, axis=0)
-
-    output_dir = os.path.dirname(args.output)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-
+    outdir = os.path.dirname(args.output)
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
     final.to_csv(args.output, sep="\t", index=False)
 
-    print(f"✅ Results saved to: {args.output}")
+    print(f"✓ Results saved to: {args.output}")
+
 
 if __name__ == "__main__":
     main()
+

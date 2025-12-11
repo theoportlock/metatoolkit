@@ -1,5 +1,6 @@
 #!/bin/bash
 source env.sh
+set -e
 
 #input=results/table1/work/all_data_merged.tsv
 #output=results/table1/work/stats
