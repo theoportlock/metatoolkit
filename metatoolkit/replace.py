@@ -19,6 +19,8 @@ def load(filepath):
     return pd.read_csv(filepath, sep='\t')
 
 def save(df, filepath):
+    # Make sure the parent directory exists
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     # First column becomes the index again before saving
     df.set_index(df.columns[0], inplace=True)
     df.to_csv(filepath, sep='\t', index=True)

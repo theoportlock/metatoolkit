@@ -89,7 +89,7 @@ if __name__ == "__main__":
         df = apply_mapping(df, mapping, args.axis)
 
     # Otherwise, fall back to regex mode
-    elif args.match and args.replace:
+    elif args.match and args.replace is not None:
         df = regex_replace(df, args.match, args.replace, args.axis)
     else:
         raise ValueError("You must specify either --map or both --match and --replace.")

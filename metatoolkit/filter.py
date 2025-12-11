@@ -92,6 +92,16 @@ def apply_filters(df, **kw):
         df = df.select_dtypes(include=[np.number])
         log(f"Numeric-only columns: {df.shape[1]} remaining")
 
+        # --- Dtype filtering ---
+    if (dt := kw.get("dtype")):
+        try:
+            before = df.shape[1]
+            df = df.select_dtypes(include=[dt])
+            log(f"Dtype '{dt}' columns: kept {df.shape[1]}/{before}")
+        except Exception as e:
+            log(f"Dtype filter error: {e}")
+
+
     # --- Query filter ---
     if (queries := kw.get("query")):
         qstr = " & ".join(f"({q})" for q in queries)
@@ -110,8 +120,7 @@ def parse_args():
     p.add_argument("-o", "--output", help="Path to output TSV file (default: adds _filter suffix)")
     p.add_argument("-fdf", "--filter_df", help="Path to TSV with index to filter by")
     p.add_argument("-fdfx", "--filter_df_axis", type=int, default=0, help="Axis to filter (0=row, 1=column)")
-    p.add_argument("--column", default="index",
-                   help="Column(s) to match filter_df index against, comma-separated (default: index)")
+    p.add_argument("--column", default="index", help="Column(s) to match filter_df index against")
     p.add_argument("-rf", "--rowfilt", help="Regex for filtering rows (index)")
     p.add_argument("-cf", "--colfilt", help="Regex for filtering columns")
     p.add_argument("-p", "--prevail", type=float, help="Prevalence threshold (0–1)")
@@ -120,6 +129,7 @@ def parse_args():
     p.add_argument("--min_nonzero_rows", type=int, help="Minimum number of non-zero values per row")
     p.add_argument("--min_nonzero_cols", type=int, help="Minimum number of non-zero values per column")
     p.add_argument("--numeric_only", action="store_true", help="Keep numeric columns only")
+    p.add_argument("--dtype", help="Keep only columns matching this dtype (e.g. 'float', 'int', 'bool')")
     p.add_argument("-q", "--query", action="append", help="Pandas query string(s)")
     return p.parse_args()
 
