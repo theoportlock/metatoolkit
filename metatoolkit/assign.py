@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import pandas as pd
+import numpy as np
 import argparse
 
 def parse_args():
@@ -49,7 +50,6 @@ def main():
             local_dict={"df": df},
             target=df
         )
-
     df.to_csv(args.output, sep="\t", index=False)
 
 if __name__ == "__main__":

@@ -9,19 +9,37 @@ def load(input_path):
     return pd.read_csv(input_path, sep='\t', index_col=0)
 
 def save(df, output_path):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df.to_csv(output_path, sep='\t')
+    outdir = os.path.dirname(output_path)
+    if outdir:  # only create if not empty
+        os.makedirs(outdir, exist_ok=True)
+    df.to_csv(output_path, sep='\t', index=True)
 
 def fdr(df, pcol='pval', method='fdr_bh', alpha=0.05):
     if pcol not in df.columns:
-        raise ValueError(f"Specified p-value column '{pcol}' not in DataFrame columns: {df.columns.tolist()}")
+        raise ValueError(
+            f"Specified p-value column '{pcol}' not in DataFrame columns: {df.columns.tolist()}"
+        )
 
     df = df.copy()
-    pvals = df[pcol].values
-    rejected, qvals, _, _ = multipletests(pvals, alpha=alpha, method=method)
-    df['qval'] = qvals
-    df['significant'] = rejected
+
+    # Mask valid (non-NA) p-values
+    mask = df[pcol].notna()
+    pvals = df.loc[mask, pcol].values
+
+    # Initialise output columns
+    df['qval'] = pd.NA
+    df['significant'] = False
+
+    # Only apply correction if there are valid p-values
+    if len(pvals) > 0:
+        rejected, qvals, _, _ = multipletests(
+            pvals, alpha=alpha, method=method
+        )
+        df.loc[mask, 'qval'] = qvals
+        df.loc[mask, 'significant'] = rejected
+
     return df
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Apply FDR correction to p-values in a TSV file.")
