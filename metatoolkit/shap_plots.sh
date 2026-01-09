@@ -3,8 +3,8 @@
 set +e
 source env.sh
 
-input="results/prediction/dataset_rf_shap/shap_values_test.joblib"
-output="results/prediction/plots"
+#input="results/prediction/dataset_rf_shap/shap_values_test.joblib"
+#output="results/prediction/plots"
 input=$1
 output=$2
 

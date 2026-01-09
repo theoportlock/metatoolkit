@@ -4,28 +4,45 @@
 import os
 import re
 import argparse
+import json
 from pathlib import Path
 import pandas as pd
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Rename dataframe columns or index using regex."
+        description="Rename dataframe columns or index using regex or multiple mappings."
     )
-    parser.add_argument("subject", help="Input dataframe file or identifier.")
-    parser.add_argument("--match", help="Regex pattern to match.", required=True)
-    parser.add_argument("--replace", help="Replacement pattern.", required=True)
-    parser.add_argument("--axis", choices=["columns", "index"], default="columns",
-                        help="Axis to rename (default: columns).")
-    parser.add_argument("--output", help="Output filename for the renamed dataframe")
+    parser.add_argument("subject", help="Input dataframe file or identifier (TSV format).")
+    parser.add_argument(
+        "--match",
+        help="Regex pattern to match (ignored if --map is provided).",
+    )
+    parser.add_argument(
+        "--replace",
+        help="Replacement pattern (used with --match). Can be a string or a Python lambda.",
+    )
+    parser.add_argument(
+        "--map",
+        help="JSON or comma-separated key:value pairs for multiple replacements, e.g. '{\"old1\":\"new1\", \"old2\":\"new2\"}'.",
+    )
+    parser.add_argument(
+        "--axis",
+        choices=["columns", "index"],
+        default="columns",
+        help="Axis to rename (default: columns).",
+    )
+    parser.add_argument(
+        "-o", "--output", help="Output filename for the renamed dataframe", required=True
+    )
 
-    known, unknown = parser.parse_known_args()
-    return vars(known), unknown
+    args = parser.parse_args()
+    return args
 
 
 def save_dataframe(df, output_path):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df.to_csv(output_path, sep="\t", index=df.index.name is not None)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    df.to_csv(output_path, sep="\t", index=True)
 
 
 def load_dataframe(subject):
@@ -33,33 +50,50 @@ def load_dataframe(subject):
     return pd.read_csv(path, sep="\t", index_col=0)
 
 
-def regex_replace(df, match_pattern, replace_pattern, axis):
+def apply_mapping(df, mapping, axis):
+    """Apply a dict-based or list-based rename"""
     if axis == "index":
-        new_labels = [re.sub(match_pattern, replace_pattern, str(label)) for label in df.index]
-        df.index = new_labels
+        df.rename(index=mapping, inplace=True)
     else:
-        new_labels = [re.sub(match_pattern, replace_pattern, str(label)) for label in df.columns]
-        df.columns = new_labels
+        df.rename(columns=mapping, inplace=True)
+    return df
+
+
+def regex_replace(df, match_pattern, replace_pattern, axis):
+    """Perform regex-based renaming (supports lambdas)"""
+    # allow lambda replacements
+    if replace_pattern and replace_pattern.strip().startswith("lambda"):
+        func = eval(replace_pattern)
+        repl = func
+    else:
+        repl = replace_pattern
+
+    if axis == "index":
+        df.index = [re.sub(match_pattern, repl, str(label)) for label in df.index]
+    else:
+        df.columns = [re.sub(match_pattern, repl, str(label)) for label in df.columns]
     return df
 
 
 if __name__ == "__main__":
-    known_args, _ = parse_arguments()
-    subject = known_args.pop("subject")
-    subject_name = Path(subject).stem if os.path.isfile(subject) else subject
+    args = parse_arguments()
+    df = load_dataframe(args.subject)
 
-    df = load_dataframe(subject)
+    # If --map is provided, handle multiple replacements at once
+    if args.map:
+        try:
+            mapping = json.loads(args.map)
+        except json.JSONDecodeError:
+            # fallback for "a:b,c:d" syntax
+            mapping = dict(pair.split(":") for pair in args.map.split(","))
+        df = apply_mapping(df, mapping, args.axis)
 
-    df = regex_replace(
-        df,
-        match_pattern=known_args["match"],
-        replace_pattern=known_args["replace"],
-        axis=known_args["axis"]
-    )
+    # Otherwise, fall back to regex mode
+    elif args.match and args.replace is not None:
+        df = regex_replace(df, args.match, args.replace, args.axis)
+    else:
+        raise ValueError("You must specify either --map or both --match and --replace.")
 
-    output_filename = known_args.get("output")
-    if output_filename is None:
-        output_filename = f"{subject_name}_regexrenamed.tsv"
-    save_dataframe(df, output_filename)
-    print(f"Saved regex-renamed dataframe to: {output_filename}")
+    save_dataframe(df, args.output)
+    print(f"✅ Saved renamed DataFrame → {args.output}")
 

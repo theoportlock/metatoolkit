@@ -27,8 +27,6 @@ def load_tree(tree_path):
     return TreeNode.read(tree_path)
 
 def save(df, path):
-    if not path.endswith('.tsv'):
-        path = f'results/{path}.tsv'
     os.makedirs(os.path.dirname(path), exist_ok=True)
     df.to_csv(path, sep='\t')
 

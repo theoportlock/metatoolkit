@@ -9,12 +9,12 @@ import argparse
 import os
 import pandas as pd
 import skbio
+import numpy as np
 
 
 def parse_arguments():
-    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Perform PCoA on a distance edge list"
+        description="Perform PCoA on a distance edge list (source, target, distance)"
     )
 
     # Positional input file
@@ -30,6 +30,7 @@ def parse_arguments():
         required=True,
         help="Output file path (TSV)"
     )
+<<<<<<< HEAD
 
     parser.add_argument(
         "--source-col",
@@ -106,7 +107,6 @@ def load_edge_list(
         )
 
     return dist_mat
-
 
 
 def perform_pcoa(df: pd.DataFrame, dims: int) -> pd.DataFrame:

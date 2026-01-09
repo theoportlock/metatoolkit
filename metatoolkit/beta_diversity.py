@@ -1,14 +1,15 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import argparse
 import os
 import pandas as pd
 import numpy as np
-from itertools import combinations
+from itertools import permutations
 
 from skbio import TreeNode
 from skbio.diversity import beta_diversity
-from scipy.spatial.distance import pdist, squareform   # only for bray & jaccard
+from scipy.spatial.distance import pdist, squareform
 
 
 def load_table(table_path, tax_level):
@@ -45,10 +46,10 @@ def save(df, path):
 def parse_args():
     parser = argparse.ArgumentParser(
         description=("Calculate pairwise beta diversity metrics "
-                     "(Bray–Curtis, Jaccard, Weighted/Unweighted UniFrac).")
+                     "(Bray–Curtis, Jaccard, Euclidean, Weighted/Unweighted UniFrac).")
     )
     parser.add_argument('table', help='Input abundance table (TSV, samples x taxa)')
-    parser.add_argument('-t','--tree', help='Newick tree file (required only for UniFrac)')
+    parser.add_argument('-t', '--tree', help='Newick tree file (required only for UniFrac)')
     parser.add_argument(
         '-o', '--outfile', type=str,
         help='Output file name (default: beta_diversity.tsv in same directory as input table)'
@@ -56,7 +57,14 @@ def parse_args():
     parser.add_argument(
         '--metrics',
         nargs='+',
-        choices=['bray-curtis', 'jaccard', 'weighted-unifrac', 'unweighted-unifrac', 'all'],
+        choices=[
+            'bray-curtis',
+            'jaccard',
+            'euclidean',
+            'weighted-unifrac',
+            'unweighted-unifrac',
+            'all'
+        ],
         default=['all'],
         help='Which beta diversity metrics to calculate (default: all).'
     )
@@ -82,7 +90,13 @@ def main():
     sample_ids = table.index.tolist()
     metrics = args.metrics
     if 'all' in metrics:
-        metrics = ['bray-curtis', 'jaccard', 'weighted-unifrac', 'unweighted-unifrac']
+        metrics = [
+            'bray-curtis',
+            'jaccard',
+            'euclidean',
+            'weighted-unifrac',
+            'unweighted-unifrac'
+        ]
 
     # Prepare tree only if needed for UniFrac
     tree = None
@@ -111,13 +125,17 @@ def main():
         jc = squareform(pdist(presence, metric='jaccard'))
         dist_matrices['jaccard'] = pd.DataFrame(jc, index=sample_ids, columns=sample_ids)
 
+    if 'euclidean' in metrics:
+        eu = squareform(pdist(table.values, metric='euclidean'))
+        dist_matrices['euclidean'] = pd.DataFrame(eu, index=sample_ids, columns=sample_ids)
+
     if 'weighted-unifrac' in metrics:
         dist_matrices['weighted-unifrac'] = beta_diversity(
             metric='weighted_unifrac',
             counts=table.values,
             ids=sample_ids,
             tree=tree,
-            taxa=table.columns.values   # <-- required!
+            taxa=table.columns.values
         ).to_data_frame()
 
     if 'unweighted-unifrac' in metrics:
@@ -127,12 +145,21 @@ def main():
             counts=presence,
             ids=sample_ids,
             tree=tree,
-            taxa=table.columns.values   # <-- required!
+            taxa=table.columns.values
         ).to_data_frame()
 
-    # Build long-format table
+    # Build long-format table with ALL pairwise permutations (including self)
     rows = []
-    for i, j in combinations(sample_ids, 2):
+
+    # self-pairs (distance = 0)
+    for i in sample_ids:
+        row = {'source': i, 'target': i}
+        for m in metrics:
+            row[m] = 0.0
+        rows.append(row)
+
+    # all pairwise permutations
+    for i, j in permutations(sample_ids, 2):
         row = {'source': i, 'target': j}
         for m in metrics:
             row[m] = dist_matrices[m].loc[i, j]

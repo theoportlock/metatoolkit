@@ -31,10 +31,13 @@ def build_xgb_model(task, args):
         raise ValueError(f"Unsupported task: {task}")
 
 
-def save_model(model, output_path):
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, output_path)
-    print(f"✅ Model saved to: {output_path}")
+def save_model(model, outpath):
+    """Save XGBoost model safely."""
+
+    # XGBoost built-in save
+    model.save_model(outpath)
+
+    print(f"✅ Model saved to: {outpath}")
 
 
 def build_parser():

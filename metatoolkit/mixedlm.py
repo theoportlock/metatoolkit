@@ -1,56 +1,183 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import sys
 import pandas as pd
+import numpy as np
 import statsmodels.formula.api as smf
 from tqdm import tqdm
+import re
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run mixed-effects models on many response variables.")
-    parser.add_argument("--formula", type=str, required=True, help="Model formula (e.g., ~ timepoint * Feed + Sex)")
-    parser.add_argument("--metadata_file", type=str, required=True, help="Path to metadata TSV file (index_col=0)")
-    parser.add_argument("--data_file", type=str, required=True, help="Path to data TSV file (index_col=0)")
-    parser.add_argument("--grouping_variable", type=str, required=True, help="Column name in metadata used for grouping (random effect)")
-    parser.add_argument("--output_file", type=str, required=True, help="Path to output TSV for model results")
+    parser = argparse.ArgumentParser(
+        description="General Linear / Linear Mixed Models for multiple response variables."
+    )
+    parser.add_argument(
+        "-i", "--response_data", required=True,
+        help="Input TSV/CSV with samples as rows and response variables as columns."
+    )
+    parser.add_argument(
+        "-m", "--metadata", required=True,
+        help="Metadata TSV/CSV file containing predictors (index_col=0)."
+    )
+    parser.add_argument(
+        "-f", "--formula", required=False,
+        help="Right-hand side formula. If omitted, uses ALL metadata columns: col1 + col2 + ..."
+    )
+    parser.add_argument(
+        "-g", "--grouping_variable", required=False,
+        help="Optional Random Effect grouping variable. If omitted, uses OLS."
+    )
+    parser.add_argument("-o", "--output", required=True, help="Output filename (TSV).")
     return parser.parse_args()
 
-def fit_mixed_model(y, metadata, formula, group_col):
-    data = metadata.copy()
-    data["__response__"] = y
-    try:
-        model = smf.mixedlm(f"__response__ {formula}", data, groups=data[group_col])
-        result = model.fit(reml=False)
-        summary = result.summary().tables[1]
-        summary = summary.reset_index().rename(columns={"index": "term"})
-        summary["status"] = "OK"
-        return summary[["term", "Coef.", "P>|z|", "Std.Err.", "status"]]
-    except Exception as e:
+
+def sanitize_colnames(df):
+    new_cols = {col: col.replace('.', '_').replace(' ', '_').replace('-', '_') for col in df.columns}
+    return df.rename(columns=new_cols), new_cols
+
+
+def build_default_formula(metadata):
+    """Construct RHS formula from all metadata columns."""
+    cols = metadata.columns
+    rhs = " + ".join(cols)
+    return rhs
+
+
+def fit_model(y, metadata, formula, group_col):
+    df = metadata.copy()
+    target_col_name = "__target_response__"
+    df[target_col_name] = y
+    df[target_col_name] = pd.to_numeric(df[target_col_name], errors="coerce")
+
+    # Extract predictor names for NaN filtering
+    formula_vars = [x.strip() for x in re.split(r"[+*():]", formula) if x.strip()]
+
+    clean_vars = []
+    for v in formula_vars:
+        v_clean = re.sub(r"^[A-Z]+\((.*)\)$", r"\1", v)
+        if v_clean in df.columns:
+            clean_vars.append(v_clean)
+        elif v in df.columns:
+            clean_vars.append(v)
+
+    cols_to_check = [target_col_name] + clean_vars
+    if group_col and group_col in df.columns:
+        cols_to_check.append(group_col)
+
+    df_clean = df.dropna(subset=[c for c in cols_to_check if c in df.columns])
+
+    if df_clean.empty:
         return pd.DataFrame([{
-            "term": "NA", "Coef.": None, "P>|z|": None, "Std.Err.": None, "status": f"ERROR: {e}"
+            "term": "NA", "coef": np.nan, "pval": np.nan,
+            "status": "ERROR: No data after dropping NaNs"
         }])
 
+    full_formula = f"{target_col_name} ~ {formula}"
+
+    try:
+        # OLS if group_col is None
+        if group_col is None:
+            result = smf.ols(full_formula, df_clean).fit()
+            model_type = "OLS"
+        else:
+            model = smf.mixedlm(full_formula, df_clean, groups=df_clean[group_col])
+            result = model.fit(reml=False)
+            model_type = "LMM"
+
+        results_df = pd.DataFrame({
+            "term": result.params.index,
+            "coef": result.params.values,
+            "std_err": result.bse.values,
+            "z_score": result.tvalues,
+            "pval": result.pvalues,
+            "conf_lower": result.conf_int()[0],
+            "conf_upper": result.conf_int()[1],
+        })
+
+        results_df["status"] = f"Converged ({model_type})"
+        results_df["n_obs"] = result.nobs
+        results_df["n_groups"] = (
+            df_clean[group_col].nunique() if group_col else np.nan
+        )
+
+        return results_df
+
+    except Exception as e:
+        return pd.DataFrame([{
+            "term": "NA",
+            "coef": np.nan,
+            "pval": np.nan,
+            "status": f"ERROR: {str(e)}"
+        }])
+
+
 def main():
+    import sys; print(sys.argv)
     args = parse_args()
-    
-    metadata = pd.read_csv(args.metadata_file, sep="\t", index_col=0)
-    data = pd.read_csv(args.data_file, sep="\t", index_col=0)
-    
+
+    # Load data
+    sep_resp = ',' if args.response_data.endswith('.csv') else '\t'
+    sep_meta = ',' if args.metadata.endswith('.csv') else '\t'
+
+    try:
+        response_df = pd.read_csv(args.response_data, sep=sep_resp, index_col=0)
+        metadata = pd.read_csv(args.metadata, sep=sep_meta, index_col=0)
+    except Exception as e:
+        sys.exit(f"Error reading input files: {e}")
+
+    # Sanitize metadata column names
+    metadata, name_map = sanitize_colnames(metadata)
+
+    # Auto-build formula if missing
+    if args.formula:
+        sanitized_formula = args.formula.replace('.', '_')
+    else:
+        sanitized_formula = build_default_formula(metadata)
+        print(f"No formula supplied → Using all metadata columns:\n  {sanitized_formula}")
+
+    # Optional grouping variable
+    if args.grouping_variable:
+        sanitized_group = (
+            args.grouping_variable.replace('.', '_').replace(' ', '_').replace('-', '_')
+        )
+        print(f"Using Random Effect grouping variable: {sanitized_group}")
+    else:
+        sanitized_group = None
+        print("No grouping variable supplied → Models will be OLS")
+
     # Align samples
-    shared_samples = metadata.index.intersection(data.index)
+    shared_samples = response_df.index.intersection(metadata.index)
+    if not len(shared_samples):
+        sys.exit("No matching sample IDs found between response data and metadata.")
+
+    response_df = response_df.loc[shared_samples]
     metadata = metadata.loc[shared_samples]
-    data = data.loc[shared_samples]
 
     results = []
-    for feature in tqdm(data.columns, desc="Modeling features"):
-        y = data[feature]
-        summary_df = fit_mixed_model(y, metadata, args.formula, args.grouping_variable)
-        summary_df.insert(0, "feature", feature)
-        results.append(summary_df)
 
-    final_df = pd.concat(results, axis=0)
-    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
-    final_df.to_csv(args.output_file, sep="\t", index=False)
-    print(f"Saved results to {args.output_file}")
+    # Fit models
+    for feature_name in tqdm(response_df.columns, desc="Fitting models"):
+        y = response_df[feature_name]
+
+        if not pd.api.types.is_numeric_dtype(y):
+            continue
+
+        res = fit_model(y, metadata, sanitized_formula, sanitized_group)
+        res.insert(0, "response_variable", feature_name)
+        results.append(res)
+
+    if not results:
+        sys.exit("No models successfully run.")
+
+    final = pd.concat(results, axis=0)
+    outdir = os.path.dirname(args.output)
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
+    final.to_csv(args.output, sep="\t", index=False)
+
+    print(f"✓ Results saved to: {args.output}")
+
 
 if __name__ == "__main__":
     main()

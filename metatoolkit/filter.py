@@ -5,127 +5,154 @@ import argparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import os
 
-def load(subject):
-    if os.path.isfile(subject):
-        return pd.read_csv(subject, sep='\t', index_col=0)
-    return pd.read_csv(f'results/{subject}.tsv', sep='\t', index_col=0)
 
-def save(df, subject, index=True):
-    if not subject.endswith('.tsv'):
-        subject = f'results/{subject}.tsv'
-    output_path = subject
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df.to_csv(output_path, sep='\t', index=index)
+# ---------- Utility ---------- #
 
-def filter(df, **kwargs):
+def log(msg):
+    print(f"[filter] {msg}")
+
+def load(path):
+    """Load a TSV file with index in first column."""
+    return pd.read_csv(path, sep="\t", index_col=0)
+
+def save(df, path, index=True):
+    """Save DataFrame to a TSV file."""
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, sep="\t", index=index)
+
+
+# ---------- Filtering Logic ---------- #
+
+def apply_filters(df, **kw):
+    """Filter DataFrame rows/columns or by one or more columns according to filter_df and other options."""
     df.index = df.index.astype(str)
-    if kwargs.get('filter_df') is not None:
-        filter_df = kwargs.get('filter_df')
-        if filter_df is not None:
-            if kwargs.get('filter_df_axis') == 1:
-                common_cols = df.columns.intersection(filter_df.index)
-                df = df.loc[:, common_cols]
+
+    # --- Filter by another DataFrame’s index ---
+    if (fdf := kw.get("filter_df")) is not None:
+        valid_ids = set(fdf.index.astype(str))
+        column_arg = kw.get("column", "index")
+
+        columns = [c.strip() for c in column_arg.split(",") if c.strip()]
+        keep_mask = pd.Series(True, index=df.index)
+
+        for c in columns:
+            if c == "index":
+                before = keep_mask.sum()
+                keep_mask &= df.index.isin(valid_ids)
+                log(f"Index filter: {keep_mask.sum()}/{before} rows remain")
+            elif c in df.columns:
+                before = keep_mask.sum()
+                keep_mask &= df[c].astype(str).isin(valid_ids)
+                log(f"Column '{c}' filter: {keep_mask.sum()}/{before} rows remain")
             else:
-                common_rows = df.index.intersection(filter_df.index)
-                df = df.loc[common_rows]
-    if kwargs.get('colfilt'):
-        if kwargs.get('drop'):
-            df = df.loc[:, ~df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
-        else:
-            df = df.loc[:, df.columns.str.contains(kwargs.get('colfilt'), regex=True)]
-    if kwargs.get('rowfilt'):
-        if kwargs.get('drop'):
-            df = df.loc[~df.index.str.contains(kwargs.get('rowfilt'), regex=True)]
-        else:
-            df = df.loc[df.index.str.contains(kwargs.get('rowfilt'), regex=True)]
-    if kwargs.get('prevail'):
-        df = df.loc[:, df.agg(np.count_nonzero, axis=0).gt(df.shape[0]*kwargs.get('prevail'))]
-    if kwargs.get('abund'):
-        df = df.loc[:, df.mean().gt(kwargs.get('abund'))]
-    if kwargs.get('min_unique'):
-        df = df.loc[:, df.nunique().gt(kwargs.get('min_unique'))]
-    if kwargs.get('nonzero'):
-        df = df.loc[df.sum(axis=1) != 0, df.sum(axis=0) != 0]
-    if kwargs.get('min_nonzero_rows') is not None:
-        df = df[df.astype(bool).sum(axis=1) >= kwargs.get('min_nonzero_rows')]
-    if kwargs.get('min_nonzero_cols') is not None:
-        df = df.loc[:, df.astype(bool).sum(axis=0) >= kwargs.get('min_nonzero_cols')]
-    if kwargs.get('numeric_only'):
-        if ~(df.apply(lambda s: pd.to_numeric(s, errors='coerce').notnull().all())).any():
-            df = pd.DataFrame()
-    queries = kwargs.get('query')
-    if queries:
-        combined_query = ' & '.join(f"({q})" for q in queries)
-        df = df.query(combined_query, engine='python')
-    if kwargs.get('dtype'):
-        df = df.select_dtypes(kwargs.get('dtype'))
-    if df.empty:
-        return None
-    else:
-        return df
+                log(f"Warning: Column not found: {c}")
+
+        df = df.loc[keep_mask]
+        log(f"Filtered by columns {columns}: {len(df)} rows kept")
+
+    # --- Regex filtering ---
+    if (rf := kw.get("rowfilt")):
+        mask = df.index.str.contains(rf, regex=True)
+        df = df.loc[mask]
+        log(f"Row regex '{rf}': kept {mask.sum()}/{len(mask)}")
+
+    if (cf := kw.get("colfilt")):
+        mask = df.columns.str.contains(cf, regex=True)
+        df = df.loc[:, mask]
+        log(f"Col regex '{cf}': kept {mask.sum()}/{len(mask)}")
+
+    # --- Value-based filters ---
+    if (p := kw.get("prevail")):
+        keep = df.astype(bool).sum() > df.shape[0] * p
+        df = df.loc[:, keep]
+        log(f"Prevalence > {p}: kept {keep.sum()} columns")
+
+    if (a := kw.get("abund")):
+        keep = df.mean() > a
+        df = df.loc[:, keep]
+        log(f"Abundance > {a}: kept {keep.sum()} columns")
+
+    # --- Nonzero filtering ---
+    if kw.get("nonzero"):
+        before = df.shape
+        df = df.loc[df.sum(1) != 0, df.sum() != 0]
+        log(f"Removed all-zero rows/cols: {before} → {df.shape}")
+
+    if (m := kw.get("min_nonzero_rows")):
+        df = df[df.astype(bool).sum(1) >= m]
+        log(f"Min nonzero rows ≥ {m}: kept {df.shape[0]}")
+
+    if (n := kw.get("min_nonzero_cols")):
+        df = df.loc[:, df.astype(bool).sum() >= n]
+        log(f"Min nonzero cols ≥ {n}: kept {df.shape[1]}")
+
+    # --- Numeric-only filter ---
+    if kw.get("numeric_only"):
+        df = df.select_dtypes(include=[np.number])
+        log(f"Numeric-only columns: {df.shape[1]} remaining")
+
+        # --- Dtype filtering ---
+    if (dt := kw.get("dtype")):
+        try:
+            before = df.shape[1]
+            df = df.select_dtypes(include=[dt])
+            log(f"Dtype '{dt}' columns: kept {df.shape[1]}/{before}")
+        except Exception as e:
+            log(f"Dtype filter error: {e}")
+
+
+    # --- Query filter ---
+    if (queries := kw.get("query")):
+        qstr = " & ".join(f"({q})" for q in queries)
+        before = len(df)
+        df = df.query(qstr, engine="python")
+        log(f"Query '{qstr}': kept {len(df)}/{before}")
+
+    return None if df.empty else df
+
+
+# ---------- CLI ---------- #
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Filter a TSV file based on various criteria.')
-    parser.add_argument('subject', help='Input file or subject name')
-    parser.add_argument('-rf', '--rowfilt', type=str, help='Regex for index filtering')
-    parser.add_argument('-cf', '--colfilt', type=str, help='Regex for column filtering')
-    parser.add_argument('-q', '--query', action='append', help='Pandas custom query (can be used multiple times)')
-    parser.add_argument('-m', '--min_unique', type=int, help='Minimum number of unique values')
-    parser.add_argument('-fdf', '--filter_df', help='CSV file for filtering indices')
-    parser.add_argument('-fdfx', '--filter_df_axis', type=int, help='Axis to filter the dataframe indices (0 or 1)')
-    parser.add_argument('-absgt', type=float, help='Absolute greater than threshold')
-    parser.add_argument('-p', '--prevail', type=float, help='Prevalence threshold')
-    parser.add_argument('-a', '--abund', type=float, help='Abundance threshold')
-    parser.add_argument('-o', '--outfile', type=str, help='Output file name')
-    parser.add_argument('-s', '--suffix', type=str, help='Suffix to append to the subject for output')
-    parser.add_argument('--numeric_only', action='store_true', help='Select numeric columns only')
-    parser.add_argument('--nonzero', action='store_true', help='Remove rows and columns that sum to zero')
-    parser.add_argument('--min_nonzero_rows', type=int, help='Minimum number of non-zero values required in a row')
-    parser.add_argument('--min_nonzero_cols', type=int, help='Minimum number of non-zero values required in a column')
-    parser.add_argument('--print_counts', action='store_true', help='Print the number of rows and columns that have been filtered')
-    parser.add_argument('-dt', '--dtype', type=str, help='Select columns with a specific dtype')
-    parser.add_argument('--drop', action='store_true', help='Drop (rather than select) rows/columns matching filters')
-    args = parser.parse_args()
-    return {k: v for k, v in vars(args).items() if v is not None}
+    p = argparse.ArgumentParser(description="Filter a TSV file by another TSV’s index or specific column(s).")
+    p.add_argument("input", help="Path to input TSV file")
+    p.add_argument("-o", "--output", help="Path to output TSV file (default: adds _filter suffix)")
+    p.add_argument("-fdf", "--filter_df", help="Path to TSV with index to filter by")
+    p.add_argument("-fdfx", "--filter_df_axis", type=int, default=0, help="Axis to filter (0=row, 1=column)")
+    p.add_argument("--column", default="index", help="Column(s) to match filter_df index against")
+    p.add_argument("-rf", "--rowfilt", help="Regex for filtering rows (index)")
+    p.add_argument("-cf", "--colfilt", help="Regex for filtering columns")
+    p.add_argument("-p", "--prevail", type=float, help="Prevalence threshold (0–1)")
+    p.add_argument("-a", "--abund", type=float, help="Minimum mean abundance threshold")
+    p.add_argument("--nonzero", action="store_true", help="Remove all-zero rows and columns")
+    p.add_argument("--min_nonzero_rows", type=int, help="Minimum number of non-zero values per row")
+    p.add_argument("--min_nonzero_cols", type=int, help="Minimum number of non-zero values per column")
+    p.add_argument("--numeric_only", action="store_true", help="Keep numeric columns only")
+    p.add_argument("--dtype", help="Keep only columns matching this dtype (e.g. 'float', 'int', 'bool')")
+    p.add_argument("-q", "--query", action="append", help="Pandas query string(s)")
+    return p.parse_args()
+
+
+# ---------- Main ---------- #
 
 def main():
-    known = parse_args()
-    subject = known.get("subject")
-    known.pop('subject')
+    args = parse_args()
 
-    original_df = load(subject)
+    df = load(args.input)
+    if args.filter_df:
+        args.filter_df = load(args.filter_df)
 
-    if subject is not None and os.path.isfile(subject):
-        subject = Path(subject).stem
+    out = apply_filters(df, **vars(args))
 
-    if known.get("filter_df"):
-        known['filter_df'] = load(known.get("filter_df"))
+    if out is None:
+        log("All rows and columns filtered out.")
+        return
 
-    output = filter(original_df.copy(), **known)
+    output_path = args.output or f"{Path(args.input).stem}_filter.tsv"
+    save(out, output_path)
+    log(f"Saved filtered output to: {output_path}")
 
-    if known.get("print_counts"):
-        if output is None:
-            print("All rows and columns have been filtered out.")
-        else:
-            original_rows, original_cols = original_df.shape
-            filtered_rows, filtered_cols = output.shape
-            print(f"Rows filtered: {original_rows - filtered_rows} out of {original_rows}")
-            print(f"Columns filtered: {original_cols - filtered_cols} out of {original_cols}")
-
-    print(output)
-
-    if output is not None:
-        if known.get("outfile"):
-            save(output, known.get("outfile"))
-        elif known.get("suffix"):
-            subj = str(subject) if subject is not None else ""
-            suffix = str(known.get("suffix")) if known.get("suffix") is not None else ""
-            save(output, subj + suffix)
-        else:
-            subj = subject if subject is not None else ""
-            save(output, subj + 'filter')
 
 if __name__ == "__main__":
     main()

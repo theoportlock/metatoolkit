@@ -16,6 +16,13 @@ def parse_dimension(dim_str):
     except Exception as e:
         raise ValueError(f"Cannot parse dimension '{dim_str}': {e}")
 
+def clean_svg_root(svg_root):
+    """Remove problematic attributes (xmlns, version, etc.) from nested SVGs."""
+    for attr in ["xmlns", "xmlns:xlink", "version"]:
+        if attr in svg_root.attrib:
+            del svg_root.attrib[attr]
+    return svg_root
+
 def main():
     parser = argparse.ArgumentParser(description="Arrange SVGs into a grid while preserving aspect ratio and font sizes.")
     parser.add_argument("--rows", type=int, help="Number of rows in the grid")
@@ -27,7 +34,7 @@ def main():
     total_svgs = len(args.input_svgs)
     if args.rows is None and args.cols is None:
         parser.error("You must specify either --rows or --cols (or both).")
-    
+
     if args.rows and args.cols:
         if args.rows * args.cols < total_svgs:
             parser.error(f"Grid of {args.rows}x{args.cols} too small for {total_svgs} SVGs.")
@@ -62,14 +69,16 @@ def main():
 
     svg_ns = "http://www.w3.org/2000/svg"
     ET.register_namespace("", svg_ns)
-    attribs = {
-        "width": str(canvas_width),
-        "height": str(canvas_height),
-        "viewBox": f"0 0 {canvas_width} {canvas_height}",
-        "version": "1.1",
-        "xmlns": svg_ns
-    }
-    root_svg = ET.Element("{" + svg_ns + "}svg", attrib=attribs)
+    root_svg = ET.Element(
+        "{" + svg_ns + "}svg",
+        attrib={
+            "width": str(canvas_width),
+            "height": str(canvas_height),
+            "viewBox": f"0 0 {canvas_width} {canvas_height}",
+            "version": "1.1",
+            "xmlns": svg_ns
+        }
+    )
 
     for idx, (tree, width, height) in enumerate(svgs):
         row = idx // cols
@@ -77,13 +86,15 @@ def main():
         x_offset = col * max_width
         y_offset = row * max_height
 
-        orig_root = tree.getroot()
+        orig_root = clean_svg_root(tree.getroot())
+
+        # Wrap contents in a group with translation transform
         group = ET.Element("{" + svg_ns + "}g", attrib={"transform": f"translate({x_offset},{y_offset})"})
 
-        # Copy all children from the original SVG into the group
+        # Copy children safely
         for child in list(orig_root):
             group.append(child)
-        
+
         root_svg.append(group)
 
     ET.ElementTree(root_svg).write(args.output, encoding="utf-8", xml_declaration=True)
@@ -91,3 +102,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
