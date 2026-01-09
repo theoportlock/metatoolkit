@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Perform PCoA on a distance edge list (source, target, distance).
+Perform PCoA on a distance edge list.
 """
 
 import argparse
@@ -13,47 +13,119 @@ import skbio
 
 def parse_arguments():
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Perform PCoA on a distance edge list (source, target, distance)")
-    parser.add_argument(
-        "-i", "--input",
-        type=str,
-        required=True,
-        help="Input edge list file (TSV) with columns: source, target, distance"
+    parser = argparse.ArgumentParser(
+        description="Perform PCoA on a distance edge list"
     )
+
+    # Positional input file
+    parser.add_argument(
+        "input",
+        type=str,
+        help="Input edge list file (TSV)"
+    )
+
     parser.add_argument(
         "-o", "--output",
         type=str,
         required=True,
         help="Output file path (TSV)"
     )
+
+    parser.add_argument(
+        "--source-col",
+        default="source",
+        help="Column name for source node (default: source)"
+    )
+
+    parser.add_argument(
+        "--target-col",
+        default="target",
+        help="Column name for target node (default: target)"
+    )
+
+    parser.add_argument(
+        "--distance-col",
+        default="distance",
+        help="Column name for distance value (default: distance)"
+    )
+
+    parser.add_argument(
+        "--dims",
+        type=int,
+        default=2,
+        help="Number of PCoA dimensions to compute (default: 2)"
+    )
+
     return parser.parse_args()
 
 
-def load_edge_list(path: str) -> pd.DataFrame:
-    """Load an edge list and convert it into a square distance matrix."""
-    df = pd.read_csv(path, sep='\t')
+def load_edge_list(
+    path: str,
+    source_col: str,
+    target_col: str,
+    distance_col: str,
+) -> pd.DataFrame:
+    """Load a long-format edge list and return a symmetric distance matrix."""
+    df = pd.read_csv(path, sep="\t")
 
-    required_cols = {"source", "target", "distance"}
+    required_cols = {source_col, target_col, distance_col}
     if not required_cols.issubset(df.columns):
-        raise ValueError("Edge list must contain columns: source, target, distance")
+        raise ValueError(
+            f"Edge list must contain columns: {', '.join(required_cols)}"
+        )
 
-    # Pivot to create square distance matrix
-    dist_mat = df.pivot(index="source", columns="target", values="distance")
+    # Collect all unique nodes
+    nodes = pd.unique(df[[source_col, target_col]].values.ravel())
+
+    # Initialise square distance matrix
+    dist_mat = pd.DataFrame(
+        index=nodes,
+        columns=nodes,
+        dtype=float,
+    )
+
+    # Fill distances symmetrically
+    for _, row in df.iterrows():
+        i = row[source_col]
+        j = row[target_col]
+        d = row[distance_col]
+
+        dist_mat.loc[i, j] = d
+        dist_mat.loc[j, i] = d
+
+    # Set diagonal to zero
+    for n in nodes:
+        dist_mat.loc[n, n] = 0.0
+
+    # Final validation
+    if dist_mat.isna().any().any():
+        missing = dist_mat.isna().sum().sum()
+        raise ValueError(
+            f"Distance matrix contains {missing} missing values. "
+            "Edge list does not define all pairwise distances."
+        )
 
     return dist_mat
 
 
-def perform_pcoa(df: pd.DataFrame) -> pd.DataFrame:
-    """Perform PCoA and return the first two coordinates."""
+
+def perform_pcoa(df: pd.DataFrame, dims: int) -> pd.DataFrame:
+    """Perform PCoA and return coordinates."""
     DM = skbio.stats.distance.DistanceMatrix(df.values, ids=df.index)
-    pcoa_res = skbio.stats.ordination.pcoa(DM, number_of_dimensions=2)
+    pcoa_res = skbio.stats.ordination.pcoa(
+        DM,
+        number_of_dimensions=dims
+    )
 
     explained = pcoa_res.proportion_explained
-    result = pd.DataFrame({
-        f"PCo1 ({explained['PC1']:.1%})": pcoa_res.samples.iloc[:, 0],
-        f"PCo2 ({explained['PC2']:.1%})": pcoa_res.samples.iloc[:, 1],
-    }, index=df.index)
 
+    cols = {}
+    for i in range(dims):
+        pc = f"PC{i + 1}"
+        label = f"PCo{i + 1} ({explained[pc]:.1%})"
+        cols[label] = pcoa_res.samples.iloc[:, i]
+
+    result = pd.DataFrame(cols, index=df.index)
     return result
 
 
@@ -61,17 +133,22 @@ def main():
     args = parse_arguments()
 
     # Load edge list
-    df = load_edge_list(args.input)
+    df = load_edge_list(
+        args.input,
+        args.source_col,
+        args.target_col,
+        args.distance_col,
+    )
 
     # Perform PCoA
-    result = perform_pcoa(df)
+    result = perform_pcoa(df, args.dims)
 
     # Save output
     outdir = os.path.dirname(args.output)
     if outdir:
         os.makedirs(outdir, exist_ok=True)
 
-    result.to_csv(args.output, sep='\t')
+    result.to_csv(args.output, sep="\t")
     print(f"PCoA results saved to: {args.output}")
 
 
