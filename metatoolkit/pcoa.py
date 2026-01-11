@@ -30,7 +30,6 @@ def parse_arguments():
         required=True,
         help="Output file path (TSV)"
     )
-<<<<<<< HEAD
 
     parser.add_argument(
         "--source-col",
