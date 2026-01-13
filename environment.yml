@@ -1,0 +1,35 @@
+name: metatoolkit
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  # --- Python Core ---
+  - python=3.10
+  - pandas
+  - numpy
+  - scipy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - statsmodels
+  - networkx
+  - sympy               # Fixes compute_theoretical_variance.py
+  - pip
+  
+  # --- R Core & Stats ---
+  - r-base=4.3
+  - r-essentials
+  - r-optparse          # For argument parsing in R scripts
+  - r-vegan             # For adonis/distance (beta diversity)
+  - r-ggplot2           # For R plotting
+  - r-anthro            # Fixes anthro.R
+  
+  # --- Bioconductor (via Bioconda) ---
+  - bioconductor-ancombc # Fixes ancombc2.R error
+  - bioconductor-phyloseq
+
+  # --- Python Pip Specifics ---
+  - pip:
+    - interpret         # Fixes ebm.py (Explainable Boosting Machine)
+    - typer             # Modern CLI building

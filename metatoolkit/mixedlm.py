@@ -113,6 +113,7 @@ def fit_model(y, metadata, formula, group_col):
 
 
 def main():
+    import sys; print(sys.argv)
     args = parse_args()
 
     # Load data

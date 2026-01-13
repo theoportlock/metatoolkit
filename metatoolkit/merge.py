@@ -15,9 +15,12 @@ def load(path):
 
 def save(df, path, index=True):
     """Save a DataFrame as TSV, ensuring the directory exists."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dirpath = os.path.dirname(path)
+    if dirpath:  # only create directory if not empty
+        os.makedirs(dirpath, exist_ok=True)
     df.to_csv(path, sep='\t', index=index)
-    print(f"💾 Saved {df.shape[0]} rows × {df.shape[1]} columns to {path}")
+    print(f"Saved {df.shape[0]} rows × {df.shape[1]} columns to {path}")
+
 
 def merge(datasets, join='inner', append=False, add_filename_column=False,
           filenames=None, filename_format='base',

@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from skbio import TreeNode
-from skbio.diversity.alpha import shannon, faith_pd
+from skbio.diversity.alpha import shannon, faith_pd, pielou_e
 
 
 def load_table(table_path, tax_level):
@@ -39,10 +39,10 @@ def save(df, path):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Calculate alpha diversity metrics (Shannon, Richness, Faith's PD) per sample."
+        description="Calculate alpha diversity metrics per sample."
     )
     parser.add_argument('table', help='Input abundance table (TSV, samples x taxa)')
-    parser.add_argument('-t','--tree', help='Newick tree file (required only for Faith\'s PD)')
+    parser.add_argument('-t', '--tree', help="Newick tree file (required only for Faith's PD)")
     parser.add_argument(
         '-o', '--outfile', type=str,
         help='Output file name (default: alpha_diversity.tsv in same directory as input table)'
@@ -50,25 +50,22 @@ def parse_args():
     parser.add_argument(
         '--metrics',
         nargs='+',
-        choices=['shannon', 'richness', 'faiths', 'all'],
+        choices=['shannon', 'richness', 'evenness', 'faiths', 'all'],
         default=['all'],
         help='Which alpha diversity metrics to calculate (default: all).'
     )
     parser.add_argument(
         '--tax_level',
-        #choices=['t__', 's__'],
         default='t__',
         help='Taxonomic prefix of interest in column names (default: t__).'
     )
     return parser.parse_args()
 
 
-# ... (imports and functions load_table, load_tree, save, parse_args remain unchanged) ...
-
 def main():
     args = parse_args()
 
-    # If output path not provided, put it in the same directory as the input table
+    # Output path
     if args.outfile:
         out_path = args.outfile
     else:
@@ -77,17 +74,16 @@ def main():
 
     table = load_table(args.table, args.tax_level)
 
-    # Decide which metrics to compute
     metrics = args.metrics
     if 'all' in metrics:
-        metrics = ['shannon', 'richness', 'faiths']
+        metrics = ['shannon', 'richness', 'evenness', 'faiths']
 
     # Prepare tree and filtered table ONLY for Faith's PD
     tree = None
     table_for_faith = None
     if 'faiths' in metrics:
         tree = load_tree(args.tree)
-        tip_names = set(tip.name for tip in tree.tips())
+        tip_names = {tip.name for tip in tree.tips()}
         common_taxa = set(table.columns).intersection(tip_names)
         dropped = set(table.columns) - common_taxa
         if dropped:
@@ -99,31 +95,32 @@ def main():
     for sample_id, counts in table.iterrows():
         values = counts.values
         row = {}
+
         if 'shannon' in metrics:
             row['Shannon'] = shannon(values)
+
         if 'richness' in metrics:
-            # Richness is calculated as the count of non-zero values
             row['Richness'] = np.count_nonzero(values > 0)
+
+        if 'evenness' in metrics:
+            row['Evenness'] = pielou_e(values)
+
         if 'faiths' in metrics:
             if sample_id in table_for_faith.index:
                 faith_values = table_for_faith.loc[sample_id].values
                 faith_taxa = table_for_faith.columns.values
 
-                # ==========================================================
-                # CRITICAL FIX: Ensure Faith's PD is unweighted by abundance.
-                # Faith's PD is a presence/absence metric (like richness).
-                # Converting the abundance vector to a binary (0 or 1) vector
-                # prevents large absolute counts from incorrectly scaling the result.
+                # Faith's PD is presence/absence
                 binary_counts = (faith_values > 0).astype(int)
 
                 row['Faiths_PD'] = faith_pd(
-                    counts=binary_counts, # Pass the binary vector
+                    counts=binary_counts,
                     taxa=faith_taxa,
                     tree=tree
                 )
-                # ==========================================================
             else:
                 row['Faiths_PD'] = np.nan
+
         results[sample_id] = row
 
     out_df = pd.DataFrame.from_dict(results, orient='index')
