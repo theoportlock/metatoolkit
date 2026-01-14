@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument("--replace", help="Replacement pattern.", required=True)
     parser.add_argument("--axis", choices=["columns", "index"], default="columns",
                         help="Axis to rename (default: columns).")
-    parser.add_argument("--output", help="Output filename for the renamed dataframe")
+    parser.add_argument("-o", "--output", help="Output filename for the renamed dataframe")
 
     known, unknown = parser.parse_known_args()
     return vars(known), unknown
@@ -25,7 +25,8 @@ def parse_arguments():
 
 def save_dataframe(df, output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    df.to_csv(output_path, sep="\t", index=df.index.name is not None)
+    #df.to_csv(output_path, sep="\t", index=df.index.name is not None)
+    df.to_csv(output_path, sep="\t")
 
 
 def load_dataframe(subject):
