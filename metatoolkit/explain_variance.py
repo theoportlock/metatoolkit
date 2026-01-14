@@ -21,7 +21,7 @@ def load(subject):
 
 def save(df, filename, index=True):
     """Save dataframe to output file."""
-    output_path = f'results/{filename}.tsv'
+    output_path = filename
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
 

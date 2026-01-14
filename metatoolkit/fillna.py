@@ -8,11 +8,11 @@ Examples:
     # Fill all missing cells with 0
     python fillna.py -i data.tsv -v 0 -o results/data_filled.tsv
 
-    # Fill missing values only in one column
-    python fillna.py -i data.tsv -c Age -v 0 -o results/data_filled.tsv
+    # Fill missing values only in specific columns
+    python fillna.py -i data.tsv -c Age,Height,Weight -v 0 -o results/data_filled.tsv
 
-    # Fill with string value
-    python fillna.py -i Demographics.tsv -v "Unknown"
+    # Fill with a string value
+    python fillna.py -i Demographics.tsv -v "Unknown" -o results/Demographics_filled.tsv
 """
 
 import argparse
@@ -32,12 +32,13 @@ def save_table(df, path):
     df.to_csv(path, sep="\t")
 
 
-def fill_missing(df, value, column=None):
-    """Fill missing values either for a specific column or all columns."""
-    if column:
-        if column not in df.columns:
-            raise ValueError(f"Column '{column}' not found in input file.")
-        df[column] = df[column].fillna(value)
+def fill_missing(df, value, columns=None):
+    """Fill missing values either for specific columns or all columns."""
+    if columns:
+        missing_cols = [c for c in columns if c not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Columns not found in input file: {', '.join(missing_cols)}")
+        df[columns] = df[columns].fillna(value)
     else:
         df = df.fillna(value)
     return df
@@ -49,38 +50,33 @@ def parse_args():
     )
     parser.add_argument("-i", "--input", required=True, help="Input TSV file")
     parser.add_argument(
-        "-c", "--column", help="Optional: specific column name to fill (default: all columns)"
+        "-c", "--column",
+        help="Optional: comma-separated list of columns to fill (default: all columns)"
     )
     parser.add_argument("-v", "--value", required=True, help="Value to fill missing cells with")
-    parser.add_argument(
-        "-o", "--output", help="Output TSV file (default: <input>_filled.tsv)"
-    )
+    parser.add_argument("-o", "--output", required=True, help="Output TSV file path")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
 
+    # Parse column argument into list (if provided)
+    columns = [c.strip() for c in args.column.split(",")] if args.column else None
+
     # Load
     df = load_table(args.input)
 
     # Fill missing values
-    df_filled = fill_missing(df, args.value, args.column)
+    df_filled = fill_missing(df, args.value, columns)
 
-    # Determine output path
-    if args.output:
-        output_path = args.output
+    # Save to specified output path
+    save_table(df_filled, args.output)
+
+    if columns:
+        print(f"✅ Filled missing values in columns {', '.join(columns)} with '{args.value}' → {args.output}")
     else:
-        stem = Path(args.input).stem
-        output_path = f"results/{stem}_filled.tsv"
-
-    # Save
-    save_table(df_filled, output_path)
-
-    if args.column:
-        print(f"✅ Filled missing values in column '{args.column}' with '{args.value}' → {output_path}")
-    else:
-        print(f"✅ Filled all missing values with '{args.value}' → {output_path}")
+        print(f"✅ Filled all missing values with '{args.value}' → {args.output}")
 
 
 if __name__ == "__main__":

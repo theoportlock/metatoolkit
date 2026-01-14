@@ -4,113 +4,236 @@
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
-import os
-from pathlib import Path
 import seaborn as sns
-import sys
+import os
+import numpy as np
+from matplotlib.lines import Line2D
+from matplotlib.patches import Ellipse
+from scipy.stats import chi2
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='''
-    Spindle - Produces a spindleplot of a given dataset
-    ''')
-    parser.add_argument('subject', help='Path to dataset file or subject name')
-    parser.add_argument(
-        '--meta',
-        help='Path to a metadata file (TSV/CSV) containing your explainer column',
-        required=True
-    )
-    parser.add_argument(
-        '--group-col',
-        help='Name of the column in the metadata file to use for grouping/spindle labels',
-        required=True
-    )
+    parser = argparse.ArgumentParser(description='Spindle - Produce a spindle plot')
+    parser.add_argument('subject', help='Path to dataset file (TSV)')
+
+    parser.add_argument('--meta', help='Path to metadata file (TSV)')
+    parser.add_argument('--group-col', help='Column in metadata to group by')
+
+    parser.add_argument('--x', help='Column to use for x-axis (default: first column)')
+    parser.add_argument('--y', help='Column to use for y-axis (default: second column)')
+    parser.add_argument('--figsize', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
+                        default=(3, 3), help='Figure size in inches')
+    parser.add_argument('-o', '--output', help='Output image filename (default: spindle.svg)')
+
+    parser.add_argument('--ellipses', action='store_true',
+                        help='Draw confidence ellipses per group')
+    parser.add_argument('--ellipse-level', type=float, default=0.95,
+                        help='Confidence level for ellipses (default: 0.95)')
+
+    parser.add_argument('--palette', default='hls',
+                        help='Seaborn palette name or comma-separated list of colors')
+    parser.add_argument('--group-order',
+                        help='Comma-separated group order (default: alphabetical)')
+    parser.add_argument('--title-from-subject', action='store_true',
+                        help='Use basename of subject file as figure title')
+
     return parser.parse_args()
 
-def load_subject_df(path):
-    """Load main data from results/{stem}.tsv"""
-    path = Path(path_or_name)
-    stem = path.stem if path.is_file() else path_or_name
-    df = pd.read_csv(Path('results') / f'{stem}.tsv', sep='\t', index_col=0)
-    df.index = df.index.astype(str)  # Force index to string
-    return df, stem
+def scatter_only(df, x=None, y=None, figsize=(3, 3)):
+    if x is None or y is None:
+        x, y = df.columns[:2]
 
-def load_and_merge_meta(df, meta_path, group_col):
-    """Load metadata and assign group labels from group_col."""
-    # auto-detect delimiter, load with default index
-    mdf = pd.read_csv(meta_path, sep=None, engine='python', index_col=0)
-    mdf.index = mdf.index.astype(str)  # Force index to string
+    fig, ax = plt.subplots(figsize=figsize)
 
-    if group_col not in mdf.columns:
-        sys.exit(f"ERROR: metadata file {meta_path} does not contain column '{group_col}'")
-
-    if not df.index.equals(mdf.index):
-        print("WARNING: Index mismatch between subject and metadata. Trying inner join.")
-        df = df.join(mdf[[group_col]], how='inner')
-    else:
-        df[group_col] = mdf[group_col]
-
-    df = df.dropna(subset=[group_col])  # remove any rows missing group info
-    df = df.set_index(group_col)        # group_col becomes the new index
-    return df
-
-def spindle(df, ax=None, palette=None):
-    """Draw a spindle plot grouping by df.index."""
-    groups = df.index.unique()
-    if palette is None:
-        palette = pd.Series(
-            sns.color_palette("hls", len(groups)).as_hex(),
-            index=groups
-        )
-
-    if ax is None:
-        fig, ax = plt.subplots()
-
-    x, y = df.columns[:2]
-
-    centers = df.groupby(df.index)[[x, y]].mean()
-    centers.columns = ['nPC1', 'nPC2']
-
-    j = df.join(centers, how='inner')
-    j['colour'] = j.index.map(palette)
-
-    for _, row in j.iterrows():
-        ax.plot(
-            [row[x], row['nPC1']],
-            [row[y], row['nPC2']],
-            linewidth=0.5,
-            color=row['colour'],
-            alpha=0.3,
-            zorder=1
-        )
-        ax.scatter(row[x], row[y], color=row['colour'], s=1, zorder=1)
-
-    for grp, cen in centers.iterrows():
-        ax.scatter(cen['nPC1'], cen['nPC2'], c='black', s=10, marker='+', zorder=2)
-        ax.text(cen['nPC1'] + 0.002, cen['nPC2'] + 0.002, str(grp), zorder=3)
+    ax.scatter(df[x], df[y], s=6, alpha=0.8)
 
     ax.set_xlabel(x)
     ax.set_ylabel(y)
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    return ax
 
-def savefig(stem):
-    out = Path('results')
-    out.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out / f'{stem}_spindle.svg')
-    plt.clf()
+    sns.despine(ax=ax)
+
+
+
+def load_tsv(path):
+    return pd.read_csv(path, sep='\t', index_col=0)
+
+def merge_data(subject_df, meta_df, group_col):
+    if group_col not in meta_df.columns:
+        raise ValueError(f"Metadata missing column '{group_col}'")
+    merged = subject_df.join(meta_df[group_col], how='inner').dropna(subset=[group_col])
+    return merged.set_index(group_col)
+
+def parse_palette(palette, groups):
+    if ',' in palette:
+        colors = palette.split(',')
+        if len(colors) != len(groups):
+            raise ValueError("Number of colors must match number of groups")
+        return dict(zip(groups, colors))
+    else:
+        return dict(zip(groups, sns.color_palette(palette, len(groups)).as_hex()))
+
+def confidence_ellipse(x, y, ax, level=0.95, **kwargs):
+    if len(x) < 3:
+        return
+
+    cov = np.cov(x, y)
+    mean = np.mean(x), np.mean(y)
+
+    vals, vecs = np.linalg.eigh(cov)
+    order = vals.argsort()[::-1]
+    vals, vecs = vals[order], vecs[:, order]
+
+    theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+    scale = np.sqrt(chi2.ppf(level, df=2))
+
+    width, height = 2 * scale * np.sqrt(vals)
+
+    ellipse = Ellipse(
+        xy=mean,
+        width=width,
+        height=height,
+        angle=theta,
+        fill=False,
+        **kwargs
+    )
+    ax.add_patch(ellipse)
+
+def spindle(df, x=None, y=None, figsize=(3, 3),
+            ellipses=False, ellipse_level=0.95,
+            palette='hls', group_order=None):
+
+    if x is None or y is None:
+        x, y = df.columns[:2]
+
+    groups = sorted(df.index.unique())
+    if group_order:
+        groups = group_order.split(',')
+
+    palette = parse_palette(palette, groups)
+
+    centers = (
+        df.groupby(df.index)[[x, y]]
+        .mean()
+        .rename(columns={x: "mx", y: "my"})
+    )
+    j = df.join(centers)
+
+    fig, ax = plt.subplots(figsize=figsize)
+    legend_handles = []
+
+    for grp in groups:
+        sub = j.loc[grp]
+        color = palette[grp]
+
+        ax.plot(
+            [sub[x], sub["mx"]],
+            [sub[y], sub["my"]],
+            linewidth=0.4,
+            color=color,
+            alpha=0.3
+        )
+
+        ax.scatter(
+            sub[x],
+            sub[y],
+            color=color,
+            s=4,
+            alpha=1
+        )
+
+        ax.scatter(
+            sub["mx"].iloc[0],
+            sub["my"].iloc[0],
+            c='black',
+            s=35,
+            marker='+',
+            linewidths=0.7,
+            zorder=5,
+        )
+
+
+        if ellipses:
+            confidence_ellipse(
+                sub[x].values,
+                sub[y].values,
+                ax,
+                level=ellipse_level,
+                edgecolor=color,
+                linewidth=0.4,
+                alpha=0.5
+            )
+
+        legend_handles.append(
+            Line2D(
+                [0], [0],
+                marker='o',
+                linestyle='None',
+                label=str(grp),
+                markerfacecolor=color,
+                markeredgecolor='none',
+                markeredgewidth=0,
+                markersize=6
+            )
+        )
+
+
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+
+    ax.legend(
+        handles=legend_handles,
+        title=df.index.name or "Group",
+        frameon=False,
+        bbox_to_anchor=(1.02, 1),
+        loc='upper left'
+    )
+
+    sns.despine(ax=ax)
 
 def main():
     args = parse_arguments()
 
-    df, stem = load_subject_df(args.subject)
-    df = load_and_merge_meta(df, args.meta, args.group_col)
+    df = load_tsv(args.subject)
 
-    if df.empty:
-        sys.exit("ERROR: No data left after merging subject and metadata. Check for index mismatch.")
+    has_meta = args.meta is not None and args.group_col is not None
 
-    ax = spindle(df)
-    savefig(stem)
+    if args.group_col and not args.meta:
+        raise ValueError("--group-col requires --meta")
+
+    if has_meta:
+        meta = load_tsv(args.meta)
+        df = merge_data(df, meta, args.group_col)
+
+        spindle(
+            df,
+            x=args.x,
+            y=args.y,
+            figsize=args.figsize,
+            ellipses=args.ellipses,
+            ellipse_level=args.ellipse_level,
+            palette=args.palette,
+            group_order=args.group_order
+        )
+    else:
+        scatter_only(
+            df,
+            x=args.x,
+            y=args.y,
+            figsize=args.figsize
+        )
+
+    if args.title_from_subject:
+        title = os.path.splitext(os.path.basename(args.subject))[0]
+        plt.title(title)
+
+    output = args.output or "spindle.svg"
+    outdir = os.path.dirname(output)
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
+
+    plt.savefig(output, dpi=300, bbox_inches='tight')
+    print(f"Saved to {output}")
+
 
 if __name__ == '__main__':
     main()
+

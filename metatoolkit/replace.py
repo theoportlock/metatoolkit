@@ -19,6 +19,8 @@ def load(filepath):
     return pd.read_csv(filepath, sep='\t')
 
 def save(df, filepath):
+    # Make sure the parent directory exists
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     # First column becomes the index again before saving
     df.set_index(df.columns[0], inplace=True)
     df.to_csv(filepath, sep='\t', index=True)
@@ -33,7 +35,7 @@ def parse_args():
                              'Omit this if using nested dicts in --to_replace')
     parser.add_argument('--regex', action='store_true', help='Interpret to_replace as regex')
     parser.add_argument('--inplace', action='store_true', help='Modify the input file directly')
-    parser.add_argument('--output', help='Output file path (if not using --inplace)')
+    parser.add_argument('-o', '--output', help='Output file path (if not using --inplace)')
     return parser.parse_args()
 
 def main():
