@@ -7,6 +7,7 @@ Compute read depth and percentage of reads filtered by KneadData.
 
 import argparse
 import pandas as pd
+from pathlib import Path
 
 
 def parse_args():
@@ -59,8 +60,9 @@ def main():
         "percentage_filtered"
     ]].reset_index().rename(columns={"index": "Sample"})
 
-    out.to_csv(args.output, sep="\t", index=False)
-
+    output_file = Path(args.output)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(output_file, sep='\t', index=False)
 
 if __name__ == "__main__":
     main()

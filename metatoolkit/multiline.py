@@ -19,12 +19,23 @@ def parse_args():
     parser.add_argument("--logy", action="store_true", help="Use log scale for Y-axis")
     parser.add_argument("--figsize", nargs=2, type=float, default=[3, 3], metavar=("WIDTH", "HEIGHT"),
                         help="Figure size in inches, e.g., --figsize 4 4")
+    # New argument for X-axis ordering
+    parser.add_argument("--x_order", nargs="+", help="Explicit order for X-axis categories (e.g., --x_order Baseline wk6 wk12)")
+
     return parser.parse_args()
 
 
-def plot(df, x, y, hue, id_col, output, logy=False, figsize=(3, 3)):
+def plot(df, x, y, hue, id_col, output, logy=False, figsize=(3, 3), x_order=None):
     # Drop missing values in columns of interest
     df = df.dropna(subset=[x, y, hue, id_col])
+
+    # --- Handle X-axis Ordering ---
+    if x_order:
+        # Filter x_order to only include categories actually present in the data to avoid errors
+        existing_categories = [cat for cat in x_order if cat in df[x].unique()]
+        df[x] = pd.Categorical(df[x], categories=existing_categories, ordered=True)
+        # Sort by the new categorical order to ensure lines connect correctly
+        df = df.sort_values(by=[id_col, x])
 
     # Define pastel palette
     hue_values = df[hue].unique()
@@ -71,12 +82,12 @@ def main():
     df_meta = pd.read_csv(args.meta, sep="\t", index_col=0)
     df = df_subject.join(df_meta)
 
-    # Optional: Normalize condition labels (for Feed, Recovery, etc.)
+    # Optional: Normalize condition labels
     if "Condition" in df.columns:
         df.loc[df.Condition == "Well-nourished", "Recovery"] = "Healthy"
         df.loc[df.Condition == "Well-nourished", "Feed"] = "Healthy"
 
-    plot(df, args.x, args.y, args.hue, args.id, args.output, args.logy, tuple(args.figsize))
+    plot(df, args.x, args.y, args.hue, args.id, args.output, args.logy, tuple(args.figsize), args.x_order)
 
 
 if __name__ == "__main__":

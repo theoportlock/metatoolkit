@@ -137,7 +137,9 @@ def main():
     summary = taxo_summary(df, presence_threshold=args.presence_threshold)
 
     # Write output TSV
-    summary.to_csv(args.output, sep="\t")
+    output_file = Path(args.output)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    summary.to_csv(output_file, sep="\t")
 
 
 if __name__ == "__main__":
