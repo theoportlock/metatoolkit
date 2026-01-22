@@ -14,8 +14,10 @@ from scipy.stats import chi2
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Spindle - Produce a spindle plot')
     parser.add_argument('subject', help='Path to dataset file (TSV)')
-    parser.add_argument('--meta', required=True, help='Path to metadata file (TSV)')
-    parser.add_argument('--group-col', required=True, help='Column in metadata to group by')
+
+    parser.add_argument('--meta', help='Path to metadata file (TSV)')
+    parser.add_argument('--group-col', help='Column in metadata to group by')
+
     parser.add_argument('--x', help='Column to use for x-axis (default: first column)')
     parser.add_argument('--y', help='Column to use for y-axis (default: second column)')
     parser.add_argument('--figsize', nargs=2, type=float, metavar=('WIDTH', 'HEIGHT'),
@@ -34,8 +36,22 @@ def parse_arguments():
     parser.add_argument('--title-from-subject', action='store_true',
                         help='Use basename of subject file as figure title')
 
-
     return parser.parse_args()
+
+def scatter_only(df, x=None, y=None, figsize=(3, 3)):
+    if x is None or y is None:
+        x, y = df.columns[:2]
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    ax.scatter(df[x], df[y], s=6, alpha=0.8)
+
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
+
+    sns.despine(ax=ax)
+
+
 
 def load_tsv(path):
     return pd.read_csv(path, sep='\t', index_col=0)
@@ -177,20 +193,33 @@ def main():
     args = parse_arguments()
 
     df = load_tsv(args.subject)
-    meta = load_tsv(args.meta)
 
-    df = merge_data(df, meta, args.group_col)
+    has_meta = args.meta is not None and args.group_col is not None
 
-    spindle(
-        df,
-        x=args.x,
-        y=args.y,
-        figsize=args.figsize,
-        ellipses=args.ellipses,
-        ellipse_level=args.ellipse_level,
-        palette=args.palette,
-        group_order=args.group_order
-    )
+    if args.group_col and not args.meta:
+        raise ValueError("--group-col requires --meta")
+
+    if has_meta:
+        meta = load_tsv(args.meta)
+        df = merge_data(df, meta, args.group_col)
+
+        spindle(
+            df,
+            x=args.x,
+            y=args.y,
+            figsize=args.figsize,
+            ellipses=args.ellipses,
+            ellipse_level=args.ellipse_level,
+            palette=args.palette,
+            group_order=args.group_order
+        )
+    else:
+        scatter_only(
+            df,
+            x=args.x,
+            y=args.y,
+            figsize=args.figsize
+        )
 
     if args.title_from_subject:
         title = os.path.splitext(os.path.basename(args.subject))[0]
@@ -203,6 +232,7 @@ def main():
 
     plt.savefig(output, dpi=300, bbox_inches='tight')
     print(f"Saved to {output}")
+
 
 if __name__ == '__main__':
     main()
