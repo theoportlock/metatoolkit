@@ -124,6 +124,8 @@ def group(df, group_by=None, funcs=None, axis=0):
         "median": "median",
         "sum": "sum",
         "std": "std",
+        "first": "first",
+        "last": "last",
         "q25": q25,
         "q75": q75,
         "iqr": iqr,
