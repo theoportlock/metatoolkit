@@ -6,7 +6,7 @@
 #   - explicit factor ordering
 #   - explicit baseline (reference) levels
 #   - gaussian / poisson / negbin families
-#   - automatic output directory creation
+#   - optional saving of fitted model objects (for posthoc contrasts)
 
 suppressPackageStartupMessages({
   library(optparse)
@@ -37,7 +37,10 @@ option_list <- list(
   make_option(c("--baseline"), type = "character", default = NULL,
               help = "Baseline levels: var=level,var=level"),
   make_option(c("--order"), type = "character", default = NULL,
-              help = "Factor order: var=level1,level2,...;var=level1,level2")
+              help = "Factor order: var=level1,level2,...;var=level1,level2"),
+  make_option(c("--save-models"), dest = "save_models",
+	      type = "character", default = NULL,
+	      help = "Optional RDS file to save fitted model objects")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -128,6 +131,7 @@ data <- merge(
 
 response_vars <- setdiff(colnames(df_data), data_id_col)
 results <- list()
+models  <- list()
 
 # -------------------------
 # Model loop
@@ -166,9 +170,11 @@ for (resp in response_vars) {
     stop("Unsupported family: ", opt$family)
   )
 
+  models[[resp]] <- model
+
   n_obs    <- nrow(df)
   n_groups <- dplyr::n_distinct(df[[opt$group]], na.rm = TRUE)
-  
+
   tidy_out <- broom.mixed::tidy(
     model,
     effects  = "fixed",
@@ -196,7 +202,7 @@ for (resp in response_vars) {
 }
 
 # -------------------------
-# Write output
+# Write outputs
 # -------------------------
 final <- bind_rows(results)
 
@@ -212,6 +218,11 @@ write.table(
   row.names = FALSE,
   quote = FALSE
 )
+
+if (!is.null(opt$save_models)) {
+  saveRDS(models, opt$save_models)
+  cat("Model objects saved to:", opt$save_models, "\n")
+}
 
 cat("GLMM analysis complete.\n")
 cat("Results written to:", opt$output, "\n")
