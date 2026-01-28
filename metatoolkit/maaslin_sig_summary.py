@@ -59,7 +59,7 @@ def parse_args():
         default=None,
         help=(
             "Column(s) to group by before summarising "
-            "(e.g. metadata model). If omitted, summarises entire table."
+            "(e.g. name model). If omitted, summarises entire table."
         )
     )
     parser.add_argument(
@@ -97,17 +97,22 @@ def main():
                 change_summary,
                 change=args.change,
                 sig=args.sig,
-                pval=args.pval
+                pval=args.pval,
+                include_groups=False  # ✅ fixes FutureWarning
             )
             .reset_index()
         )
     else:
-        summary = change_summary(
-            df,
-            change=args.change,
-            sig=args.sig,
-            pval=args.pval
-        ).to_frame().T
+        summary = (
+            change_summary(
+                df,
+                change=args.change,
+                sig=args.sig,
+                pval=args.pval
+            )
+            .to_frame()
+            .T
+        )
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -8,8 +8,10 @@ import pandas as pd
 import seaborn as sns
 import numpy as np
 
+
 def load(subject):
     return pd.read_csv(subject, sep='\t', index_col=0)
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -55,6 +57,7 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
     cor = df.reset_index().pivot(
         index=source_col, columns=target_col, values=effect_col
     ).fillna(0)
+
     sig_df = df.reset_index().pivot(
         index=source_col, columns=target_col, values=sig_col
     ).fillna(1)
@@ -65,6 +68,7 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
         keep_rows = mask.any(axis=1)
     else:
         keep_rows = slice(None)
+
     if filter_sig in ('target', 'both'):
         keep_cols = mask.any(axis=0)
     else:
@@ -73,13 +77,13 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
     cor = cor.loc[keep_rows, keep_cols]
     sig_df = sig_df.loc[keep_rows, keep_cols]
 
-    # Apply custom row ordering (if provided)
+    # Apply custom row ordering
     if row_order:
         row_list = [r for r in row_order if r in cor.index]
         cor = cor.reindex(row_list)
         sig_df = sig_df.reindex(row_list)
 
-    # Apply custom column ordering (if provided)
+    # Apply custom column ordering
     if col_order:
         col_list = [c for c in col_order if c in cor.columns]
         cor = cor.reindex(columns=col_list)
@@ -96,13 +100,14 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
         xticklabels=True
     )
 
-    # Reindex significance DF to match clustering if clustering is on
+    # Reindex significance matrix to match clustering order
     sig_df = sig_df.reindex(
         index=g.data2d.index, columns=g.data2d.columns
     )
 
     g.ax_heatmap.set_aspect('equal')
 
+    # Overlay significance markers
     for i, row in enumerate(sig_df.index):
         for j, col in enumerate(sig_df.columns):
             if sig_df.loc[row, col] < sig_thresh:
@@ -125,7 +130,6 @@ def reshape_clustermap(cmap, cell_width=0.02, cell_height=0.02):
     h = ny * cell_height
 
     hpos = cmap.ax_heatmap.get_position()
-
     cmap.ax_heatmap.set_position([hpos.x0, hpos.y0, w, h])
 
     colpos = cmap.ax_col_dendrogram.get_position()
@@ -145,9 +149,52 @@ def main():
     args = parse_arguments()
     df = load(args.subject)
 
-    req = {args.source_col, args.target_col, args.effect, args.sig}
-    if not req.issubset(df.reset_index().columns):
-        raise ValueError(f"Input DataFrame missing required columns: {req}")
+    # Verbose validation of required columns
+    df_cols = set(df.columns)
+    df_index_name = df.index.name
+    reset_cols = set(df.reset_index().columns)
+
+    required = {
+        args.source_col,
+        args.target_col,
+        args.effect,
+        args.sig
+    }
+
+    missing = required - reset_cols
+
+    if missing:
+        msg = [
+            "Input DataFrame is missing required columns.",
+            "",
+            "Required columns (from CLI arguments):",
+            f"  --source-col : '{args.source_col}'",
+            f"  --target-col : '{args.target_col}'",
+            f"  --effect     : '{args.effect}'",
+            f"  --sig        : '{args.sig}'",
+            "",
+            "Missing columns:"
+        ]
+
+        for col in sorted(missing):
+            hints = []
+            if col == df_index_name:
+                hints.append("present as index")
+            if col in df_cols:
+                hints.append("present in df.columns")
+            hint = f" ({'; '.join(hints)})" if hints else ""
+            msg.append(f"  - {col}{hint}")
+
+        msg.extend([
+            "",
+            "Available columns:",
+            f"  df.columns     : {sorted(df_cols)}",
+            f"  df.index.name  : {df_index_name}",
+            "",
+            "Note: validation is performed against df.reset_index().columns"
+        ])
+
+        raise ValueError("\n".join(msg))
 
     # Determine clustering behavior
     if args.no_cluster:

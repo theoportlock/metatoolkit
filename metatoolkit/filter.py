@@ -31,25 +31,35 @@ def apply_filters(df, **kw):
     # --- Filter by another DataFrame’s index ---
     if (fdf := kw.get("filter_df")) is not None:
         valid_ids = set(fdf.index.astype(str))
-        column_arg = kw.get("column", "index")
+        axis = kw.get("filter_df_axis", 0)
 
-        columns = [c.strip() for c in column_arg.split(",") if c.strip()]
-        keep_mask = pd.Series(True, index=df.index)
+        # ---- COLUMN FILTERING ----
+        if axis == 1:
+            before = df.shape[1]
+            keep = df.columns.astype(str).isin(valid_ids)
+            df = df.loc[:, keep]
+            log(f"Column index filter: kept {keep.sum()}/{before} columns")
 
-        for c in columns:
-            if c == "index":
-                before = keep_mask.sum()
-                keep_mask &= df.index.isin(valid_ids)
-                log(f"Index filter: {keep_mask.sum()}/{before} rows remain")
-            elif c in df.columns:
-                before = keep_mask.sum()
-                keep_mask &= df[c].astype(str).isin(valid_ids)
-                log(f"Column '{c}' filter: {keep_mask.sum()}/{before} rows remain")
-            else:
-                log(f"Warning: Column not found: {c}")
+        # ---- ROW FILTERING ----
+        else:
+            column_arg = kw.get("column", "index")
+            columns = [c.strip() for c in column_arg.split(",") if c.strip()]
+            keep_mask = pd.Series(True, index=df.index)
 
-        df = df.loc[keep_mask]
-        log(f"Filtered by columns {columns}: {len(df)} rows kept")
+            for c in columns:
+                if c == "index":
+                    before = keep_mask.sum()
+                    keep_mask &= df.index.isin(valid_ids)
+                    log(f"Index filter: {keep_mask.sum()}/{before} rows remain")
+                elif c in df.columns:
+                    before = keep_mask.sum()
+                    keep_mask &= df[c].astype(str).isin(valid_ids)
+                    log(f"Column '{c}' filter: {keep_mask.sum()}/{before} rows remain")
+                else:
+                    log(f"Warning: Column not found: {c}")
+
+            df = df.loc[keep_mask]
+            log(f"Filtered by columns {columns}: {len(df)} rows kept")
 
     # --- Regex filtering ---
     if (rf := kw.get("rowfilt")):
