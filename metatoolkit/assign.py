@@ -51,6 +51,7 @@ def main():
             target=df
         )
     df.to_csv(args.output, sep="\t", index=False)
+    print(df.head())
 
 if __name__ == "__main__":
     main()
