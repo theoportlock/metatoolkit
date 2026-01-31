@@ -1,23 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import typer
-from typing import Tuple  # change from List to Tuple
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from pathlib import Path
-from typing import List
-
-app = typer.Typer(help="Plot abundances from a TSV file.")
-
 
 def plot_abundance(
     df: pd.DataFrame,
     order: bool,
     max_categories: int,
     figsize: tuple,
-    normalize: bool
+    normalize: bool,
+    log_transform: bool
 ):
+    # Apply log1p transformation if requested
+    if log_transform:
+        # We apply log1p to the raw values before normalization/stacking
+        df = np.log1p(df)
+
     # Keep top N columns + combine others
     col_means = df.mean()
     sorted_cols = col_means.sort_values(ascending=False)
@@ -29,16 +31,25 @@ def plot_abundance(
         df = df[top_cols.tolist() + ['others']]
 
     if normalize:
-        df = df.T.div(df.sum(axis=1), axis=1).T
+        # Avoid division by zero if a row is all zeros
+        row_sums = df.sum(axis=1)
+        df = df.div(row_sums.replace(0, 1), axis=0)
 
     if order:
-        df = df.loc[:, df.mean().sort_values().index]
+        # Sort the columns (stacks) by their mean abundance for a cleaner look
+        df = df[df.mean().sort_values().index]
 
     # Plot
     ax = df.plot(kind="bar", stacked=True, figsize=figsize, width=0.9, cmap="tab20")
-    ax.set_ylabel("Relative abundance" if normalize else "Abundance")
+
+    ylabel = "Abundance"
+    if log_transform:
+        ylabel = "log1p(Abundance)"
     if normalize:
+        ylabel = f"Relative {ylabel}"
         ax.set_ylim(0, 1)
+
+    ax.set_ylabel(ylabel)
     ax.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize="small")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     ax.spines['top'].set_visible(False)
@@ -46,31 +57,48 @@ def plot_abundance(
 
     return plt
 
+def main():
+    parser = argparse.ArgumentParser(description="Plot stacked bar chart of abundances from a TSV file.")
 
-@app.command()
-def main(
-    input: Path = typer.Argument(..., help="TSV file with samples as rows, features as columns"),
-    output: Path = typer.Option("abund.svg", "--output", "-o", help="Output file path"),
-    figsize: Tuple[float, float] = typer.Option((4.0, 4.0), "--figsize", help="Figure size, e.g. --figsize 6.0 5.0"),
-    order: bool = typer.Option(False, help="Sort categories by average abundance"),
-    max_categories: int = typer.Option(20, help="Number of top categories to keep before combining 'others'"),
-    normalize: bool = typer.Option(True, "--normalize/--no-normalize", help="Normalize rows to relative abundance")
-):
-    """Plot stacked bar chart of abundances."""
-    if not input.exists():
-        typer.echo(f"✘ File not found: {input}")
-        raise typer.Exit()
+    # Positional argument
+    parser.add_argument("input", type=Path, help="TSV file with samples as rows, features as columns")
 
-    if len(figsize) != 2:
-        typer.echo("✘ --figsize must have two numbers: width and height")
-        raise typer.Exit()
+    # Optional arguments
+    parser.add_argument("-o", "--output", type=Path, default="abund.svg", help="Output file path (default: abund.svg)")
+    parser.add_argument("--figsize", type=float, nargs=2, default=[4.0, 4.0], help="Figure size: width height (default: 4.0 4.0)")
+    parser.add_argument("--order", action="store_true", help="Sort categories by average abundance")
+    parser.add_argument("--max-categories", type=int, default=20, help="Top categories to keep (default: 20)")
+    parser.add_argument("--no-normalize", action="store_false", dest="normalize", help="Do not normalize rows to relative abundance")
+    parser.add_argument("--log1p", action="store_true", help="Apply log1p transformation to abundances")
 
-    df = pd.read_csv(input, sep="\t", index_col=0)
-    plot = plot_abundance(df, order=order, max_categories=max_categories, figsize=tuple(figsize), normalize=normalize)
+    parser.set_defaults(normalize=True)
+    args = parser.parse_args()
+
+    # Validation
+    if not args.input.exists():
+        print(f"❌ File not found: {args.input}")
+        return
+
+    # Load data
+    try:
+        df = pd.read_csv(args.input, sep="\t", index_col=0)
+    except Exception as e:
+        print(f"❌ Error reading TSV: {e}")
+        return
+
+    # Generate plot
+    plot = plot_abundance(
+        df,
+        order=args.order,
+        max_categories=args.max_categories,
+        figsize=tuple(args.figsize),
+        normalize=args.normalize,
+        log_transform=args.log1p
+    )
+
     plot.tight_layout()
-    plot.savefig(output)
-    typer.echo(f"✔ Saved plot to: {output}")
-
+    plot.savefig(args.output)
+    print(f"✅ Saved plot to: {args.output}")
 
 if __name__ == "__main__":
-    app()
+    main()

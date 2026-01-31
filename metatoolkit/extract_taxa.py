@@ -10,6 +10,7 @@ with optional parent prefix and removal of taxonomic prefixes (e.g., 's__', 't__
 import pandas as pd
 import argparse
 import re
+from pathlib import Path
 
 def strip_prefix(name):
     """Remove taxonomic prefix (e.g. 's__', 't__') from a taxon name"""
@@ -54,7 +55,8 @@ def main():
 
     df_out = extract_taxa(df, args.level, keep_parent=args.keep_parent)
 
-    output_file = args.output or re.sub(r'\.tsv$', f'_{args.level.rstrip("_")}.tsv', args.input)
+    output_file = Path(args.output)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     df_out.to_csv(output_file, sep='\t')
     print(f'Saved: {output_file}')
 

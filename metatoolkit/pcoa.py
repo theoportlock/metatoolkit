@@ -45,8 +45,8 @@ def parse_arguments():
 
     parser.add_argument(
         "--distance-col",
-        default="distance",
-        help="Column name for distance value (default: distance)"
+        default="bray-curtis",
+        help="Column name for distance value (default: bray-curtis)"
     )
 
     parser.add_argument(
