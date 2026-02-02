@@ -50,8 +50,8 @@ def parse_args():
     parser.add_argument(
         "-s", "--sig",
         type=str,
-        default="qval_joint",
-        help="Column name for significance [default: qval_joint]."
+        default="qval_individual",
+        help="Column name for significance [default: qval_individual]."
     )
     parser.add_argument(
         "-g", "--group-cols",
