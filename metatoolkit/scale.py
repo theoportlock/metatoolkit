@@ -9,6 +9,13 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from skbio.stats.composition import clr, multi_replace
 import warnings
 
+# ---------- Logging ---------- #
+
+def log(msg):
+    print(f"[scale] {msg}")
+
+# ---------- I/O ---------- #
+
 def load(subject):
     if os.path.isfile(subject):
         return pd.read_csv(subject, sep='\t', index_col=0)
@@ -17,6 +24,8 @@ def load(subject):
 def save(df, output_path, index=True):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, sep='\t', index=index)
+
+# ---------- Transformations ---------- #
 
 def norm(df, axis=0):
     return df.div(df.sum(axis=axis), axis=1-axis)
@@ -39,13 +48,29 @@ def minmax(df, axis=0):
         columns=df.columns
     )
 
-def log(df, axis=0):
-    return df.apply(np.log1p, axis=axis)
+def log1p_transform(df, axis=0, columns=None):
+    """Apply log1p with verbose logging per column/row."""
+    if columns is None:
+        columns = df.columns.tolist() if axis == 0 else df.index.tolist()
+
+    df_out = df.copy()
+    if axis == 0:
+        for col in columns:
+            n_nonzero = (df[col] != 0).sum()
+            total = len(df[col])
+            df_out[col] = np.log1p(df[col])
+            log(f"log1p '{col}': transformed {n_nonzero}/{total} ({n_nonzero/total*100:.1f}%) non-zero values")
+    else:
+        for row in columns:
+            n_nonzero = (df.loc[row, :] != 0).sum()
+            total = len(df.columns)
+            df_out.loc[row, :] = np.log1p(df.loc[row, :])
+            log(f"log1p row '{row}': transformed {n_nonzero}/{total} ({n_nonzero/total*100:.1f}%) non-zero values")
+    return df_out
 
 def CLR(df, axis=0):
     if axis != 0:
         raise ValueError("CLR is only defined for axis=0 (features in columns).")
-    # Mandatory multiplicative replacement before CLR
     tdf = multi_replace(df)
     clr_values = clr(tdf)
     return pd.DataFrame(clr_values, index=df.index, columns=df.columns)
@@ -70,12 +95,14 @@ def ALR(df, reference=None):
         raise ValueError(f"Reference column '{reference}' not found in data.")
     return np.log(df.div(df[reference], axis=0).drop(columns=[reference]))
 
-def scale(analysis, df, refcol=None, axis=0):
+# ---------- Scale Dispatcher ---------- #
+
+def scale(analysis, df, refcol=None, axis=0, columns=None):
     available = {
         'norm': lambda x: norm(x, axis=axis),
         'standard': lambda x: standard(x, axis=axis),
         'minmax': lambda x: minmax(x, axis=axis),
-        'log': lambda x: log(x, axis=axis),
+        'log': lambda x: log1p_transform(x, axis=axis, columns=columns),
         'CLR': lambda x: CLR(x, axis=axis),
         'mult': lambda x: mult(x, axis=axis),
         'hellinger': lambda x: hellinger(x, axis=axis),
@@ -85,6 +112,8 @@ def scale(analysis, df, refcol=None, axis=0):
     if analysis not in available:
         raise ValueError(f"Unknown analysis method: {analysis}")
     return available[analysis](df)
+
+# ---------- CLI ---------- #
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -96,7 +125,10 @@ def parse_args():
     parser.add_argument('--refcol', help="Reference column for ALR (default: last column)")
     parser.add_argument('--axis', type=int, choices=[0, 1], default=0,
                         help="Apply transform by columns (0, default) or rows (1) where applicable.")
+    parser.add_argument('--columns', help="Comma-separated list of columns (or rows if axis=1) to transform (default: all)")
     return parser.parse_args()
+
+# ---------- Main ---------- #
 
 def main():
     args = parse_args()
@@ -107,7 +139,8 @@ def main():
     output_file = args.output or f"results/{subject}_{analysis}.tsv"
 
     df = load(subject)
-    output = scale(analysis, df, refcol=refcol, axis=axis)
+    columns = [c.strip() for c in args.columns.split(",")] if args.columns else None
+    output = scale(analysis, df, refcol=refcol, axis=axis, columns=columns)
 
     print(output)
     save(output, output_file)

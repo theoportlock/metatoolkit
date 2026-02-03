@@ -7,7 +7,6 @@ import numpy as np
 from skbio import TreeNode
 from skbio.diversity.alpha import shannon, faith_pd, pielou_e
 
-
 def load_table(table_path, tax_level):
     """
     Load the abundance table (TSV).
@@ -27,8 +26,11 @@ def load_table(table_path, tax_level):
 
 
 def load_tree(tree_path):
-    """Load a Newick-format phylogenetic tree."""
-    return TreeNode.read(tree_path)
+    tree = TreeNode.read(tree_path)
+    for n in tree.traverse():
+        if n.length is None:
+            n.length = 0.0   # or 1.0 (see below)
+    return tree
 
 
 def save(df, path):
@@ -89,6 +91,8 @@ def main():
         if dropped:
             print("Dropping taxa not found in tree:", dropped)
         table_for_faith = table[list(common_taxa)]
+
+    print('len(common_taxa):', len(common_taxa))
 
     results = {}
 
