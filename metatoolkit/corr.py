@@ -28,7 +28,6 @@ def fast_spearman(df1, df2=None, fdr=False, min_unique=1, dropna=False):
         df1 = df1.dropna(axis=0, how="any")
 
     if df2 is None:
-        # Self-correlation within df1
         valid_cols = df1.columns[df1.count() >= 3]
         df1 = df1[valid_cols]
         if df1.shape[1] < 2:
@@ -90,39 +89,56 @@ def fast_spearman(df1, df2=None, fdr=False, min_unique=1, dropna=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compute Spearman correlations efficiently.")
-    parser.add_argument("files", nargs="+", help="One or two input files (TSV format with index column).")
-    parser.add_argument("-m", "--mult", action="store_true", help="Apply FDR correction (q-values).")
-    parser.add_argument("-o", "--output", help="Path for output TSV.")
-    parser.add_argument("--dropna", action="store_true", help="Drop rows with any missing values before correlation.")
+    parser = argparse.ArgumentParser(
+        description="Compute Spearman correlations efficiently."
+    )
+    parser.add_argument(
+        "files",
+        nargs="+",
+        help="One or two input files (TSV format with index column).",
+    )
+    parser.add_argument(
+        "-m", "--mult", action="store_true", help="Apply FDR correction (q-values)."
+    )
+    parser.add_argument(
+        "-o", "--output", help="Path for output TSV (directories created if needed)."
+    )
+    parser.add_argument(
+        "--dropna",
+        action="store_true",
+        help="Drop rows with any missing values before correlation.",
+    )
     args = parser.parse_args()
-
-    # Ensure output directory exists
-    output_dir = Path("results")
-    output_dir.mkdir(exist_ok=True)
 
     if len(args.files) == 1:
         df = pd.read_csv(args.files[0], sep="\t", index_col=0)
         output = fast_spearman(df, fdr=args.mult, dropna=args.dropna)
-        if not output.empty:
-            outfile = args.output or output_dir / f"{Path(args.files[0]).stem}_corr.tsv"
-            output.to_csv(outfile, sep="\t", index=False)
-        else:
-            print("No valid correlations found.")
+        default_name = f"{Path(args.files[0]).stem}_corr.tsv"
 
     elif len(args.files) == 2:
         df1 = pd.read_csv(args.files[0], sep="\t", index_col=0)
         df2 = pd.read_csv(args.files[1], sep="\t", index_col=0)
         output = fast_spearman(df1, df2, fdr=args.mult, dropna=args.dropna)
-        if not output.empty:
-            outfile = args.output or output_dir / f"{Path(args.files[0]).stem}_{Path(args.files[1]).stem}_corr.tsv"
-            output.to_csv(outfile, sep="\t", index=False)
-        else:
-            print("No valid correlations found.")
+        default_name = (
+            f"{Path(args.files[0]).stem}_{Path(args.files[1]).stem}_corr.tsv"
+        )
+
     else:
         print("Please provide 1 or 2 files only.")
+        return
+
+    if output.empty:
+        print("No valid correlations found.")
+        return
+
+    # Resolve output path
+    outfile = Path(args.output) if args.output else Path(default_name)
+
+    # Ensure parent directory exists (critical fix)
+    outfile.parent.mkdir(parents=True, exist_ok=True)
+
+    output.to_csv(outfile, sep="\t", index=False)
 
 
 if __name__ == "__main__":
     main()
-
