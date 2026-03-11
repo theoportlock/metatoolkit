@@ -2,3 +2,54 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "metatoolkit"
+version = "0.3.0"
+authors = [
+    { name = "Theo Portlock", email = "theo@portlocklab.com" }
+]
+description = "A set of scripts for biological data analysis"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "matplotlib",
+    "matplotlib_venn",
+    "networkx",
+    "numpy",
+    "pandas",
+    "pycircos",
+    "scipy",
+    "seaborn",
+    "shap",
+    "scikit-bio",
+    "scikit-learn",
+    "sklearn_som",
+    "statsmodels",
+    "upsetplot",
+]
+
+[project.urls]
+Homepage = "https://github.com/theoportlock/metatoolkit"
+Source = "https://github.com/theoportlock/metatoolkit"
+"Bug Tracker" = "https://github.com/theoportlock/metatoolkit/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["metatoolkit*"]
+
+[tool.setuptools.package-data]
+metatoolkit = ["*"]
