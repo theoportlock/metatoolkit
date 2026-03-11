@@ -83,6 +83,17 @@ def apply_filters(df, **kw):
         df = df.loc[:, keep]
         log(f"Abundance > {a}: kept {keep.sum()} columns")
 
+    # --- Missing Data (NA) filtering ---
+    if (dna := kw.get("dropna")):
+        before = df.shape
+        if dna == "rows":
+            df = df.dropna(axis=0)
+        elif dna == "cols":
+            df = df.dropna(axis=1)
+        elif dna == "both":
+            df = df.dropna(axis=0).dropna(axis=1)
+        log(f"Dropped NAs ({dna}): {before} → {df.shape}")
+
     # --- Nonzero filtering ---
     if kw.get("nonzero"):
         before = df.shape
@@ -102,7 +113,7 @@ def apply_filters(df, **kw):
         df = df.select_dtypes(include=[np.number])
         log(f"Numeric-only columns: {df.shape[1]} remaining")
 
-        # --- Dtype filtering ---
+    # --- Dtype filtering ---
     if (dt := kw.get("dtype")):
         try:
             before = df.shape[1]
@@ -110,7 +121,6 @@ def apply_filters(df, **kw):
             log(f"Dtype '{dt}' columns: kept {df.shape[1]}/{before}")
         except Exception as e:
             log(f"Dtype filter error: {e}")
-
 
     # --- Query filter ---
     if (queries := kw.get("query")):
@@ -125,7 +135,7 @@ def apply_filters(df, **kw):
 # ---------- CLI ---------- #
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Filter a TSV file by another TSV’s index or specific column(s).")
+    p = argparse.ArgumentParser(description="Filter a TSV file by missing values, index, or numeric thresholds.")
     p.add_argument("input", help="Path to input TSV file")
     p.add_argument("-o", "--output", help="Path to output TSV file (default: adds _filter suffix)")
     p.add_argument("-fdf", "--filter_df", help="Path to TSV with index to filter by")
@@ -135,6 +145,7 @@ def parse_args():
     p.add_argument("-cf", "--colfilt", help="Regex for filtering columns")
     p.add_argument("-p", "--prevail", type=float, help="Prevalence threshold (0–1)")
     p.add_argument("-a", "--abund", type=float, help="Minimum mean abundance threshold")
+    p.add_argument("--dropna", choices=["rows", "cols", "both"], help="Drop rows or columns containing any NA/NaN values")
     p.add_argument("--nonzero", action="store_true", help="Remove all-zero rows and columns")
     p.add_argument("--min_nonzero_rows", type=int, help="Minimum number of non-zero values per row")
     p.add_argument("--min_nonzero_cols", type=int, help="Minimum number of non-zero values per column")
@@ -150,6 +161,8 @@ def main():
     args = parse_args()
 
     df = load(args.input)
+
+    # Load filter_df if path is provided
     if args.filter_df:
         args.filter_df = load(args.filter_df)
 
@@ -166,4 +179,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
