@@ -38,6 +38,7 @@ dependencies = [
     "scikit-bio",
     "scikit-learn",
     "sklearn_som",
+    "lifelines",
     "statsmodels",
     "upsetplot",
 ]
