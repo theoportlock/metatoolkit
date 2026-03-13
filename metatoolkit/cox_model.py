@@ -15,16 +15,15 @@ def parse_args():
     parser.add_argument("--event", required=True, help="Event column (1/0)")
     parser.add_argument("--covariates", nargs='+', required=True, 
                         help="List of columns to include (e.g., Condition Sex Ethnicity)")
-    parser.add_argument("--output", help="Path to save coefficients (CSV)")
+    parser.add_argument("--output", help="Path to save coefficients (TSV)")
     return parser.parse_args()
 
 def main():
     args = parse_args()
     
     # Load and Merge
-    sep = '\t' if args.input.endswith('.tsv') else ','
-    df = pd.merge(pd.read_csv(args.input, sep=sep), 
-                  pd.read_csv(args.meta, sep=sep), on=args.index)
+    df = pd.merge(pd.read_csv(args.input, sep='\t'), 
+                  pd.read_csv(args.meta, sep='\t'), on=args.index)
     
     # Process to survival format
     def summarize(group):
@@ -54,7 +53,7 @@ def main():
     cph.print_summary()
 
     if args.output:
-        cph.summary.to_csv(args.output)
+        cph.summary.to_csv(args.output, sep='\t')
         print(f"\nResults saved to {args.output}")
 
 if __name__ == "__main__":
