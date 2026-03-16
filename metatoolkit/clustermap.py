@@ -39,6 +39,15 @@ def parse_arguments():
     parser.add_argument('--filter-sig',
                         choices=['none', 'source', 'target', 'both'],
                         default='none')
+
+    # NEW: z-scoring option
+    parser.add_argument(
+        '--zscore',
+        choices=['row', 'col', 'none'],
+        default='none',
+        help='Z-score the effect matrix by row or column before plotting'
+    )
+
     parser.add_argument('-o', '--output')
     parser.add_argument('--figsize', nargs=2, type=float, default=[4, 4])
     parser.add_argument('--square', action='store_true')
@@ -50,7 +59,8 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
                figsize=(4, 4),
                row_cluster=True, col_cluster=True,
                row_order=None, col_order=None,
-               filter_sig='none'):
+               filter_sig='none',
+               zscore='none'):
 
     df = df.replace([np.inf, -np.inf], np.nan)
 
@@ -89,9 +99,18 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
         cor = cor.reindex(columns=col_list)
         sig_df = sig_df.reindex(columns=col_list)
 
+    # Optional z-scoring for coloring (and clustering)
+    if zscore == 'row':
+        cor = cor.sub(cor.mean(axis=1), axis=0)
+        cor = cor.div(cor.std(axis=1).replace(0, np.nan), axis=0)
+    elif zscore == 'col':
+        cor = cor.sub(cor.mean(axis=0), axis=1)
+        cor = cor.div(cor.std(axis=0).replace(0, np.nan), axis=1)
+
     g = sns.clustermap(
         cor,
-        cmap="vlag", center=0,
+        cmap="vlag",
+        center=0,
         figsize=figsize,
         dendrogram_ratio=(0.25, 0.25),
         row_cluster=row_cluster,
@@ -149,7 +168,6 @@ def main():
     args = parse_arguments()
     df = load(args.subject)
 
-    # Verbose validation of required columns
     df_cols = set(df.columns)
     df_index_name = df.index.name
     reset_cols = set(df.reset_index().columns)
@@ -219,16 +237,19 @@ def main():
         col_cluster=col_cluster,
         row_order=row_order,
         col_order=col_order,
-        filter_sig=args.filter_sig
+        filter_sig=args.filter_sig,
+        zscore=args.zscore
     )
 
     if args.square:
         reshape_clustermap(g)
 
-    output = args.output or f"results/{args.subject}_clustermap.svg"
+    output = args.output
+    outdir = os.path.dirname(output)
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
     plt.savefig(output, bbox_inches='tight')
 
 
 if __name__ == "__main__":
     main()
-

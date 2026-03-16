@@ -11,5 +11,4 @@ scikit-bio
 scikit-learn
 sklearn_som
 statsmodels
-umap
 upsetplot

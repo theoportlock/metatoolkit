@@ -1,0 +1,2578 @@
+# Auto-generated from metatoolkit argparse scripts
+# Run: python generate_skills.py
+
+PPCA:
+  description: Perform PPCA on a data matrix with missing values
+  inputs: []
+  outputs: []
+  params:
+  - name: i
+    help: Path to input data matrix (samples x features, tab-delimited
+    type: str
+  - name: o
+    help: Output file path for PPCA results (tab-delimited
+    type: str
+  - name: n-components
+    help: 'Number of principal components to compute (default: 2'
+    type: int
+    default: '2'
+abund:
+  description: Plot stacked bar chart of abundances from a TSV file.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: TSV file with samples as rows, features as columns
+  outputs: []
+  params:
+  - name: o
+    help: 'Output file path (default: abund.svg'
+    type: Path
+    default: '"abund.svg"'
+  - name: figsize
+    help: 'Figure size: width height (default: 4.0 4.0'
+    type: float
+    default: '[4.0'
+  - name: order
+    help: Sort categories by average abundance
+    type: string
+  - name: max-categories
+    help: 'Top categories to keep (default: 20'
+    type: int
+    default: '20'
+  - name: no-normalize
+    help: Do not normalize rows to relative abundance
+    type: string
+  - name: log1p
+    help: Apply log1p transformation to abundances
+    type: string
+alpha_diversity:
+  description: Calculate alpha diversity metrics per sample.
+  inputs:
+  - name: table
+    type: tsv
+    required: true
+    help: Input abundance table (TSV, samples x taxa
+  outputs: []
+  params:
+  - name: t
+    help: Newick tree file (required only for Faith
+    type: tsv
+  - name: o
+    help: 'Output file name (default: alpha_diversity.tsv in same directory as input
+      table'
+    type: str
+  - name: metrics
+    help: 'Which alpha diversity metrics to calculate (default: all'
+    type: choice
+    enum:
+    - shannon
+    - richness
+    - evenness
+    - faiths
+    - all
+    default: '[''all'']'
+  - name: tax_level
+    help: 'Taxonomic prefix of interest in column names (default: t__'
+    type: string
+    default: '''t__'''
+arrange_svgs:
+  description: Arrange SVGs into a grid while preserving aspect ratio and font sizes.
+  inputs:
+  - name: input_svgs
+    type: tsv
+    required: true
+    help: Input SVG files
+  outputs: []
+  params:
+  - name: rows
+    help: Number of rows in the grid
+    type: int
+  - name: cols
+    help: Number of columns in the grid
+    type: int
+  - name: o
+    help: Output SVG file
+    type: tsv
+    default: '"output.svg"'
+assign:
+  description: Assign a new column to a TSV using an expression.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Path to input TSV file
+  outputs: []
+  params:
+  - name: o
+    help: 'Path to output TSV file (default: assigned.tsv'
+    type: tsv
+    default: '"assigned.tsv"'
+  - name: a
+    help: Assignment expression, e.g. \
+    type: string
+  - name: mode
+    help: ''
+    type: choice
+    enum:
+    - dataframe
+    - global
+    default: '"dataframe"'
+aucroc_curve:
+  description: Script for plotting multiple AUCROC curves
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Data name or full filepath
+  outputs: []
+  params: []
+bar:
+  description: Bar - Produces a barplot of a given dataset
+  inputs:
+  - name: subject
+    type: string
+    required: true
+    help: Dataset identifier to load
+  outputs: []
+  params: []
+baseline_distance:
+  description: Filter beta diversity values to within-subject distances from a specified
+    baseline timepoint (includes baseline=0.0).
+  inputs:
+  - name: beta
+    type: tsv
+    required: true
+    help: 'Path to beta diversity file (TSV with columns: source, target, bray-curtis'
+  - name: meta
+    type: tsv
+    required: true
+    help: 'Path to metadata file (TSV with columns: sampleID, subjectID, timepoint'
+  outputs: []
+  params:
+  - name: m
+    help: 'Column name of the distance metric (default: bray-curtis'
+    type: string
+    default: '"bray-curtis"'
+  - name: b
+    help: 'Timepoint value to use as baseline (default: 0.0'
+    type: string
+    default: '0.0'
+  - name: o
+    help: Output TSV file path
+    type: tsv
+beta_diversity:
+  description: Load the abundance table (TSV).
+  inputs:
+  - name: table
+    type: tsv
+    required: true
+    help: Input abundance table (TSV, samples x taxa
+  outputs: []
+  params:
+  - name: t
+    help: Newick tree file (required only for UniFrac
+    type: tsv
+  - name: o
+    help: 'Output file name (default: beta_diversity.tsv in same directory as input
+      table'
+    type: str
+  - name: metrics
+    help: 'Which beta diversity metrics to calculate (default: all'
+    type: choice
+    enum:
+    - bray-curtis
+    - jaccard
+    - euclidean
+    - weighted-unifrac
+    - unweighted-unifrac
+    - all
+    default: '[''all'']'
+  - name: tax-level
+    help: 'Taxonomic prefix of interest in column names (default: t__'
+    type: string
+    default: '''t__'''
+box:
+  description: Produces a Boxplot of a given dataset
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to dataset file or subject name
+  outputs: []
+  params:
+  - name: x
+    help: Column name for x-axis
+    type: string
+  - name: y
+    help: Column name for y-axis
+    type: string
+  - name: hue
+    help: Column name for hue grouping
+    type: string
+  - name: order
+    help: Comma-separated order of categories for x-axis (or y-axis if horizontal
+    type: string
+  - name: logy
+    help: Set y-axis to log scale (or x-axis if horizontal
+    type: string
+  - name: show
+    help: Display the plot window
+    type: string
+  - name: figsize
+    help: Figure size as width,height
+    type: string
+    default: '''2'
+  - name: o
+    help: Output filename without extension
+    type: tsv
+  - name: meta
+    help: Path(s
+    type: tsv
+  - name: rc
+    help: Path to matplotlibrc file to use for styling
+    type: tsv
+  - name: horizontal
+    help: Plot horizontally (swap x and y axes
+    type: string
+  - name: ymin
+    help: Minimum value for y-axis
+    type: float
+  - name: ymax
+    help: Maximum value for y-axis
+    type: float
+cca:
+  description: Pairwise Canonical Correlation Analysis (CCA) with missingness logging
+  inputs:
+  - name: inputs
+    type: tsv
+    required: true
+    help: Input TSVs, directories, or glob patterns
+  outputs: []
+  params:
+  - name: o
+    help: Path to output summary TSV
+    type: tsv
+    default: '"pairwise_cca.tsv"'
+  - name: scale
+    help: Standardize features before CCA
+    type: string
+  - name: n_permutations
+    help: Number of permutations for significance testing
+    type: int
+    default: '999'
+  - name: min_samples
+    help: Minimum complete samples required after filtering
+    type: int
+    default: '3'
+change:
+  description: Change - Bivariate analysis of feature changes
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to dataset file or subject name (resolved as results/{name}.tsv
+  outputs: []
+  params:
+  - name: df2
+    help: Path to metadata/one-hot-encoded file or subject name
+    type: tsv
+  - name: c
+    help: 'Metadata columns to split by (default: all'
+    type: string
+  - name: a
+    help: Methods of analysis to perform
+    type: choice
+    enum:
+    - mww
+    - fc
+    - diffmean
+    - summary
+    default: '["mww"'
+  - name: o
+    help: 'Output TSV file (default: results/{subject}_change.tsv'
+    type: tsv
+  - name: quiet
+    help: Suppress printed DataFrame output
+    type: string
+chisquared:
+  description: Calculate Chi-Squared test and Cramér
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input TSV file containing categorical variables
+  outputs: []
+  params:
+  - name: o
+    help: Output TSV file path
+    type: str
+clustermap:
+  description: Plot - Produces a clustered heatmap from edgelist
+  inputs: []
+  outputs: []
+  params:
+  - name: sig
+    help: ''
+    type: string
+    default: '''qval'''
+  - name: effect
+    help: ''
+    type: string
+    default: '''cor'''
+  - name: source-col
+    help: ''
+    type: string
+    default: '''source'''
+  - name: target-col
+    help: ''
+    type: string
+    default: '''target'''
+  - name: sig_thresh
+    help: ''
+    type: float
+    default: '0.05'
+  - name: no-cluster
+    help: Disable both row and column clustering
+    type: string
+  - name: no-row-cluster
+    help: ''
+    type: string
+  - name: no-col-cluster
+    help: ''
+    type: string
+  - name: row-order
+    help: Comma-separated list specifying row order
+    type: string
+  - name: col-order
+    help: Comma-separated list specifying column order
+    type: string
+  - name: filter-sig
+    help: ''
+    type: choice
+    enum:
+    - none
+    - source
+    - target
+    - both
+    default: '''none'''
+  - name: zscore
+    help: Z-score the effect matrix by row or column before plotting
+    type: choice
+    enum:
+    - row
+    - col
+    - none
+    default: '''none'''
+  - name: o
+    help: ''
+    type: string
+  - name: figsize
+    help: ''
+    type: float
+    default: '[4'
+  - name: square
+    help: ''
+    type: string
+compute_theoretical_variance:
+  description: Compute expected variance contribution from formula terms.
+  inputs: []
+  outputs: []
+  params:
+  - name: input
+    help: Path to input formula file
+    type: str
+    default: '''conf/formula.txt'''
+  - name: output_dir
+    help: Output directory to save TSV files
+    type: str
+    default: '''results/'''
+contingency:
+  description: Save the contingency matrix of two specified columns from a CSV file.
+  inputs:
+  - name: file
+    type: tsv
+    required: true
+    help: Path to the input CSV file.
+  - name: column1
+    type: string
+    required: true
+    help: Name of the first column.
+  - name: column2
+    type: string
+    required: true
+    help: Name of the second column.
+  outputs: []
+  params:
+  - name: o
+    help: Path to save the output contingency matrix
+    type: str
+corr:
+  description: Compute Spearman correlations efficiently.
+  inputs:
+  - name: files
+    type: tsv
+    required: true
+    help: One or two input files (TSV format with index column
+  outputs: []
+  params:
+  - name: m
+    help: Apply FDR correction (q-values
+    type: string
+  - name: o
+    help: Path for output TSV.
+    type: tsv
+  - name: dropna
+    help: Drop rows with any missing values before correlation.
+    type: string
+create_network:
+  description: Build a graph from node and edge files.
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output GraphML file
+  params:
+  - name: nodes
+    help: Path to the nodes TSV file (optional
+    type: tsv
+  - name: edges
+    help: Path to the edges TSV file
+    type: tsv
+  - name: source_col
+    help: Column name for the source node in edges file
+    type: tsv
+    default: '''source'''
+  - name: target_col
+    help: Column name for the target node in edges file
+    type: tsv
+    default: '''target'''
+create_toy_dataset:
+  description: Generate a toy dataset from a symbolic formula.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Path to formula file
+  outputs:
+  - name: output
+    type: tsv
+    help: Path to output dataset file
+  params:
+  - name: target
+    help: 'Name of target output column (default: y'
+    type: str
+    default: '''y'''
+  - name: seed
+    help: Random seed for reproducibility
+    type: int
+    default: '42'
+  - name: n
+    help: Number of samples to generate
+    type: int
+    default: '1000'
+createsupptables:
+  description: createsupptables tool
+  inputs: []
+  outputs: []
+  params:
+  - name: i
+    help: ''
+    type: string
+  - name: o
+    help: ''
+    type: string
+distance:
+  description: Compute distance edgelist from a data table
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to input data file (TSV
+  outputs: []
+  params:
+  - name: m
+    help: Distance metric (e.g., braycurtis, euclidean, cosine, etc.
+    type: str
+    default: '''braycurtis'''
+  - name: o
+    help: Output file path (TSV
+    type: str
+drop:
+  description: Drop rows or columns from a TSV using pandas drop().
+  inputs: []
+  outputs:
+  - name: outfile
+    type: tsv
+    help: Output TSV file
+  params:
+  - name: infile
+    help: Input TSV file
+    type: tsv
+  - name: labels
+    help: Comma-separated list of row/column labels to drop
+    type: string
+  - name: axis
+    help: 0 to drop rows, 1 to drop columns
+    type: choice
+    enum:
+    - '0'
+    - '1'
+  - name: index-col
+    help: 'Column to use as index (default: 0'
+    type: int
+    default: '0'
+ebm:
+  description: Train an Explainable Boosting Machine (EBM) using pre-split data
+  inputs: []
+  outputs: []
+  params:
+  - name: input_dir
+    help: Directory containing X_train.tsv and y_train.tsv
+    type: str
+  - name: output_model
+    help: Path to save the trained model (.joblib
+    type: str
+  - name: task
+    help: Type of task to perform
+    type: choice
+    enum:
+    - classification
+    - regression
+  - name: max_bins
+    help: 'Maximum number of bins per feature (default: 256'
+    type: int
+    default: '256'
+  - name: max_interaction_bins
+    help: 'Maximum bins for interactions (default: 32'
+    type: int
+    default: '32'
+  - name: interactions
+    help: 'Number of pairwise interactions to include (default: 0'
+    type: int
+    default: '0'
+  - name: learning_rate
+    help: 'Learning rate (default: 0.01'
+    type: float
+    default: '0.01'
+  - name: validation_size
+    help: 'Fraction of training data used for validation (default: 0.15'
+    type: float
+    default: '0.15'
+  - name: random_state
+    help: 'Random seed (default: 42'
+    type: int
+    default: '42'
+evaluate_model:
+  description: Evaluate a trained model on test data (classification or regression)
+  inputs: []
+  outputs: []
+  params:
+  - name: model
+    help: Path to trained model (.joblib
+    type: str
+  - name: input_dir
+    help: Directory containing X_test.tsv and y_test.tsv
+    type: str
+  - name: task
+    help: 'Type of ML task: classification or regression'
+    type: choice
+    enum:
+    - classification
+    - regression
+  - name: report_file
+    help: Path to save evaluation report (.tsv
+    type: str
+explain_variance:
+  description: Explained Variance using PERMANOVA for beta diversity datasets
+  inputs:
+  - name: dfs
+    type: string
+    required: true
+    help: Dataset(s
+  outputs: []
+  params:
+  - name: df_cats
+    help: Metadata with categories
+    type: str
+    default: '''meta'''
+  - name: o
+    help: Output filename
+    type: str
+  - name: s
+    help: Suffix for output
+    type: str
+  - name: from_beta
+    help: Use precomputed beta-diversity matrix
+    type: string
+  - name: explainor
+    help: Single column to explain
+    type: str
+extract_codeblocks:
+  description: Extract code blocks from a Markdown file and save them to an output
+    directory.
+  inputs:
+  - name: input_file
+    type: tsv
+    required: true
+    help: Path to the Markdown file to process.
+  outputs: []
+  params:
+  - name: o
+    help: 'Directory where code blocks will be saved (default: current directory'
+    type: string
+    default: '"."'
+extract_taxa:
+  description: Extract taxa from MetaPhlAn table.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input MetaPhlAn TSV file
+  outputs: []
+  params:
+  - name: l
+    help: Taxonomic level to extract (e.g., g__, s__, t__
+    type: choice
+    enum:
+    - k__
+    - p__
+    - c__
+    - o__
+    - f__
+    - g__
+    - s__
+    - t__
+  - name: o
+    help: 'Output TSV file (default: auto-named'
+    type: tsv
+  - name: keep-parent
+    help: Retain the immediate parent name in column labels (no taxonomic prefixes
+    type: string
+factor_rotation:
+  description: Rotate factor loadings (e.g. varimax) using statsmodels.rotate_factors
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: 'Input CSV/TSV file with loadings (rows: variables, cols: factors'
+  outputs: []
+  params:
+  - name: o
+    help: 'Output file (default: stdout'
+    type: tsv
+  - name: sep
+    help: Delimiter for input/output (default tab
+    type: string
+    default: '"\t"'
+  - name: method
+    help: 'Rotation method (default: varimax'
+    type: choice
+    enum:
+    - varimax
+    - quartimax
+    - oblimin
+    - promax
+    - equamax
+    - quartimax
+    - oblimin
+    default: '"varimax"'
+  - name: normalize
+    help: Whether to perform Kaiser (column
+    type: string
+  - name: maxiter
+    help: Maximum number of iterations for rotation (default 1000
+    type: int
+    default: '1000'
+  - name: tol
+    help: Tolerance for convergence (default 1e-6
+    type: float
+    default: 1e-6
+faith_pd:
+  description: Calculate Faith
+  inputs:
+  - name: table
+    type: tsv
+    required: true
+    help: Input abundance table (TSV, samples x taxa
+  - name: tree
+    type: tsv
+    required: true
+    help: Newick tree file
+  outputs: []
+  params:
+  - name: o
+    help: Output file name
+    type: str
+fdr:
+  description: Apply FDR correction to p-values in a TSV file.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input TSV file with p-values.
+  outputs: []
+  params:
+  - name: o
+    help: 'Output file path. Default: results/{basename}_fdr.tsv'
+    type: tsv
+  - name: p
+    help: 'Column name containing p-values. Default: '
+    type: string
+    default: '"pval"'
+  - name: m
+    help: Correction method (e.g., bonferroni, fdr_bh
+    type: string
+    default: '"fdr_bh"'
+  - name: a
+    help: 'FDR significance level. Default: 0.05'
+    type: float
+    default: '0.05'
+fillna:
+  description: Fill missing values in a TSV file with a specified value.
+  inputs: []
+  outputs: []
+  params:
+  - name: i
+    help: Input TSV file
+    type: tsv
+  - name: c
+    help: 'Optional: comma-separated list of columns to fill (default: all columns'
+    type: string
+  - name: v
+    help: Value to fill missing cells with
+    type: string
+  - name: o
+    help: Output TSV file path
+    type: tsv
+filter:
+  description: Filter a TSV file by another TSV’s index or specific column(s).
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Path to input TSV file
+  outputs: []
+  params:
+  - name: o
+    help: 'Path to output TSV file (default: adds _filter suffix'
+    type: tsv
+  - name: fdf
+    help: Path to TSV with index to filter by
+    type: tsv
+  - name: fdfx
+    help: Axis to filter (0=row, 1=column
+    type: int
+    default: '0'
+  - name: column
+    help: Column(s
+    type: string
+    default: '"index"'
+  - name: rf
+    help: Regex for filtering rows (index
+    type: string
+  - name: cf
+    help: Regex for filtering columns
+    type: string
+  - name: p
+    help: Prevalence threshold (0–1
+    type: float
+  - name: a
+    help: Minimum mean abundance threshold
+    type: float
+  - name: nonzero
+    help: Remove all-zero rows and columns
+    type: string
+  - name: min_nonzero_rows
+    help: Minimum number of non-zero values per row
+    type: int
+  - name: min_nonzero_cols
+    help: Minimum number of non-zero values per column
+    type: int
+  - name: numeric_only
+    help: Keep numeric columns only
+    type: string
+  - name: dtype
+    help: 'Keep only columns matching this dtype (e.g. '
+    type: string
+  - name: q
+    help: Pandas query string(s
+    type: string
+fisher:
+  description: Fisher exact test with log odds output.
+  inputs:
+  - name: file
+    type: tsv
+    required: true
+    help: Path to the input TSV file.
+  outputs: []
+  params:
+  - name: o
+    help: Path to output TSV file.
+    type: str
+  - name: dropna
+    help: Drop rows with any missing values before testing.
+    type: string
+group:
+  description: Group and aggregate datasets.
+  inputs: []
+  outputs: []
+  params:
+  - name: group_by
+    help: ''
+    type: string
+  - name: func
+    help: ''
+    type: string
+  - name: o
+    help: ''
+    type: string
+hbar:
+  description: Horizontal bar plot from coefficients (generalized).
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input TSV/CSV file
+  outputs: []
+  params:
+  - name: o
+    help: Output path for the SVG file
+    type: tsv
+  - name: coef-col
+    help: Name of the column containing coefficient values
+    type: string
+  - name: hue-col
+    help: 'Optional: Name of the column to color bars by (e.g., filename'
+    type: tsv
+  - name: index-col
+    help: 'Optional: Name of the column to use as row labels (otherwise default index'
+    type: string
+  - name: separator
+    help: 'Field separator (default: tab'
+    type: string
+    default: '''\t'''
+  - name: xscale
+    help: X-axis scale
+    type: choice
+    enum:
+    - linear
+    - log
+    - symlog
+    default: '''linear'''
+  - name: xlabel
+    help: ''
+    type: string
+    default: '''Explained variance (R2'
+  - name: ylabel
+    help: Label for the y-axis
+    type: string
+    default: '''Entry'''
+  - name: title
+    help: Plot title
+    type: string
+    default: '''Horizontal Barplot'''
+  - name: figsize
+    help: ''
+    type: float
+hist:
+  description: Produce a histogram plot from a TSV dataset.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Subject name or path to TSV file
+  outputs: []
+  params:
+  - name: c
+    help: 'Column to plot (default: sig'
+    type: string
+    default: '"sig"'
+  - name: bins
+    help: Number of histogram bins
+    type: int
+  - name: log-scale
+    help: Apply log10 scale to x-axis
+    type: string
+  - name: kde
+    help: Overlay KDE on histogram
+    type: string
+  - name: facet
+    help: Column name to facet by (can come from metadata
+    type: string
+  - name: meta
+    help: Path(s
+    type: tsv
+  - name: theme
+    help: 'Plot theme (default: paper'
+    type: choice
+    enum:
+    - paper
+    - talk
+    default: '"paper"'
+  - name: o
+    help: 'Output image file (default: results/<subject>_hist.svg'
+    type: tsv
+hyperparameter_tune:
+  description: Hyperparameter tuning using GridSearchCV or RandomizedSearchCV
+  inputs: []
+  outputs: []
+  params:
+  - name: input_dir
+    help: Directory with train/test splits
+    type: str
+  - name: task
+    help: ''
+    type: choice
+    enum:
+    - classification
+    - regression
+  - name: search_grid
+    help: JSON file with parameter grid
+    type: str
+  - name: output_model
+    help: File to save best model (pkl
+    type: str
+  - name: report_file
+    help: TSV file to save evaluation report
+    type: str
+  - name: search
+    help: Search strategy
+    type: choice
+    enum:
+    - grid
+    - random
+    default: '"grid"'
+  - name: cv
+    help: Number of CV folds
+    type: int
+    default: '5'
+  - name: n_iter
+    help: Number of iterations for random search
+    type: int
+    default: '20'
+importance_pie:
+  description: Nested donut of SHAP values.
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output SVG (or PNG
+  params:
+  - name: input
+    help: Input TSV with SHAP values.
+    type: tsv
+  - name: threshold
+    help: Hide features whose SHAP value is below this number.
+    type: float
+    default: '0.0'
+join:
+  description: Join two dataframes using pandas merge.
+  inputs:
+  - name: file1
+    type: tsv
+    required: true
+    help: First input file.
+  - name: file2
+    type: tsv
+    required: true
+    help: Second input file.
+  outputs: []
+  params:
+  - name: o
+    help: Output filename prefix.
+    type: tsv
+    default: '''joined'''
+  - name: how
+    help: Merge method.
+    type: choice
+    enum:
+    - inner
+    - outer
+    - left
+    - right
+    - cross
+    default: '''inner'''
+  - name: 'on'
+    help: Column(s
+    type: string
+  - name: left_on
+    help: Left join key(s
+    type: string
+  - name: right_on
+    help: Right join key(s
+    type: string
+  - name: suffixes
+    help: Suffixes for overlapping columns (comma-separated
+    type: string
+    default: '''_x'
+  - name: q
+    help: Suppress join summary output.
+    type: string
+kmeans:
+  description: kmeans_cluster - Apply K-means clustering to your dataset
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to dataset file or subject name
+  outputs: []
+  params:
+  - name: clusters
+    help: Force number of clusters (overrides Silhouette method
+    type: int
+  - name: min-clusters
+    help: 'Minimum number of clusters to test (default: 2'
+    type: int
+    default: '2'
+  - name: max-clusters
+    help: 'Maximum number of clusters to test (default: 10'
+    type: int
+    default: '10'
+  - name: random-state
+    help: 'Random state for K-means initialization (default: 0'
+    type: int
+    default: '0'
+  - name: o
+    help: Output .tsv file path (directories will be created if needed
+    type: tsv
+kneaddata_summary:
+  description: Summarize KneadData output with read depth and percentage filtered.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input kneaddata_summary.tsv file
+  outputs: []
+  params:
+  - name: o
+    help: Output TSV file
+    type: tsv
+kruskal:
+  description: 'Kruskal-Wallis test: numeric vs categorical columns.'
+  inputs:
+  - name: numeric
+    type: string
+    required: true
+    help: Input table containing numeric columns
+  - name: categorical
+    type: string
+    required: true
+    help: Input table containing categorical columns
+  outputs: []
+  params:
+  - name: o
+    help: Output TSV file path
+    type: str
+leiden_clustering:
+  description: Leiden clustering from edgelist
+  inputs:
+  - name: subject
+    type: string
+    required: true
+    help: Edgelist with source and target columns
+  outputs: []
+  params:
+  - name: c
+    help: Column name for weight
+    type: str
+  - name: o
+    help: Name of file for output
+    type: str
+  - name: s
+    help: Name of suffix for output
+    type: str
+line:
+  description: line tool
+  inputs: []
+  outputs: []
+  params:
+  - name: df2
+    help: categorical data to label lineplot with
+    type: str
+    default: '''meta'''
+  - name: logy
+    help: ''
+    type: string
+lmplot:
+  description: Produces an lmplot of a given dataset with optional metadata and facetting.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to dataset file or subject name
+  outputs: []
+  params:
+  - name: x
+    help: Column name for x-axis
+    type: string
+  - name: y
+    help: Column name for y-axis
+    type: string
+  - name: hue
+    help: Column name for hue grouping
+    type: string
+  - name: col
+    help: Column name for facet columns
+    type: string
+  - name: row
+    help: Column name for facet rows
+    type: string
+  - name: logy
+    help: Set y-axis to log scale
+    type: string
+  - name: logx
+    help: Set x-axis to log scale
+    type: string
+  - name: show
+    help: Display the plot window
+    type: string
+  - name: figsize
+    help: Figure size as width,height
+    type: string
+    default: '''2'
+  - name: o
+    help: Output filename without extension
+    type: tsv
+  - name: meta
+    help: Metadata file(s
+    type: tsv
+log1p:
+  description: Performs a log1p adjustment
+  inputs: []
+  outputs: []
+  params:
+  - name: profile
+    help: Input profile file
+    type: tsv
+  - name: o
+    help: Output file name
+    type: str
+maaslin_sig_summary:
+  description: Summarise MaAsLin results with optional grouping by metadata/model.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Input MaAsLin results TSV.
+  outputs: []
+  params:
+  - name: p
+    help: 'P-value or q-value threshold [default: 0.25].'
+    type: float
+    default: '0.25'
+  - name: c
+    help: 'Column name for change effect [default: coef].'
+    type: str
+    default: '"coef"'
+  - name: s
+    help: 'Column name for significance [default: qval_individual].'
+    type: str
+    default: '"qval_individual"'
+  - name: g
+    help: ''
+    type: string
+  - name: o
+    help: Output file path for summary TSV.
+    type: str
+make_excel:
+  description: Generate a formatted Excel workbook from multiple TSV tables.
+  inputs: []
+  outputs: []
+  params:
+  - name: l
+    help: ''
+    type: string
+  - name: toc
+    help: Optional table-of-contents TSV file
+    type: tsv
+  - name: glossary
+    help: Optional glossary TSV file
+    type: tsv
+  - name: o
+    help: 'Path to output Excel file (default: results/output.xlsx'
+    type: tsv
+    default: '"results/output.xlsx"'
+makesupptable:
+  description: Generate a formatted Excel file of supplementary tables.
+  inputs: []
+  outputs: []
+  params:
+  - name: s
+    help: 'Path to list of supplementary tables (default: conf/suppTableList.txt'
+    type: tsv
+    default: '"conf/suppTableList.txt"'
+  - name: c
+    help: 'Path to contents file (default: conf/contents.tsv'
+    type: tsv
+    default: '"conf/contents.tsv"'
+  - name: g
+    help: 'Path to glossary file (default: conf/glossary.tsv'
+    type: tsv
+    default: '"conf/glossary.tsv"'
+  - name: o
+    help: 'Path to output Excel file (default: results/suppTables.xlsx'
+    type: tsv
+    default: '"results/suppTables.xlsx"'
+mannwhitneyu:
+  description: Mann–Whitney U test using Cohen
+  inputs:
+  - name: numeric
+    type: string
+    required: true
+    help: Input table with numeric columns
+  - name: categorical
+    type: string
+    required: true
+    help: Input table with binary categorical columns
+  outputs: []
+  params:
+  - name: o
+    help: Output TSV file path
+    type: str
+  - name: dropna
+    help: Drop rows with any missing values before testing
+    type: string
+mefisto_preprocess:
+  description: Preprocess multiple microbiome count datasets for MEFISTO analysis.
+  inputs: []
+  outputs: []
+  params:
+  - name: i
+    help: Paths to the raw count data CSV files. Samples in columns, features in rows.
+    type: tsv
+  - name: t
+    help: Path to the time metadata CSV file. Samples in rows, features in columns.
+    type: tsv
+  - name: o
+    help: Path to save the output AnnData file (.h5ad
+    type: tsv
+  - name: skip_log_transform
+    help: Skips the log1p transformation, useful for data with negative values (e.g.,
+      EEG
+    type: string
+mefisto_visualize:
+  description: Visualize results from a trained MEFISTO model.
+  inputs: []
+  outputs: []
+  params:
+  - name: input
+    help: Path to the trained MEFISTO model file (.hdf5
+    type: tsv
+  - name: input_h5ad
+    help: Path to the preprocessed AnnData file (.h5ad
+    type: tsv
+  - name: output_dir
+    help: Directory to save the output plots.
+    type: tsv
+  - name: time_col
+    help: 'Column in the metadata containing timepoint information (e.g., '
+    type: string
+merge:
+  description: Merge multiple TSV datasets horizontally or vertically.
+  inputs:
+  - name: datasets
+    type: tsv
+    required: true
+    help: List of dataset TSV files (supports wildcards
+  outputs: []
+  params:
+  - name: j
+    help: 'Join method: inner (default'
+    type: choice
+    enum:
+    - inner
+    - outer
+    default: '''inner'''
+  - name: a
+    help: Append vertically instead of joining columns
+    type: string
+  - name: add-filename
+    help: Add a filename column when appending
+    type: tsv
+  - name: filename-format
+    help: 'Format for filename column: base (default'
+    type: choice
+    enum:
+    - path
+    - base
+    default: '''base'''
+  - name: add-prefix
+    help: Add dataset basename as prefix to column names (only when merging columns
+    type: string
+  - name: sep
+    help: 'Separator between dataset basename and column name (default: '
+    type: string
+    default: ''':'''
+  - name: o
+    help: Output file path (required
+    type: tsv
+merge_networks:
+  description: Merge multiple GraphML files without node overlap.
+  inputs:
+  - name: graphml_files
+    type: tsv
+    required: true
+    help: List of GraphML files to merge
+  outputs:
+  - name: output
+    type: tsv
+    help: Output merged GraphML filename
+  params:
+  - name: xgap
+    help: Gap between rightmost and leftmost node x-positions
+    type: float
+    default: '10.0'
+  - name: directed
+    help: Use directed graphs
+    type: string
+mixedlm:
+  description: General Linear / Linear Mixed Models for multiple response variables.
+  inputs: []
+  outputs: []
+  params:
+  - name: i
+    help: Input TSV/CSV with samples as rows and response variables as columns.
+    type: tsv
+  - name: m
+    help: Metadata TSV/CSV file containing predictors (index_col=0
+    type: tsv
+  - name: f
+    help: 'Right-hand side formula. If omitted, uses ALL metadata columns: col1 +
+      col2 + ...'
+    type: formula
+  - name: g
+    help: Optional Random Effect grouping variable. If omitted, uses OLS.
+    type: string
+  - name: o
+    help: Output filename (TSV
+    type: tsv
+mofa_export:
+  description: Export MOFA+ factors and loadings
+  inputs: []
+  outputs: []
+  params:
+  - name: model
+    help: ''
+    type: string
+    default: '''results/mofa/t1.hdf5'''
+  - name: mdata
+    help: ''
+    type: string
+    default: '''results/mofa/mdata.h5mu'''
+  - name: outdir
+    help: ''
+    type: string
+    default: '''results/mofa'''
+mofa_load_data:
+  description: Load modalities and metadata into MuData object
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: ''
+  params:
+  - name: t1-dir
+    help: Directory containing T1 (baseline
+    type: string
+    default: '''results/timepoints/yr1'''
+  - name: t2-dir
+    help: Directory containing T2 (after refeeding
+    type: string
+    default: '''results/timepoints/yr2'''
+  - name: notp-dir
+    help: Directory containing data with no timepoint info (optional
+    type: string
+    default: '''results/timepoints/notp'''
+  - name: meta-file
+    help: ''
+    type: tsv
+    default: '''results/filtered/meta.tsv'''
+mofa_plots:
+  description: Visualize R² from MOFA+ model
+  inputs: []
+  outputs: []
+  params:
+  - name: model
+    help: ''
+    type: string
+    default: '''results/mofa/t1.hdf5'''
+mofa_run:
+  description: Run MOFA+ on MuData object
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: ''
+  params:
+  - name: input
+    help: ''
+    type: tsv
+    default: '''results/mofa/mdata.h5mu'''
+  - name: factors
+    help: ''
+    type: int
+    default: '15'
+multiline:
+  description: Single-panel pastel lineplot with individual subject lines.
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output SVG file path
+  params:
+  - name: subject
+    help: Path to subject-level data TSV file
+    type: tsv
+  - name: meta
+    help: Path to metadata TSV file
+    type: tsv
+  - name: x
+    help: X-axis variable (e.g., timepoint
+    type: string
+  - name: y
+    help: Y-axis variable (e.g., WLZ_WHZ
+    type: string
+  - name: hue
+    help: Grouping variable for color (e.g., Feed
+    type: string
+  - name: id
+    help: Unique subject ID column name (e.g., subjectID
+    type: string
+  - name: logy
+    help: Use log scale for Y-axis
+    type: string
+  - name: figsize
+    help: ''
+    type: float
+    default: '[3'
+  - name: x_order
+    help: Explicit order for X-axis categories (e.g., --x_order Baseline wk6 wk12
+    type: string
+newcorr:
+  description: Produces Spearman correlations between datasets.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Primary dataset file path
+  - name: df2
+    type: tsv
+    required: true
+    help: Secondary dataset file path (optional
+  outputs: []
+  params:
+  - name: m
+    help: Apply False Discovery Rate correction
+    type: string
+one_sample_test:
+  description: One-sample t-test
+  inputs: []
+  outputs: []
+  params:
+  - name: c
+    help: Column name for variable to test
+    type: str
+  - name: v
+    help: Null hypothesis mean value
+    type: str
+onehot:
+  description: One-hot encode categorical columns of a dataset.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Input data file or subject name
+  outputs: []
+  params:
+  - name: o
+    help: Output file path
+    type: str
+  - name: include-cols
+    help: Comma-separated list of columns to include in one-hot encoding
+    type: str
+  - name: exclude-cols
+    help: Comma-separated list of columns to exclude from one-hot encoding
+    type: str
+  - name: prefix-sep
+    help: 'Prefix separator used in one-hot encoding (default: '
+    type: str
+    default: '"."'
+  - name: sanitize-headers
+    help: Sanitize column headers in output to letters, digits, dashes and underscores
+      only
+    type: string
+  - name: min-prevalence
+    help: Drop one-hot columns whose fraction of TRUE (1
+    type: float
+  - name: drop-onehot-values
+    help: 'Comma-separated list of level names to drop from one-hot columns '
+    type: str
+  - name: dtype
+    help: 'Data type of one-hot encoded columns (default: int'
+    type: choice
+    enum:
+    - int
+    - float
+    - bool
+    default: '"int"'
+outliers:
+  description: Mask or remove numeric outliers in a TSV file using IQR (default) or
+    Z-score methods.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Path to input TSV file
+  outputs: []
+  params:
+  - name: o
+    help: 'Path to output TSV file (default: adds _outliers suffix'
+    type: tsv
+  - name: columns
+    help: 'Comma-separated list of numeric columns to filter (default: all'
+    type: string
+  - name: outlier_iqr
+    help: 'Mask outliers using IQR*k (default: 1.5'
+    type: float
+    default: '1.5'
+  - name: outlier_zscore
+    help: Mask outliers with |z| > threshold
+    type: float
+  - name: drop_outlier_na
+    help: Drop rows/cols that become all-NaN after masking
+    type: string
+pam:
+  description: pam_bc_ch - PAM clustering on Bray–Curtis distances with
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Distance file stem or path (results/{stem}.tsv
+  outputs: []
+  params:
+  - name: k-min
+    help: 'Minimum number of clusters to test (default: 2'
+    type: int
+    default: '2'
+  - name: k-max
+    help: 'Maximum number of clusters to test (default: 20'
+    type: int
+    default: '20'
+  - name: pcoa-components
+    help: 'Number of PCoA axes to retain (default: all'
+    type: int
+  - name: o
+    help: Output filename (without extension
+    type: tsv
+pca:
+  description: Perform PCA on a data matrix
+  inputs: []
+  outputs: []
+  params:
+  - name: i
+    help: Path to the input data matrix (samples x features, tab-delimited
+    type: str
+  - name: o
+    help: Output file path for PCA results (tab-delimited
+    type: str
+  - name: n-components
+    help: 'Number of principal components to compute (default: 2'
+    type: int
+    default: '2'
+pcoa:
+  description: Perform PCoA on a distance edge list (source, target, distance)
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input edge list file (TSV
+  outputs: []
+  params:
+  - name: o
+    help: Output file path (TSV
+    type: str
+  - name: source-col
+    help: 'Column name for source node (default: source'
+    type: string
+    default: '"source"'
+  - name: target-col
+    help: 'Column name for target node (default: target'
+    type: string
+    default: '"target"'
+  - name: distance-col
+    help: 'Column name for distance value (default: bray-curtis'
+    type: string
+    default: '"bray-curtis"'
+  - name: dims
+    help: 'Number of PCoA dimensions to compute (default: 2'
+    type: int
+    default: '2'
+pcoa_biplot:
+  description: Calculate and plot a PCoA biplot from metagenomic species profiles.
+  inputs: []
+  outputs: []
+  params:
+  - name: i
+    help: Metagenomic species profile file path
+    type: str
+  - name: o
+    help: Output file path for the plot image
+    type: str
+plot_circos:
+  description: Script for plotting circos plots with edgelists
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Data name or full filepath
+  - name: labels
+    type: tsv
+    required: true
+    help: Data name or full filepath
+  - name: weight
+    type: string
+    required: true
+    help: Column of weight function
+  outputs: []
+  params: []
+plot_network:
+  description: Generate network graph PDF/SVG from GraphML
+  inputs:
+  - name: graphml_file
+    type: tsv
+    required: true
+    help: Input GraphML file
+  outputs: []
+  params:
+  - name: output_file
+    help: Output PDF or SVG file
+    type: tsv
+    default: '''network.svg'''
+  - name: edge_color_attr
+    help: Edge attribute to use for coloring edges
+    type: string
+  - name: node_color_attr
+    help: Node attribute to use for coloring nodes
+    type: string
+  - name: cmap
+    help: 'Matplotlib colormap to use (default: coolwarm'
+    type: string
+    default: '''coolwarm'''
+  - name: layout
+    help: Layout algorithm to use
+    type: choice
+    enum:
+    - spring
+    - kamada_kawai
+    - planar
+    - circular
+    - random
+    - shell
+    default: '''spring'''
+  - name: node_size
+    help: 'Size of nodes (default: 300'
+    type: int
+    default: '300'
+  - name: font_size
+    help: 'Font size for labels (default: 5'
+    type: int
+    default: '5'
+  - name: max_label_width
+    help: 'Maximum label width in pixels (default: 150'
+    type: int
+    default: '150'
+  - name: figsize
+    help: 'Width and height of the figure in inches (default: 8 8'
+    type: float
+    default: '[8'
+plot_regression_residuals:
+  description: Generate residual plots for a regression model
+  inputs: []
+  outputs: []
+  params:
+  - name: model
+    help: Path to trained model (.joblib
+    type: str
+  - name: input_dir
+    help: Directory containing X_test.tsv and y_test.tsv
+    type: str
+  - name: output_dir
+    help: Directory to save residual plots (SVG format
+    type: str
+plot_shap:
+  description: plot_shap tool
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Path to save the plot
+  params:
+  - name: input
+    help: Path to input SHAP values .joblib
+    type: tsv
+  - name: plot_type
+    help: Type of SHAP plot
+    type: string
+  - name: sample_index
+    help: Sample index for individual plots
+    type: int
+    default: '0'
+  - name: max_display
+    help: Maximum features to display
+    type: int
+    default: '10'
+pointplot:
+  description: Generic pastel Seaborn pointplot with subject-level overlay.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to subject-level data TSV file
+  outputs: []
+  params:
+  - name: m
+    help: Path to metadata TSV file
+    type: tsv
+  - name: x
+    help: X-axis variable (e.g., timepoint
+    type: string
+  - name: y
+    help: Y-axis variable (e.g., WLZ_WHZ
+    type: string
+  - name: hue
+    help: Grouping variable for color (e.g., Feed
+    type: string
+  - name: id
+    help: Unique subject ID column name (e.g., subjectID
+    type: string
+  - name: logy
+    help: Use log scale for Y-axis
+    type: string
+  - name: xorder
+    help: 'Comma-separated list defining X-axis order, e.g. '
+    type: string
+  - name: o
+    help: Output SVG file path
+    type: tsv
+    default: '"output.svg"'
+  - name: figsize
+    help: ''
+    type: float
+    default: '[3'
+polar:
+  description: Generate a polar plot (radar chart) from a dataset.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input TSV or CSV file.
+  outputs: []
+  params:
+  - name: o
+    help: 'Output file path for the polar plot (default: same name with _polar.svg'
+    type: tsv
+  - name: figsize
+    help: 'Figure size as '
+    type: string
+    default: '"4'
+print_formula:
+  description: Display symbolic formula from file using SymPy.
+  inputs: []
+  outputs: []
+  params:
+  - name: formula_file
+    help: 'Path to the file containing the formula string (default: formula.txt'
+    type: str
+    default: '"formula.txt"'
+  - name: latex
+    help: Display the formula as LaTeX
+    type: formula
+  - name: save_latex
+    help: Optional path to save LaTeX output (e.g. formula.tex
+    type: str
+random_forest:
+  description: Train a RandomForest model (classifier or regressor) using pre-split
+    data
+  inputs: []
+  outputs: []
+  params:
+  - name: input_dir
+    help: Directory containing X_train.tsv and y_train.tsv
+    type: str
+  - name: output_model
+    help: Path to save the trained model (.joblib
+    type: str
+  - name: task
+    help: Type of task to perform (classification or regression
+    type: choice
+    enum:
+    - classification
+    - regression
+  - name: n_estimators
+    help: 'Number of trees in the forest (default: 100'
+    type: int
+    default: '100'
+  - name: max_depth
+    help: 'Maximum depth of the tree (default: None'
+    type: int
+  - name: min_samples_split
+    help: 'Minimum samples to split an internal node (default: 2'
+    type: int
+    default: '2'
+  - name: min_samples_leaf
+    help: 'Minimum samples required at a leaf node (default: 1'
+    type: int
+    default: '1'
+  - name: random_state
+    help: 'Random seed for reproducibility (default: 42'
+    type: int
+    default: '42'
+rda:
+  description: Perform RDA using scikit-bio
+  inputs: []
+  outputs: []
+  params:
+  - name: t
+    help: Path to taxonomic data file (TSV
+    type: tsv
+  - name: m
+    help: Path to metadata file (TSV
+    type: tsv
+  - name: f
+    help: 'Comma-separated list of fixed effects (e.g. '
+    type: string
+  - name: o
+    help: Path to output TSV file
+    type: tsv
+    default: '"results/lda_results.tsv"'
+rda_edges:
+  description: Perform RDA and summarize variance components
+  inputs: []
+  outputs: []
+  params:
+  - name: r
+    help: Path to response data file (TSV
+    type: tsv
+  - name: m
+    help: Path to metadata file (TSV
+    type: tsv
+  - name: f
+    help: 'Comma-separated list of fixed effects (e.g. '
+    type: string
+  - name: o
+    help: Path to output TSV file
+    type: tsv
+    default: '"results/rda_variance.tsv"'
+regplot:
+  description: Produces a Regplot of a given dataset
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to dataset file or subject name
+  outputs: []
+  params:
+  - name: o
+    help: Path to output svg
+    type: tsv
+  - name: x
+    help: Column name for x-axis
+    type: string
+  - name: y
+    help: Column name for y-axis
+    type: string
+  - name: hue
+    help: Column name for hue grouping
+    type: string
+  - name: logy
+    help: Set y-axis to log scale
+    type: string
+  - name: logx
+    help: Set x-axis to log scale
+    type: string
+  - name: show
+    help: Display the plot window
+    type: string
+  - name: figsize
+    help: 'Figure size as width,height (default: 2,2'
+    type: string
+rename:
+  description: Rename dataframe columns or index using a metadata column or index.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Input dataframe file or identifier.
+  - name: level
+    type: string
+    required: true
+    help: Metadata column name or index name to use for renaming.
+  outputs:
+  - name: output
+    type: tsv
+    help: Output filename for the renamed dataframe
+  params:
+  - name: df2
+    help: 'Metadata dataframe file or identifier (default: meta'
+    type: tsv
+    default: '"meta"'
+  - name: axis
+    help: 'Axis to rename (default: index'
+    type: choice
+    enum:
+    - columns
+    - index
+    default: '"index"'
+rename_regex:
+  description: Rename dataframe columns or index using regex or multiple mappings.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Input dataframe file or identifier (TSV format
+  outputs: []
+  params:
+  - name: match
+    help: Regex pattern to match (ignored if --map is provided
+    type: string
+  - name: replace
+    help: Replacement pattern (used with --match
+    type: string
+  - name: map
+    help: 'JSON or comma-separated key:value pairs for multiple replacements, e.g. '
+    type: json
+  - name: axis
+    help: 'Axis to rename (default: columns'
+    type: choice
+    enum:
+    - columns
+    - index
+    default: '"columns"'
+  - name: o
+    help: Output filename for the renamed dataframe
+    type: tsv
+replace:
+  description: Replace values in a DataFrame using pandas replace()
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input .tsv file (tab-separated
+  outputs: []
+  params:
+  - name: to_replace
+    help: Value(s
+    type: string
+  - name: value
+    help: Replacement value(s
+    type: string
+  - name: regex
+    help: Interpret to_replace as regex
+    type: string
+  - name: inplace
+    help: Modify the input file directly
+    type: tsv
+  - name: o
+    help: Output file path (if not using --inplace
+    type: tsv
+scale:
+  description: Apply a transformation to a dataset.
+  inputs:
+  - name: analysis
+    type: string
+    required: true
+    help: 'Method: norm, standard, minmax, log, CLR, mult, hellinger, zscore_rows,
+      ALR'
+  - name: subject
+    type: tsv
+    required: true
+    help: Input filename or identifier under results/
+  outputs:
+  - name: output
+    type: tsv
+    help: 'Output file path (default: results/{subject}_{analysis}.tsv'
+  params:
+  - name: refcol
+    help: 'Reference column for ALR (default: last column'
+    type: string
+  - name: axis
+    help: Apply transform by columns (0, default
+    type: choice
+    enum:
+    - '0'
+    - '1'
+    default: '0'
+  - name: columns
+    help: Comma-separated list of columns (or rows if axis=1
+    type: string
+scree:
+  description: Scree (elbow) analysis from a saved PCA model.
+  inputs:
+  - name: model
+    type: tsv
+    required: true
+    help: Path to saved PCA model (joblib or pickle
+  outputs: []
+  params:
+  - name: o
+    help: Output TSV file with eigenvalues and explained variance ratios.
+    type: tsv
+  - name: sep
+    help: 'Delimiter for TSV/CSV output (default: tab'
+    type: tsv
+    default: '"\t"'
+  - name: plot
+    help: Optional scree plot output file (PNG/PDF
+    type: tsv
+select_features:
+  description: Select specific rows and/or columns from a TSV file using pandas .loc[]
+    with wildcard and multiline support
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input TSV file (with header and index column
+  outputs: []
+  params:
+  - name: r
+    help: Comma OR newline separated list of row labels (supports wildcards *, ?
+    type: string
+  - name: c
+    help: Comma OR newline separated list of column labels (supports wildcards *,
+      ?
+    type: string
+  - name: o
+    help: 'Output TSV file (default: <input>_select.tsv'
+    type: tsv
+  - name: drop-index
+    help: Exclude index column when saving
+    type: string
+shap_interpret:
+  description: Compute SHAP and SHAP interaction scores
+  inputs: []
+  outputs: []
+  params:
+  - name: model
+    help: Path to joblib model file
+    type: str
+  - name: input_dir
+    help: Directory with X_train.tsv and/or X_test.tsv
+    type: str
+  - name: output_dir
+    help: Directory to save SHAP results
+    type: str
+  - name: shap_val
+    help: Compute SHAP values
+    type: string
+  - name: shap_interact
+    help: Compute SHAP interaction values
+    type: string
+shap_plot_bar:
+  description: Generate SHAP bar plot
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output plot file (e.g., bar.pdf
+  params:
+  - name: input
+    help: Path to SHAP Explanation joblib file
+    type: tsv
+  - name: max_display
+    help: Max features to display
+    type: int
+    default: '20'
+shap_plot_decision:
+  description: Generate SHAP decision plot
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output plot file (e.g., decision_sample_0.pdf
+  params:
+  - name: input
+    help: Path to SHAP Explanation joblib file
+    type: tsv
+  - name: sample_index
+    help: Sample index for decision plot
+    type: int
+    default: '0'
+shap_plot_force:
+  description: Generate SHAP force plot as SVG
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output SVG file (e.g., force_sample_0.svg
+  params:
+  - name: input
+    help: Path to SHAP Explanation joblib file
+    type: tsv
+  - name: sample_index
+    help: Sample index for the force plot
+    type: int
+    default: '0'
+shap_plot_heatmap:
+  description: Generate SHAP heatmap plot
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output plot file (e.g., heatmap.pdf
+  params:
+  - name: input
+    help: Path to SHAP Explanation joblib file
+    type: tsv
+  - name: max_display
+    help: Max features to display
+    type: int
+    default: '20'
+shap_plot_scatter:
+  description: Generate SHAP dependence scatter or interaction plot
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output plot file (e.g., scatter_plot.pdf
+  params:
+  - name: input
+    help: Path to SHAP Explanation joblib file
+    type: tsv
+  - name: feature
+    help: Feature name to plot on the x-axis
+    type: string
+  - name: interaction
+    help: Enable interaction coloring using strongest feature
+    type: string
+shap_plot_summary:
+  description: Generate SHAP summary plot
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output plot file (e.g., summary.pdf
+  params:
+  - name: input
+    help: Path to SHAP Explanation joblib file
+    type: tsv
+  - name: max_display
+    help: Max features to display
+    type: int
+    default: '20'
+shap_plot_waterfall:
+  description: Generate SHAP waterfall plot
+  inputs: []
+  outputs:
+  - name: output
+    type: tsv
+    help: Output plot file (e.g., waterfall_sample_0.pdf
+  params:
+  - name: input
+    help: Path to SHAP Explanation joblib file
+    type: tsv
+  - name: sample_index
+    help: Sample index for the waterfall plot
+    type: int
+    default: '0'
+shortest_path:
+  description: Compute the shortest path between two nodes in a GraphML file and save
+    it to a file.
+  inputs:
+  - name: graphml
+    type: tsv
+    required: true
+    help: Path to the GraphML file.
+  - name: source
+    type: string
+    required: true
+    help: Identifier of the source node.
+  - name: target
+    type: string
+    required: true
+    help: Identifier of the target node.
+  - name: output
+    type: tsv
+    required: true
+    help: Path to the output file.
+  outputs: []
+  params:
+  - name: weight
+    help: Edge attribute to use as weight (if applicable
+    type: string
+sig_summary:
+  description: Produces a summary report of analysis based on change and significance
+    thresholds.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Input dataframe file (TSV
+  outputs: []
+  params:
+  - name: p
+    help: 'P-value or q-value threshold [default: 0.25].'
+    type: float
+    default: '0.25'
+  - name: c
+    help: 'Column name for change effect [default: coef].'
+    type: str
+    default: '"coef"'
+  - name: s
+    help: 'Column name for significance [default: qval].'
+    type: str
+    default: '"qval"'
+  - name: o
+    help: Output file path for summary TSV.
+    type: str
+sort:
+  description: Sort - Sorts a dataset
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to the input data file or subject name
+  outputs: []
+  params:
+  - name: axis
+    help: 'Axis to sort along: 0 = index (rows'
+    type: choice
+    enum:
+    - '0'
+    - '1'
+    default: '0'
+  - name: ascending
+    help: Sort ascending (default is descending
+    type: string
+  - name: df2
+    help: Optional second dataframe to use as sort order
+    type: string
+  - name: df2_axis
+    help: If --df2 is provided, whether to use its index (0
+    type: choice
+    enum:
+    - '0'
+    - '1'
+  - name: o
+    help: Path to save the output file
+    type: tsv
+spindle:
+  description: Spindle - Produce a spindle plot
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to dataset file (TSV
+  outputs: []
+  params:
+  - name: meta
+    help: Path to metadata file (TSV
+    type: tsv
+  - name: group-col
+    help: Column in metadata to group by
+    type: string
+  - name: x
+    help: 'Column to use for x-axis (default: first column'
+    type: string
+  - name: y
+    help: 'Column to use for y-axis (default: second column'
+    type: string
+  - name: figsize
+    help: ''
+    type: float
+  - name: o
+    help: 'Output image filename (default: spindle.svg'
+    type: tsv
+  - name: ellipses
+    help: Draw confidence ellipses per group
+    type: string
+  - name: ellipse-level
+    help: 'Confidence level for ellipses (default: 0.95'
+    type: float
+    default: '0.95'
+  - name: palette
+    help: Seaborn palette name or comma-separated list of colors
+    type: string
+    default: '''hls'''
+  - name: group-order
+    help: 'Comma-separated group order (default: alphabetical'
+    type: string
+  - name: title-from-subject
+    help: Use basename of subject file as figure title
+    type: tsv
+splitter:
+  description: Load TSV from absolute path.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Input TSV file path
+  outputs: []
+  params:
+  - name: col
+    help: Column name to split by (in metadata
+    type: string
+  - name: m
+    help: Optional second TSV file for metadata
+    type: tsv
+  - name: outdir
+    help: Output directory
+    type: string
+    default: '''.'''
+  - name: reindex
+    help: Optional column name in metadata to use as new index
+    type: string
+  - name: drop-index
+    help: Drop the index in output files after splitting
+    type: tsv
+stacked_bar:
+  description: Create grouped stacked bar plots from long-format data.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: TSV file with long-format data
+  outputs: []
+  params:
+  - name: bars
+    help: Column name for bar groupings (x-axis
+    type: string
+  - name: color
+    help: Column name for color categories (stacking
+    type: string
+  - name: vals
+    help: Column name for values
+    type: string
+  - name: o
+    help: 'Output file path (default: plot.svg'
+    type: Path
+    default: '"plot.svg"'
+  - name: sig
+    help: Column name for significance filtering
+    type: string
+  - name: sig-threshold
+    help: 'Significance threshold (default: 0.05'
+    type: float
+    default: '0.05'
+  - name: figsize
+    help: 'Figure size as width height (default: 8.0 6.0'
+    type: float
+    default: '[8.0'
+  - name: horizontal
+    help: Create horizontal bar plot
+    type: string
+  - name: ylabel
+    help: Y-axis label (or X-axis for horizontal
+    type: string
+    default: '"Value"'
+  - name: max-categories
+    help: 'Maximum number of color categories before combining others (default: 20'
+    type: int
+    default: '20'
+  - name: order-bars
+    help: Order bars by total value
+    type: string
+  - name: max
+    help: Maximum value for x-axis (or y-axis if vertical
+    type: float
+  - name: log
+    help: Apply log scale to x-axis (or y-axis if vertical
+    type: string
+stratify:
+  description: Stratify - Stratifies a dataframe according to a column of another
+    dataframe (commonly metadata).
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Subject file or name (without extension
+  - name: level
+    type: string
+    required: true
+    help: Metadata column to stratify by
+  outputs: []
+  params:
+  - name: df2
+    help: 'Optional second dataframe (default: meta'
+    type: string
+  - name: o
+    help: 'Output file path (default: results/{subject}{level}.tsv'
+    type: tsv
+taxo_summary:
+  description: Summarize a taxonomic abundance table by rank-level presence.
+  inputs:
+  - name: input
+    type: tsv
+    required: true
+    help: Input taxonomy abundance TSV file (rows=samples, columns=features
+  outputs: []
+  params:
+  - name: o
+    help: Output TSV file
+    type: Path
+  - name: presence-threshold
+    help: ''
+    type: float
+    default: '0.0'
+test_train_split:
+  description: Train/test splitter with optional SMOTE, scaling, metadata merge, and
+    missing value handling
+  inputs: []
+  outputs: []
+  params:
+  - name: input
+    help: ''
+    type: str
+  - name: output_dir
+    help: ''
+    type: str
+  - name: y_col
+    help: ''
+    type: str
+  - name: test_size
+    help: ''
+    type: float
+    default: '0.2'
+  - name: random_state
+    help: ''
+    type: int
+    default: '42'
+  - name: smote
+    help: ''
+    type: string
+  - name: scaler
+    help: ''
+    type: choice
+    enum:
+    - standard
+    - minmax
+    - none
+    default: '"standard"'
+  - name: y_file
+    help: ''
+    type: str
+  - name: meta
+    help: ''
+    type: string
+  - name: dropna
+    help: Drop rows with missing values (default
+    type: string
+  - name: keepna
+    help: Keep missing values instead of dropping
+    type: string
+transpose:
+  description: Transpose a TSV file, optionally specifying an output file path.
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: 'Input TSV file path or subject name (if file not found, '
+  outputs: []
+  params:
+  - name: o
+    help: 'Output file path (default: results/{subject}_T.tsv'
+    type: tsv
+upset:
+  description: 'Generic UpSet plot: count how many unique IDs are shared across groups.'
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Input TSV file (path
+  outputs: []
+  params:
+  - name: id
+    help: Column name for unique id (e.g. subjectID
+    type: string
+  - name: group
+    help: Column name for grouping (e.g. timepoint
+    type: string
+  - name: o
+    help: Output SVG path.
+    type: tsv
+    default: '"results/upset.svg"'
+  - name: show-percentages
+    help: 'Show percentages on intersection bars (default: True'
+    type: string
+  - name: no-show-percentages
+    help: Disable percentage labels.
+    type: string
+  - name: sort-by-cardinality
+    help: Sort intersections by cardinality (largest -> smallest
+    type: string
+volcano:
+  description: Volcano - Produces a Volcano plot of a given dataset
+  inputs:
+  - name: subject
+    type: tsv
+    required: true
+    help: Path to the input TSV file
+  outputs:
+  - name: output
+    type: tsv
+    help: Output path for the SVG file
+  params:
+  - name: change
+    help: Column name for log2 fold change
+    type: str
+    default: '''coef'''
+  - name: sig
+    help: Column name for significance values (p/q
+    type: str
+    default: '''qval'''
+  - name: fc
+    help: Fold change threshold
+    type: float
+    default: '0.5'
+  - name: pval
+    help: P-value threshold
+    type: float
+    default: '0.25'
+  - name: annot
+    help: Annotate significant points
+    type: string
+  - name: figsize
+    help: Figure size in inches (width height
+    type: float
+    default: '[8'
+xgboost_model:
+  description: Train an XGBoost model (classifier or regressor) using pre-split data
+  inputs: []
+  outputs: []
+  params:
+  - name: input_dir
+    help: Directory containing X_train.tsv and y_train.tsv
+    type: str
+  - name: output_model
+    help: Path to save the trained model (.joblib
+    type: str
+  - name: task
+    help: Task type
+    type: choice
+    enum:
+    - classification
+    - regression
+  - name: n_estimators
+    help: Number of boosting rounds
+    type: int
+    default: '100'
+  - name: max_depth
+    help: Maximum tree depth
+    type: int
+    default: '3'
+  - name: learning_rate
+    help: Learning rate (eta
+    type: float
+    default: '0.1'
+  - name: subsample
+    help: Subsample ratio of training instances
+    type: float
+    default: '1.0'
+  - name: colsample_bytree
+    help: Subsample ratio of columns when constructing each tree
+    type: float
+    default: '1.0'
+  - name: random_state
+    help: Random seed
+    type: int
+    default: '42'
