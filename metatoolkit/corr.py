@@ -7,22 +7,23 @@ import numpy as np
 from scipy.stats import spearmanr
 from statsmodels.stats.multitest import fdrcorrection
 from pathlib import Path
+from joblib import Parallel, delayed
+from itertools import combinations
 
+def _compute_pair(col1, col2, name1, name2):
+    """Worker function to compute a single correlation pair."""
+    valid = col1.notna() & col2.notna()
+    if valid.sum() >= 3:
+        r, p = spearmanr(col1[valid], col2[valid])
+        return {"source": name1, "target": name2, "statistic": r, "p_value": p}
+    return None
 
-def fast_spearman(df1, df2=None, fdr=False, min_unique=1, dropna=False):
+def fast_spearman(df1, df2=None, fdr=False, min_unique=1, dropna=False, n_jobs=-1):
     """
-    Compute pairwise Spearman correlations (within or between datasets), handling NaNs.
-
-    Args:
-        df1 (pd.DataFrame): First dataset.
-        df2 (pd.DataFrame, optional): Second dataset.
-        fdr (bool): Apply FDR correction.
-        min_unique (int): Minimum unique values per column to retain.
-        dropna (bool): Drop rows with any NaNs before correlation.
-
-    Returns:
-        pd.DataFrame: Edge list of correlations with p-values and optional q-values.
+    Compute pairwise Spearman correlations in parallel.
+    n_jobs: Number of CPUs to use. -1 means all available.
     """
+    # Pre-processing
     df1 = df1.loc[:, df1.nunique() > min_unique].dropna(axis=1, how="all")
     if dropna:
         df1 = df1.dropna(axis=0, how="any")
@@ -33,96 +34,62 @@ def fast_spearman(df1, df2=None, fdr=False, min_unique=1, dropna=False):
         if df1.shape[1] < 2:
             return pd.DataFrame()
 
-        cor_matrix = pd.DataFrame(index=df1.columns, columns=df1.columns, dtype=float)
-        pval_matrix = pd.DataFrame(index=df1.columns, columns=df1.columns, dtype=float)
-
-        for i, col1 in enumerate(df1.columns):
-            for j, col2 in enumerate(df1.columns):
-                if i < j:
-                    x, y = df1[col1], df1[col2]
-                    valid = x.notna() & y.notna()
-                    if valid.sum() >= 3:
-                        r, p = spearmanr(x[valid], y[valid], nan_policy="omit")
-                        cor_matrix.at[col1, col2] = r
-                        cor_matrix.at[col2, col1] = r
-                        pval_matrix.at[col1, col2] = p
-                        pval_matrix.at[col2, col1] = p
-
+        # Create unique pairs for internal correlation
+        tasks = [
+            (df1[c1], df1[c2], c1, c2)
+            for c1, c2 in combinations(df1.columns, 2)
+        ]
     else:
         df2 = df2.loc[:, df2.nunique() > min_unique].dropna(axis=1, how="all")
         if dropna:
             combined = pd.concat([df1, df2], axis=1)
             combined = combined.dropna(axis=0, how="any")
-            df1 = combined[df1.columns]
-            df2 = combined[df2.columns]
+            df1, df2 = combined[df1.columns], combined[df2.columns]
 
         df1 = df1.loc[:, df1.count() >= 3]
         df2 = df2.loc[:, df2.count() >= 3]
         if df1.empty or df2.empty:
             return pd.DataFrame()
 
-        cor_matrix = pd.DataFrame(index=df1.columns, columns=df2.columns, dtype=float)
-        pval_matrix = pd.DataFrame(index=df1.columns, columns=df2.columns, dtype=float)
+        # Create pairs for cross-correlation
+        tasks = [
+            (df1[c1], df2[c2], c1, c2)
+            for c1 in df1.columns for c2 in df2.columns
+        ]
 
-        for col1 in df1.columns:
-            for col2 in df2.columns:
-                x, y = df1[col1], df2[col2]
-                valid = x.notna() & y.notna()
-                if valid.sum() >= 3:
-                    r, p = spearmanr(x[valid], y[valid], nan_policy="omit")
-                    cor_matrix.at[col1, col2] = r
-                    pval_matrix.at[col1, col2] = p
+    # Parallel Execution
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(_compute_pair)(*task) for task in tasks
+    )
 
-    # Convert to edge list
-    cor_long = cor_matrix.stack().reset_index()
-    cor_long.columns = ["source", "target", "statistic"]
+    # Filter out None results and build DataFrame
+    result_df = pd.DataFrame([r for r in results if r is not None])
 
-    pval_long = pval_matrix.stack().reset_index()
-    pval_long.columns = ["source", "target", "p_value"]
+    if fdr and not result_df.empty:
+        # Fill NaN p-values with 1.0 for the correction step
+        _, qvals = fdrcorrection(result_df["p_value"].fillna(1))
+        result_df["qval"] = qvals
 
-    result = cor_long.merge(pval_long, on=["source", "target"], how="left")
-
-    if fdr and not result.empty:
-        result["qval"] = fdrcorrection(result["p_value"].fillna(1))[1]
-
-    return result.dropna(subset=["statistic", "p_value"])
-
+    return result_df
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Compute Spearman correlations efficiently."
-    )
-    parser.add_argument(
-        "files",
-        nargs="+",
-        help="One or two input files (TSV format with index column).",
-    )
-    parser.add_argument(
-        "-m", "--mult", action="store_true", help="Apply FDR correction (q-values)."
-    )
-    parser.add_argument(
-        "-o", "--output", help="Path for output TSV (directories created if needed)."
-    )
-    parser.add_argument(
-        "--dropna",
-        action="store_true",
-        help="Drop rows with any missing values before correlation.",
-    )
+    parser = argparse.ArgumentParser(description="Compute Spearman correlations in parallel.")
+    parser.add_argument("files", nargs="+", help="One or two input TSV files.")
+    parser.add_argument("-m", "--mult", action="store_true", help="Apply FDR correction.")
+    parser.add_argument("-o", "--output", help="Path for output TSV.")
+    parser.add_argument("-p", "--threads", type=int, default=-1, help="Number of threads (-1 for all).")
+    parser.add_argument("--dropna", action="store_true", help="Drop rows with any NaNs.")
     args = parser.parse_args()
 
-    if len(args.files) == 1:
-        df = pd.read_csv(args.files[0], sep="\t", index_col=0)
-        output = fast_spearman(df, fdr=args.mult, dropna=args.dropna)
-        default_name = f"{Path(args.files[0]).stem}_corr.tsv"
+    if 1 <= len(args.files) <= 2:
+        dfs = [pd.read_csv(f, sep="\t", index_col=0) for f in args.files]
+        df1 = dfs[0]
+        df2 = dfs[1] if len(dfs) == 2 else None
 
-    elif len(args.files) == 2:
-        df1 = pd.read_csv(args.files[0], sep="\t", index_col=0)
-        df2 = pd.read_csv(args.files[1], sep="\t", index_col=0)
-        output = fast_spearman(df1, df2, fdr=args.mult, dropna=args.dropna)
-        default_name = (
-            f"{Path(args.files[0]).stem}_{Path(args.files[1]).stem}_corr.tsv"
-        )
+        output = fast_spearman(df1, df2, fdr=args.mult, dropna=args.dropna, n_jobs=args.threads)
 
+        default_name = f"{Path(args.files[0]).stem}_corr.tsv" if df2 is None else \
+                       f"{Path(args.files[0]).stem}_{Path(args.files[1]).stem}_corr.tsv"
     else:
         print("Please provide 1 or 2 files only.")
         return
@@ -131,14 +98,10 @@ def main():
         print("No valid correlations found.")
         return
 
-    # Resolve output path
     outfile = Path(args.output) if args.output else Path(default_name)
-
-    # Ensure parent directory exists (critical fix)
     outfile.parent.mkdir(parents=True, exist_ok=True)
-
     output.to_csv(outfile, sep="\t", index=False)
-
+    print(f"Results saved to {outfile}")
 
 if __name__ == "__main__":
     main()
