@@ -40,12 +40,19 @@ def parse_arguments():
                         choices=['none', 'source', 'target', 'both'],
                         default='none')
 
-    # NEW: z-scoring option
+    # Z-scoring option
     parser.add_argument(
         '--zscore',
         choices=['row', 'col', 'none'],
         default='none',
         help='Z-score the effect matrix by row or column before plotting'
+    )
+
+    # NEW: log1p transform option
+    parser.add_argument(
+        '--log1p',
+        action='store_true',
+        help='Apply sign-preserving log1p transform to effect matrix before plotting'
     )
 
     parser.add_argument('-o', '--output')
@@ -60,7 +67,8 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
                row_cluster=True, col_cluster=True,
                row_order=None, col_order=None,
                filter_sig='none',
-               zscore='none'):
+               zscore='none',
+               log1p=False):
 
     df = df.replace([np.inf, -np.inf], np.nan)
 
@@ -98,6 +106,10 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
         col_list = [c for c in col_order if c in cor.columns]
         cor = cor.reindex(columns=col_list)
         sig_df = sig_df.reindex(columns=col_list)
+
+    # --- NEW: sign-preserving log1p transform ---
+    if log1p:
+        cor = np.sign(cor) * np.log1p(np.abs(cor))
 
     # Optional z-scoring for coloring (and clustering)
     if zscore == 'row':
@@ -238,7 +250,8 @@ def main():
         row_order=row_order,
         col_order=col_order,
         filter_sig=args.filter_sig,
-        zscore=args.zscore
+        zscore=args.zscore,
+        log1p=args.log1p
     )
 
     if args.square:
