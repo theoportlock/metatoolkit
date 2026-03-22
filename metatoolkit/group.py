@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import argparse
 import pandas as pd
 from pathlib import Path
@@ -14,10 +15,19 @@ def n_total(x): return len(x)
 def prev(x): return (x != 0).mean()
 
 AGG_MAP = {
-    "mean": "mean", "median": "median", "sum": "sum",
-    "std": "std", "first": "first", "last": "last",
-    "q25": q25, "q75": q75, "iqr": iqr,
-    "n_nonzero": n_nonzero, "n_total": n_total, "prev": prev
+    "mean": "mean",
+    "median": "median",
+    "sum": "sum",
+    "std": "std",
+    "first": "first",
+    "last": "last",
+    "q25": q25,
+    "q75": q75,
+    "iqr": iqr,
+    "n_nonzero": n_nonzero,
+    "n_total": n_total,
+    "prev": prev,
+    "count": "count",   # handled specially
 }
 
 # -------------------------
@@ -34,17 +44,15 @@ def group(df, group_by=None, funcs=None):
     if not funcs:
         raise ValueError("At least one aggregation function must be provided")
 
-    # ---- validate functions ----
     missing = [f for f in funcs if f not in AGG_MAP]
     if missing:
         raise ValueError(f"Unknown aggregation functions: {missing}")
 
-    agg_funcs = [AGG_MAP[f] for f in funcs]
+    want_count = "count" in funcs
+    agg_funcs = [AGG_MAP[f] for f in funcs if f != "count"]
 
     # ---- numeric columns only ----
     value_cols = df.select_dtypes(include="number").columns
-    if len(value_cols) == 0:
-        raise ValueError("No numeric columns found to aggregate")
 
     # ---- perform grouping ----
     if not group_by:
@@ -62,11 +70,32 @@ def group(df, group_by=None, funcs=None):
             .agg(agg_funcs)
         )
 
-    # ---- tidy column names ----
-    grouped.columns = [
-        f"{metric}_{func}"
-        for metric, func in grouped.columns
-    ]
+    # ---- numeric aggregations ----
+    if agg_funcs:
+        if len(value_cols) == 0:
+            raise ValueError(
+                "Numeric aggregation requested but no numeric columns found"
+            )
+
+        grouped = (
+            df
+            .groupby(group_by)[value_cols]
+            .agg(agg_funcs)
+        )
+
+        grouped.columns = [
+            f"{metric}_{func}"
+            for metric, func in grouped.columns
+        ]
+
+    # ---- row count aggregation ----
+    if want_count:
+        counts = df.groupby(group_by).size().to_frame("count")
+
+        if grouped is None:
+            grouped = counts
+        else:
+            grouped = grouped.join(counts)
 
     return grouped
 

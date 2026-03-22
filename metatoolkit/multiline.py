@@ -51,7 +51,7 @@ def plot(df, x, y, hue, id_col, output, logy=False, figsize=(3, 3), x_order=None
     sns.lineplot(
         data=df_reset, x=x, y=y, units=id_col,
         estimator=None, hue=hue, palette=palette,
-        ax=ax, alpha=0.1, linewidth=0.4, legend=False
+        ax=ax, alpha=0.3, linewidth=0.4, legend=False
     )
 
     # Plot group mean trend
