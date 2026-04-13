@@ -20,6 +20,7 @@ def parse_arguments():
     parser.add_argument('--logx', action='store_true', help='Set x-axis to log scale')
     parser.add_argument('--show', action='store_true', help='Display the plot window')
     parser.add_argument('--figsize', help='Figure size as width,height (default: 2,2)', default='2,2')
+    parser.add_argument('-m', '--metadata', help='Optional metadata file to join before plotting')
     return parser.parse_args()
 
 def load_data(subject):
@@ -30,63 +31,70 @@ def load_data(subject):
     default_path = Path('results') / f'{subject}.tsv'
     return pd.read_csv(default_path, sep='\t', index_col=0)
 
+def load_metadata(metadata_path):
+    return pd.read_csv(metadata_path, sep='\t', index_col=0)
+
+def join_metadata(df, metadata_df):
+    # Join on index
+    return df.join(metadata_df, how='left')
+
 def plot_reg(df, x=None, y=None, hue=None, ax=None, figsize=(2, 2)):
     # Reset index to ensure the index is part of the data frame
     df = df.reset_index()
-    
+
     if x is None:
         x = df.columns[0]
     if y is None:
         y = df.columns[1]
-    
+
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
-    
-    # Create the regplot
-    #sns.regplot(data=df, x=x, y=y, scatter_kws={"color": "black", 's':2}, line_kws={"color": "red"}, ax=ax)
+
     sns.regplot(data=df, x=x, y=y, scatter=False, line_kws={"color": "red"}, ax=ax)
-    
-    # Overlay scatterplot with points if hue is provided
+
     if hue:
         sns.scatterplot(data=df, x=x, y=y, hue=hue, s=2, legend=False, ax=ax)
     else:
         sns.scatterplot(data=df, x=x, y=y, s=2, color='black', ax=ax)
-    
-    # Remove top and right spines
+
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-    
-    # Set spine line width to 0.4 (if not handled by rc file)
+
     ax.spines['left'].set_color('black')
     ax.spines['bottom'].set_color('black')
-    ax.spines['left'].set_linewidth(0.4)  # Optional, if not handled by rc file
-    ax.spines['bottom'].set_linewidth(0.4)  # Optional, if not handled by rc file
+    ax.spines['left'].set_linewidth(0.4)
+    ax.spines['bottom'].set_linewidth(0.4)
 
-    # Ensure that the ticks reflect the `matplotlibrc` settings
-    ax.tick_params(axis='both', which='major', width=0.4, size=4)  # Control tick width and size
-    ax.tick_params(axis='both', which='minor', width=0.4, size=2)  # For minor ticks if used
-    
+    ax.tick_params(axis='both', which='major', width=0.4, size=4)
+    ax.tick_params(axis='both', which='minor', width=0.4, size=2)
+
     return ax
 
 def save_plot(filename, show=False):
     plt.savefig(filename)
+    if show:
+        plt.show()
     plt.clf()
 
 def main():
     args = parse_arguments()
-    
-    # Parse figsize argument
+
     figsize = tuple(map(int, args.figsize.split(',')))
-    
+
     df = load_data(args.subject)
-    
+
+    # Optional metadata join
+    if args.metadata:
+        metadata_df = load_metadata(args.metadata)
+        df = join_metadata(df, metadata_df)
+
     plot_reg(df, x=args.x, y=args.y, hue=args.hue, figsize=figsize)
-    
+
     if args.logy:
         plt.yscale('log')
     if args.logx:
         plt.xscale('log')
-    
+
     out_file = args.output if args.output else f'{args.subject}_regplot'
     save_plot(out_file, show=args.show)
 
