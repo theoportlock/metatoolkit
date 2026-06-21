@@ -13,7 +13,9 @@ suppressPackageStartupMessages({
   library(lmerTest)
   library(lme4)
   library(broom.mixed)
+  library(MASS)
   library(dplyr)
+  library(broom)
 })
 
 # -------------------------
@@ -139,12 +141,14 @@ models  <- list()
 for (resp in response_vars) {
 
   df <- data %>%
-    select(any_of(c(colnames(df_meta), resp, opt$group))) %>%
-    rename(response = all_of(resp)) %>%
-    filter(!is.na(response))
+    dplyr::select(dplyr::any_of(c(colnames(df_meta), resp, if(!is.null(opt$group) && opt$group != "") opt$group else NULL))) %>%
+    dplyr::rename(response = dplyr::all_of(resp)) %>%
+    dplyr::filter(!is.na(response))
 
-  if (!(opt$group %in% colnames(df))) {
-    stop("Grouping variable not found: ", opt$group)
+  if (!is.null(opt$group) && opt$group != "") {
+    if (!(opt$group %in% colnames(df))) {
+      stop("Grouping variable not found: ", opt$group)
+    }
   }
 
   # Apply factor controls
@@ -158,34 +162,51 @@ for (resp in response_vars) {
     df$response <- as.numeric(scale(df$response))
   }
 
-  model_formula <- as.formula(
-    paste0("response ~ ", opt$formula, " + (1|", opt$group, ")")
-  )
-
-  model <- switch(
-    opt$family,
-    gaussian = lmer(model_formula, data = df, REML = FALSE),
-    poisson = glmer(model_formula, data = df, family = poisson(link = "log")),
-    negbin  = glmer.nb(model_formula, data = df),
-    stop("Unsupported family: ", opt$family)
-  )
+  if (!is.null(opt$group) && opt$group != "") {
+    model_formula <- as.formula(
+      paste0("response ~ ", opt$formula, " + (1|", opt$group, ")")
+    )
+    model <- switch(
+      opt$family,
+      gaussian = lmer(model_formula, data = df, REML = FALSE),
+      poisson = glmer(model_formula, data = df, family = poisson(link = "log")),
+      negbin  = glmer.nb(model_formula, data = df),
+      stop("Unsupported family: ", opt$family)
+    )
+    n_groups <- dplyr::n_distinct(df[[opt$group]], na.rm = TRUE)
+    tidy_out <- broom.mixed::tidy(
+      model,
+      effects  = "fixed",
+      conf.int = TRUE
+    )
+  } else {
+    model_formula <- as.formula(
+      paste0("response ~ ", opt$formula)
+    )
+    model <- switch(
+      opt$family,
+      gaussian = lm(model_formula, data = df),
+      poisson = glm(model_formula, data = df, family = poisson(link = "log")),
+      negbin  = MASS::glm.nb(model_formula, data = df),
+      stop("Unsupported family: ", opt$family)
+    )
+    n_groups <- NA
+    tidy_out <- broom::tidy(
+      model,
+      conf.int = TRUE
+    )
+  }
 
   models[[resp]] <- model
-
   n_obs    <- nrow(df)
-  n_groups <- dplyr::n_distinct(df[[opt$group]], na.rm = TRUE)
 
-  tidy_out <- broom.mixed::tidy(
-    model,
-    effects  = "fixed",
-    conf.int = TRUE
-  ) %>%
-    mutate(
+  tidy_out <- tidy_out %>%
+    dplyr::mutate(
       response_variable = resp,
       n_obs    = n_obs,
       n_groups = n_groups
     ) %>%
-    select(
+    dplyr::select(
       response_variable,
       term,
       estimate,
@@ -204,7 +225,7 @@ for (resp in response_vars) {
 # -------------------------
 # Write outputs
 # -------------------------
-final <- bind_rows(results)
+final <- dplyr::bind_rows(results)
 
 out_dir <- dirname(opt$output)
 if (!dir.exists(out_dir)) {
@@ -226,4 +247,3 @@ if (!is.null(opt$save_models)) {
 
 cat("GLMM analysis complete.\n")
 cat("Results written to:", opt$output, "\n")
-

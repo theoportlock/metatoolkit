@@ -3,6 +3,7 @@
 
 import pandas as pd
 import argparse
+from pathlib import Path
 
 
 def parse_args():
@@ -29,6 +30,10 @@ def main():
     # Perform drop
     df_dropped = df.drop(labels=labels, axis=args.axis, errors='ignore')
 
+    # Ensure output base directory exists
+    output_path = Path(args.outfile)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
     # Save the result
     df_dropped.to_csv(args.outfile, sep="\t")
     print(f"Dropped {len(labels)} item(s) along axis {args.axis} and saved to {args.outfile}")
@@ -36,4 +41,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
