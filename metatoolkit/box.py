@@ -23,7 +23,11 @@ def parse_arguments():
         help='Set y-axis to log scale (or x-axis if horizontal)'
     )
     parser.add_argument('--show', action='store_true', help='Display the plot window')
-    parser.add_argument('--figsize', default='2,2', help='Figure size as width,height')
+    parser.add_argument(
+        '--figsize',
+        default='2,2',
+        help='Figure size per facet as width,height'
+    )
     parser.add_argument('-o', '--output', help='Output filename without extension')
     parser.add_argument(
         '--meta',
@@ -39,9 +43,26 @@ def parse_arguments():
         action='store_true',
         help='Plot horizontally (swap x and y axes)'
     )
-    # 🟢 NEW: y-axis (or x-axis if horizontal) limits
     parser.add_argument('--ymin', type=float, help='Minimum value for y-axis')
     parser.add_argument('--ymax', type=float, help='Maximum value for y-axis')
+
+    # Faceting arguments
+    parser.add_argument('--row', help='Column name to facet across rows')
+    parser.add_argument('--col', help='Column name to facet across columns')
+    parser.add_argument(
+        '--sharey',
+        default='all',
+        choices=['all', 'none', 'row', 'col'],
+        help='Whether to share the y-axis across facets. Options: all (default), none, row, col'
+    )
+
+    # Color palette argument
+    parser.add_argument(
+        '--palette',
+        default='pastel',
+        help='Seaborn color palette for the boxplot (default: pastel)'
+    )
+
     return parser.parse_args()
 
 def load_data(path_or_name):
@@ -54,9 +75,8 @@ def merge_meta(df, meta_paths):
         df = df.join(mdf, how='inner')
     return df
 
-def plot_box(df, x, y, hue, figsize, horizontal=False, order=None):
+def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col=None, sharey=True, palette='pastel'):
     df = df.reset_index()
-    fig, ax = plt.subplots(figsize=figsize)
 
     # swap x/y if horizontal
     if horizontal:
@@ -64,13 +84,36 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None):
 
     order_list = order.split(",") if order else None
 
-    sns.boxplot(
+    x_col = x or df.columns[0]
+    y_col = y or df.columns[1]
+
+    # NEW: Lock the hue order globally so missing variables in subplots don't shift colors
+    if hue:
+        hue_order_list = df[hue].dropna().drop_duplicates().tolist()
+    else:
+        hue_order_list = None
+
+    # Seaborn FacetGrid takes height (per facet) and aspect ratio (width/height)
+    width, height = figsize
+    aspect = width / height if height != 0 else 1
+
+    g = sns.FacetGrid(
         data=df,
-        x=x or df.columns[0],
-        y=y or df.columns[1],
+        row=row,
+        col=col,
+        sharey=sharey,
+        height=height,
+        aspect=aspect
+    )
+
+    g.map_dataframe(
+        sns.boxplot,
+        x=x_col,
+        y=y_col,
         hue=hue,
-        ax=ax,
         order=order_list,
+        hue_order=hue_order_list,  # Enforce consistent colors
+        palette=palette,
         showfliers=False,
         showcaps=False,
         linewidth=0.4,
@@ -79,20 +122,40 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None):
         medianprops={'color': 'black'},
         capprops={'color': 'black'}
     )
-    sns.stripplot(
-        data=df,
-        x=x or df.columns[0],
-        y=y or df.columns[1],
-        hue=hue,
-        ax=ax,
-        order=order_list,
-        size=1,
-        color='black',
-        dodge=bool(hue)
+
+    # Setup Stripplot arguments dynamically to avoid Seaborn Warnings
+    strip_kwargs = {
+        'x': x_col,
+        'y': y_col,
+        'order': order_list,
+        'size': 1,
+        'dodge': bool(hue)
+    }
+
+    if hue:
+        strip_kwargs['hue'] = hue
+        strip_kwargs['hue_order'] = hue_order_list  # Enforce consistent dodge positioning
+
+        # Provide an array of black colors matching the exact number of global hues
+        n_hues = len(hue_order_list)
+        strip_kwargs['palette'] = ['black'] * n_hues
+
+        # Suppress the stripplot legend so it doesn't overwrite the boxplot colors
+        strip_kwargs['legend'] = False
+    else:
+        strip_kwargs['color'] = 'black'
+
+    g.map_dataframe(
+        sns.stripplot,
+        **strip_kwargs
     )
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    return ax
+
+    g.despine(right=True, top=True)
+
+    if hue:
+        g.add_legend()
+
+    return g
 
 def save_plots(filename, show):
     filename = Path(filename)
@@ -123,35 +186,46 @@ def main():
     if args.meta:
         df = merge_meta(df, args.meta)
 
-    print(df.columns)
     # parse figsize
     figsize = tuple(map(float, args.figsize.split(',')))
 
+    # Parse sharey argument mapping
+    sharey_val = args.sharey
+    if sharey_val == 'all':
+        sharey_val = True
+    elif sharey_val == 'none':
+        sharey_val = False
+
     # plot
-    ax = plot_box(
+    g = plot_box(
         df,
         args.x,
         args.y,
         args.hue,
         figsize,
         horizontal=args.horizontal,
-        order=args.order
+        order=args.order,
+        row=args.row,
+        col=args.col,
+        sharey=sharey_val,
+        palette=args.palette
     )
 
-    # handle log scaling
+    # handle log scaling across all facet axes
     if args.logy:
-        if args.horizontal:
-            ax.set_xscale('log')
-        else:
-            ax.set_yscale('log')
+        for ax in g.axes.flat:
+            if args.horizontal:
+                ax.set_xscale('log')
+            else:
+                ax.set_yscale('log')
 
-    # 🟢 NEW: apply y-axis (or x-axis) limits
+    # apply y-axis (or x-axis) limits across the grid
     if args.horizontal:
         if args.ymin is not None or args.ymax is not None:
-            ax.set_xlim(args.ymin, args.ymax)
+            g.set(xlim=(args.ymin, args.ymax))
     else:
         if args.ymin is not None or args.ymax is not None:
-            ax.set_ylim(args.ymin, args.ymax)
+            g.set(ylim=(args.ymin, args.ymax))
 
     plt.tight_layout()
 
@@ -160,4 +234,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
