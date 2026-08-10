@@ -23,12 +23,20 @@ def plot_abundance(
     col_means = df.mean()
     sorted_cols = col_means.sort_values(ascending=False)
 
+    # Keep at most `max_categories` stacked categories in total.
+    # If there are more features than this, keep the top
+    # (max_categories - 1) and combine the remainder into "others".
     if len(sorted_cols) > max_categories:
-        top_cols = sorted_cols.iloc[:max_categories].index
-        other_cols = sorted_cols.iloc[max_categories:].index
+        n_top = max_categories - 1
+
+        top_cols = sorted_cols.iloc[:n_top].index
+        other_cols = sorted_cols.iloc[n_top:].index
 
         df = pd.concat(
-            [df[top_cols], df[other_cols].sum(axis=1).rename("others")],
+            [
+                df[top_cols],
+                df[other_cols].sum(axis=1).rename("others"),
+            ],
             axis=1,
         )
 
@@ -44,7 +52,7 @@ def plot_abundance(
         stacked=True,
         figsize=figsize,
         width=0.9,
-        cmap="tab20"
+        cmap="tab20",
     )
 
     ylabel = "Abundance"
@@ -61,7 +69,7 @@ def plot_abundance(
     ax.legend(
         bbox_to_anchor=(1.01, 1),
         loc="upper left",
-        fontsize="small"
+        fontsize="small",
     )
 
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
@@ -116,7 +124,7 @@ def main():
         "--max-categories",
         type=int,
         default=20,
-        help="Top categories to keep"
+        help="Maximum number of stacked categories to display (including 'others')"
     )
 
     parser.add_argument(
