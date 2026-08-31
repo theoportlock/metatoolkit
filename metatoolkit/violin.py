@@ -8,7 +8,7 @@ from pathlib import Path
 import seaborn as sns
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='Produces a Boxplot of a given dataset')
+    parser = argparse.ArgumentParser(description='Produces a Violin plot of a given dataset')
     parser.add_argument('subject', help='Path to dataset file or subject name')
     parser.add_argument('-x', help='Column name for x-axis')
     parser.add_argument('-y', help='Column name for y-axis')
@@ -60,7 +60,15 @@ def parse_arguments():
     parser.add_argument(
         '--palette',
         default='pastel',
-        help='Seaborn color palette for the boxplot (default: pastel)'
+        help='Seaborn color palette for the violin plot (default: pastel)'
+    )
+
+    # Cutoff adjustment argument
+    parser.add_argument(
+        '--no-zero-cutoff',
+        action='store_true',
+        dest='no_zero_cutoff',
+        help='Allow the violin density estimate to extend past extreme data points (disables default zero cutoff)'
     )
 
     return parser.parse_args()
@@ -75,7 +83,7 @@ def merge_meta(df, meta_paths):
         df = df.join(mdf, how='inner')
     return df
 
-def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col=None, sharey=True, palette='pastel'):
+def plot_violin(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col=None, sharey=True, palette='pastel', no_zero_cutoff=False):
     df = df.reset_index()
 
     # swap x/y if horizontal
@@ -87,7 +95,7 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col
     x_col = x or df.columns[0]
     y_col = y or df.columns[1]
 
-    # NEW: Lock the hue order globally so missing variables in subplots don't shift colors
+    # Lock the hue order globally so missing variables in subplots don't shift colors
     if hue:
         hue_order_list = df[hue].dropna().drop_duplicates().tolist()
     else:
@@ -106,21 +114,22 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col
         aspect=aspect
     )
 
+    # By default, cut=0 limits the violin within the observed data range.
+    # Setting cut=2 allows normal Gaussian smoothing past the data extremes.
+    cut_val = 2 if no_zero_cutoff else 0
+
+    # Render Violin Plot
     g.map_dataframe(
-        sns.boxplot,
+        sns.violinplot,
         x=x_col,
         y=y_col,
         hue=hue,
         order=order_list,
         hue_order=hue_order_list,  # Enforce consistent colors
         palette=palette,
-        showfliers=False,
-        showcaps=False,
         linewidth=0.4,
-        boxprops={'edgecolor': 'black'},
-        whiskerprops={'color': 'black'},
-        medianprops={'color': 'black'},
-        capprops={'color': 'black'}
+        inner=None,                # Removes interior mini-boxplots since we overlay stripplot
+        cut=cut_val
     )
 
     # Setup Stripplot arguments dynamically to avoid Seaborn Warnings
@@ -140,7 +149,7 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col
         n_hues = len(hue_order_list)
         strip_kwargs['palette'] = ['black'] * n_hues
 
-        # Suppress the stripplot legend so it doesn't overwrite the boxplot colors
+        # Suppress the stripplot legend so it doesn't overwrite the violin plot colors
         strip_kwargs['legend'] = False
     else:
         strip_kwargs['color'] = 'black'
@@ -197,7 +206,7 @@ def main():
         sharey_val = False
 
     # plot
-    g = plot_box(
+    g = plot_violin(
         df,
         args.x,
         args.y,
@@ -208,7 +217,8 @@ def main():
         row=args.row,
         col=args.col,
         sharey=sharey_val,
-        palette=args.palette
+        palette=args.palette,
+        no_zero_cutoff=args.no_zero_cutoff
     )
 
     # handle log scaling across all facet axes
@@ -230,7 +240,7 @@ def main():
     plt.tight_layout()
 
     # save (and optionally show)
-    save_plots(args.output or f'{Path(args.subject).stem}_box', args.show)
+    save_plots(args.output or f'{Path(args.subject).stem}_violin', args.show)
 
 if __name__ == '__main__':
     main()

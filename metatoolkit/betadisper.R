@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 # ------------------------------------------------------------
-# PERMANOVA (adonis2) – Model Matrix / Coefficient-Level Version
-# MaAsLin2-style outputs
+# BETADISPER (Dispersion of Beta Diversity)
+# MaAsLin2-style outputs (term-level)
 # ------------------------------------------------------------
 
 suppressPackageStartupMessages({
@@ -28,12 +28,13 @@ option_list <- list(
   make_option(c("--target_col"), type="character", default="target"),
   make_option(c("--dist_col"), type="character", default="distance"),
   make_option(c("--sample_id_col"), type="character", default="sampleID"),
-  make_option(c("--outdir"), type="character", default="permanova_output"),
-  make_option(c("--strata"), type="character", default=NULL),
+  make_option(c("--outdir"), type="character", default="betadisper_output"),
   make_option(c("--reference"), action="append", type="character",
               help="Set reference: 'Variable,Level'. Repeatable."),
   make_option(c("--seed"), type="integer", default=123),
-  make_option(c("--permutations"), type="integer", default=999)
+  make_option(c("--permutations"), type="integer", default=999),
+  make_option(c("--pairwise"), action="store_true", default=FALSE,
+              help="Run Tukey HSD pairwise comparisons")
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -52,27 +53,17 @@ set.seed(opt$seed)
 # Load Distance Matrix
 # ------------------------------------------------------------
 
-dist_long <- read_tsv(opt$distances, show_col_types=FALSE) %>%
-  select(source = !!sym(opt$source_col),
-         target = !!sym(opt$target_col),
-         dist = !!sym(opt$dist_col))
+dist_long <- read_tsv(opt$distances, show_col_types=FALSE)
 
-# Mirror the pairs so every A-B also has a B-A
-mirror_dist <- bind_rows(
-  dist_long,
-  dist_long %>% select(source = target, target = source, dist)
-) %>%
-  distinct(source, target, .keep_all = TRUE)
-
-# Pivot to wide format. Missing self-comparisons (A-A) are filled with 0.
-dist_wide <- mirror_dist %>%
-  pivot_wider(names_from = target, values_from = dist, values_fill = 0) %>%
-  column_to_rownames("source") %>%
+dist_wide <- dist_long %>%
+  select(all_of(c(opt$source_col,opt$target_col,opt$dist_col))) %>%
+  pivot_wider(names_from = !!sym(opt$target_col),
+              values_from = !!sym(opt$dist_col)) %>%
+  column_to_rownames(opt$source_col) %>%
   as.matrix()
 
-# Ensure rows and columns are in the exact same order
-all_samples <- sort(rownames(dist_wide))
-dist_wide <- dist_wide[all_samples, all_samples]
+dist_wide[upper.tri(dist_wide)] <- t(dist_wide)[upper.tri(dist_wide)]
+dist_wide[is.na(dist_wide)] <- 0
 
 # ------------------------------------------------------------
 # Load Metadata
@@ -92,13 +83,11 @@ if (nrow(metadata_df) < 2)
 # Clean Metadata + Apply References
 # ------------------------------------------------------------
 
-model_vars <- all.vars(as.formula(paste("~", opt$formula)))
-if (!is.null(opt$strata))
-  model_vars <- unique(c(model_vars, opt$strata))
+model_terms <- attr(terms(as.formula(paste("~", opt$formula))), "term.labels")
 
 metadata_complete <- metadata_df %>%
-  drop_na(all_of(model_vars)) %>%
-  mutate(across(all_of(model_vars),
+  drop_na(all_of(all.vars(as.formula(paste("~", opt$formula))))) %>%
+  mutate(across(everything(),
          ~ if(is.character(.)) as.factor(.) else .))
 
 if (!is.null(opt$reference)) {
@@ -117,60 +106,83 @@ final_samples <- rownames(metadata_complete)
 dist_final <- as.dist(dist_wide[final_samples, final_samples])
 
 # ------------------------------------------------------------
-# Construct Explicit Model Matrix
+# Helper: build grouping variable
 # ------------------------------------------------------------
 
-design_formula <- as.formula(paste("~", opt$formula))
-X <- model.matrix(design_formula, data=metadata_complete)
+build_group <- function(term, metadata) {
 
-# Remove intercept (critical)
-if ("(Intercept)" %in% colnames(X))
-  X <- X[, colnames(X) != "(Intercept)", drop=FALSE]
+  if (str_detect(term, ":")) {
+    vars <- str_split(term, ":", simplify=TRUE)
+    group <- interaction(metadata[, vars], drop=TRUE)
+  } else {
+    group <- metadata[[term]]
+  }
 
-X_df <- as.data.frame(X)
+  return(as.factor(group))
+}
 
 # ------------------------------------------------------------
-# Run Coefficient-Level PERMANOVA
+# Run betadisper per term
 # ------------------------------------------------------------
 
-run_adonis <- function(by_type) {
+results <- list()
+pairwise_results <- list()
 
-  message("Running coefficient-level adonis2 (by = ", by_type, ")")
+for (term in model_terms) {
 
-  args <- list(
-    formula = as.formula("dist_final ~ ."),
-    data = X_df,
-    permutations = opt$permutations,
-    by = by_type
+  message("Running betadisper for: ", term)
+
+  group <- build_group(term, metadata_complete)
+
+  if (length(unique(group)) < 2) {
+    message("Skipping ", term, " (only one group)")
+    next
+  }
+
+  bd <- betadisper(dist_final, group)
+
+  # ANOVA test
+  an <- anova(bd)
+
+  # Permutation test (more robust)
+  perm <- permutest(bd, permutations=opt$permutations)
+
+  res_row <- tibble(
+    Term = term,
+    Df = an$Df[1],
+    SumSq = an$`Sum Sq`[1],
+    MeanSq = an$`Mean Sq`[1],
+    F = an$`F value`[1],
+    P_value = perm$tab[1, "Pr(>F)"]
   )
 
-  if (!is.null(opt$strata))
-    args$strata <- metadata_complete[[opt$strata]]
+  results[[term]] <- res_row
 
-  tryCatch({
-    do.call(adonis2, args)
-  }, error=function(e){
-    message("adonis2 error: ", e$message)
-    return(NULL)
-  })
+  # Optional pairwise
+  if (opt$pairwise) {
+    tuk <- TukeyHSD(bd)
+    tuk_df <- as.data.frame(tuk$group) %>%
+      rownames_to_column("Comparison") %>%
+      mutate(Term = term)
+
+    pairwise_results[[term]] <- tuk_df
+  }
 }
 
-res_sequential <- run_adonis("terms")
-res_marginal   <- run_adonis("margin")
-
 # ------------------------------------------------------------
-# Save Results
+# Save Outputs
 # ------------------------------------------------------------
 
-save_res <- function(res, name) {
-  if (is.null(res)) return()
-  out <- as.data.frame(res) %>%
-    rownames_to_column("Coefficient")
-  write_tsv(out, file.path(opt$outdir, paste0(name,".tsv")))
+final_res <- bind_rows(results)
+
+write_tsv(final_res,
+          file.path(opt$outdir, "betadisper_results.tsv"))
+
+if (opt$pairwise && length(pairwise_results) > 0) {
+  pw <- bind_rows(pairwise_results)
+  write_tsv(pw,
+            file.path(opt$outdir, "betadisper_pairwise.tsv"))
 }
-
-save_res(res_sequential, "permanova_sequential")
-save_res(res_marginal,   "permanova_marginal")
 
 write_lines(final_samples,
             file.path(opt$outdir, "samples_included.txt"))
