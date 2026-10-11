@@ -25,7 +25,7 @@ def parse_arguments():
     parser.add_argument('--show', action='store_true', help='Display the plot window')
     parser.add_argument(
         '--figsize',
-        default='2,2',
+        default='3,3',
         help='Figure size per facet as width,height'
     )
     parser.add_argument('-o', '--output', help='Output filename without extension')
@@ -35,16 +35,18 @@ def parse_arguments():
         help='Path(s) to metadata file(s) to inner-join with subject data before plotting'
     )
     parser.add_argument(
-        '--rc',
-        help='Path to matplotlibrc file to use for styling'
-    )
-    parser.add_argument(
         '--horizontal',
         action='store_true',
         help='Plot horizontally (swap x and y axes)'
     )
     parser.add_argument('--ymin', type=float, help='Minimum value for y-axis')
     parser.add_argument('--ymax', type=float, help='Maximum value for y-axis')
+    parser.add_argument(
+        '--linewidth',
+        type=float,
+        default=0.4,
+        help='Line width used for boxes, whiskers, medians, caps, axis spines and ticks (default: 0.4)'
+    )
 
     # Faceting arguments
     parser.add_argument('--row', help='Column name to facet across rows')
@@ -75,7 +77,7 @@ def merge_meta(df, meta_paths):
         df = df.join(mdf, how='inner')
     return df
 
-def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col=None, sharey=True, palette='pastel'):
+def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col=None, sharey=True, palette='pastel', linewidth=0.4):
     df = df.reset_index()
 
     # swap x/y if horizontal
@@ -87,7 +89,7 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col
     x_col = x or df.columns[0]
     y_col = y or df.columns[1]
 
-    # NEW: Lock the hue order globally so missing variables in subplots don't shift colors
+    # Lock the hue order globally so missing variables in subplots don't shift colors
     if hue:
         hue_order_list = df[hue].dropna().drop_duplicates().tolist()
     else:
@@ -106,6 +108,7 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col
         aspect=aspect
     )
 
+    # Every line element gets the same explicit width
     g.map_dataframe(
         sns.boxplot,
         x=x_col,
@@ -116,11 +119,11 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col
         palette=palette,
         showfliers=False,
         showcaps=False,
-        linewidth=0.4,
-        boxprops={'edgecolor': 'black'},
-        whiskerprops={'color': 'black'},
-        medianprops={'color': 'black'},
-        capprops={'color': 'black'}
+        linewidth=linewidth,
+        boxprops={'edgecolor': 'black', 'linewidth': linewidth},
+        whiskerprops={'color': 'black', 'linewidth': linewidth},
+        medianprops={'color': 'black', 'linewidth': linewidth},
+        capprops={'color': 'black', 'linewidth': linewidth}
     )
 
     # Setup Stripplot arguments dynamically to avoid Seaborn Warnings
@@ -157,6 +160,13 @@ def plot_box(df, x, y, hue, figsize, horizontal=False, order=None, row=None, col
 
     return g
 
+def apply_linewidth(g, linewidth):
+    """Make axis spines and tick marks the same thickness as the box/whisker lines."""
+    for ax in g.axes.flat:
+        for spine in ax.spines.values():
+            spine.set_linewidth(linewidth)
+        ax.tick_params(axis='both', which='both', width=linewidth)
+
 def save_plots(filename, show):
     filename = Path(filename)
     if filename.suffix:  # If the filename has an extension
@@ -174,10 +184,6 @@ def save_plots(filename, show):
 
 def main():
     args = parse_arguments()
-
-    # load matplotlibrc file if specified
-    if args.rc:
-        plt.style.use(args.rc)
 
     # load subject data
     df = load_data(args.subject)
@@ -208,7 +214,8 @@ def main():
         row=args.row,
         col=args.col,
         sharey=sharey_val,
-        palette=args.palette
+        palette=args.palette,
+        linewidth=args.linewidth
     )
 
     # handle log scaling across all facet axes
@@ -226,6 +233,9 @@ def main():
     else:
         if args.ymin is not None or args.ymax is not None:
             g.set(ylim=(args.ymin, args.ymax))
+
+    # unify spine/tick thickness (after log scaling so minor ticks are covered too)
+    apply_linewidth(g, args.linewidth)
 
     plt.tight_layout()
 
