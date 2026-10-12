@@ -52,17 +52,27 @@ set.seed(opt$seed)
 # Load Distance Matrix
 # ------------------------------------------------------------
 
-dist_long <- read_tsv(opt$distances, show_col_types=FALSE)
+dist_long <- read_tsv(opt$distances, show_col_types=FALSE) %>%
+  select(source = !!sym(opt$source_col),
+         target = !!sym(opt$target_col),
+         dist = !!sym(opt$dist_col))
 
-dist_wide <- dist_long %>%
-  select(all_of(c(opt$source_col,opt$target_col,opt$dist_col))) %>%
-  pivot_wider(names_from = !!sym(opt$target_col),
-              values_from = !!sym(opt$dist_col)) %>%
-  column_to_rownames(opt$source_col) %>%
+# Mirror the pairs so every A-B also has a B-A
+mirror_dist <- bind_rows(
+  dist_long,
+  dist_long %>% select(source = target, target = source, dist)
+) %>%
+  distinct(source, target, .keep_all = TRUE)
+
+# Pivot to wide format. Missing self-comparisons (A-A) are filled with 0.
+dist_wide <- mirror_dist %>%
+  pivot_wider(names_from = target, values_from = dist, values_fill = 0) %>%
+  column_to_rownames("source") %>%
   as.matrix()
 
-dist_wide[upper.tri(dist_wide)] <- t(dist_wide)[upper.tri(dist_wide)]
-dist_wide[is.na(dist_wide)] <- 0
+# Ensure rows and columns are in the exact same order
+all_samples <- sort(rownames(dist_wide))
+dist_wide <- dist_wide[all_samples, all_samples]
 
 # ------------------------------------------------------------
 # Load Metadata

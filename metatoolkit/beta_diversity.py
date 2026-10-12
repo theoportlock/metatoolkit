@@ -3,173 +3,138 @@
 
 import argparse
 import os
+import logging
 import pandas as pd
 import numpy as np
-from itertools import permutations
+from tqdm import tqdm
+from joblib import Parallel, delayed
 
 from skbio import TreeNode
 from skbio.diversity import beta_diversity
 from scipy.spatial.distance import pdist, squareform
 
+def setup_logging(verbose=False):
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
 def load_table(table_path, tax_level):
-    """
-    Load the abundance table (TSV).
-    Rows = samples, columns = taxa.
-    Keeps only columns containing the chosen taxonomic prefix (e.g. t__ or s__).
-    Extracts the numeric/ID suffix after the prefix.
-    """
+    logging.info(f"Loading abundance table: {table_path}")
     df = pd.read_csv(table_path, sep='\t', index_col=0)
-
-    # Only keep taxa columns of interest
     df = df.loc[:, df.columns.str.contains(fr'{tax_level}')]
-
-    # Extract numeric SGB ID (remove everything before the prefix)
     df.columns = df.columns.str.replace(fr'.*{tax_level}SGB', '', regex=True)
-
-    # Ensure numeric values
     df = df.apply(pd.to_numeric, errors='coerce').fillna(0)
     return df
 
+def calculate_standard_metric(metric, table, sample_ids):
+    """Calculates non-phylogenetic metrics using scipy."""
+    if metric == 'bray-curtis':
+        d = squareform(pdist(table.values, metric='braycurtis'))
+    elif metric == 'jaccard':
+        d = squareform(pdist((table.values > 0).astype(int), metric='jaccard'))
+    else: # euclidean
+        d = squareform(pdist(table.values, metric='euclidean'))
+    return pd.DataFrame(d, index=sample_ids, columns=sample_ids)
 
-def load_tree(tree_path):
-    """Load a Newick-format phylogenetic tree."""
-    return TreeNode.read(tree_path)
+def unifrac_worker(chunk_indices, full_table, tree, metric_name):
+    """Worker calculates distances for a subset of rows against the full table."""
+    sample_ids = full_table.index.tolist()
+    subset_ids = [sample_ids[i] for i in chunk_indices]
+    skbio_metric = metric_name.replace('-', '_')
 
+    dm = beta_diversity(
+        metric=skbio_metric,
+        counts=full_table.values,
+        ids=sample_ids,
+        tree=tree,
+        taxa=full_table.columns.values
+    )
 
-def save(df, path):
-    """Save the dataframe as TSV."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    df.to_csv(path, sep='\t', index=False)
-
+    df_full = dm.to_data_frame()
+    return df_full.loc[subset_ids]
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description=("Calculate pairwise beta diversity metrics "
-                     "(Bray–Curtis, Jaccard, Euclidean, Weighted/Unweighted UniFrac).")
-    )
-    parser.add_argument('table', help='Input abundance table (TSV, samples x taxa)')
-    parser.add_argument('-t', '--tree', help='Newick tree file (required only for UniFrac)')
-    parser.add_argument(
-        '-o', '--outfile', type=str,
-        help='Output file name (default: beta_diversity.tsv in same directory as input table)'
-    )
-    parser.add_argument(
-        '--metrics',
-        nargs='+',
-        choices=[
-            'bray-curtis',
-            'jaccard',
-            'euclidean',
-            'weighted-unifrac',
-            'unweighted-unifrac',
-            'all'
-        ],
-        default=['all'],
-        help='Which beta diversity metrics to calculate (default: all).'
-    )
-    parser.add_argument(
-        '--tax-level',
-        default='t__',
-        help='Taxonomic prefix of interest in column names (default: t__).'
-    )
+    parser = argparse.ArgumentParser(description="Parallel Beta Diversity (Full Symmetric Output)")
+    parser.add_argument('table', help='Input abundance table (TSV)')
+    parser.add_argument('-t', '--tree', required=True, help='Newick tree file')
+    parser.add_argument('-o', '--outfile', help='Output file name')
+    parser.add_argument('--threads', type=int, default=-1, help='Number of threads/chunks (default: all cores)')
+    parser.add_argument('--tax-level', default='t__', help='Taxonomic prefix (default: t__)')
+    parser.add_argument('-v', '--verbose', action='store_true')
     return parser.parse_args()
-
 
 def main():
     args = parse_args()
+    setup_logging(args.verbose)
 
-    # Output path
-    if args.outfile:
-        out_path = args.outfile
-    else:
-        in_dir = os.path.dirname(os.path.abspath(args.table))
-        out_path = os.path.join(in_dir, 'beta_diversity.tsv')
+    n_jobs = args.threads if args.threads > 0 else os.cpu_count()
+    out_path = args.outfile or "beta_diversity.tsv"
 
     table = load_table(args.table, args.tax_level)
+    tree = TreeNode.read(args.tree)
+
+    # Align table and tree
+    tip_names = set(tip.name for tip in tree.tips())
+    common_taxa = list(set(table.columns).intersection(tip_names))
+    table = table[common_taxa]
     sample_ids = table.index.tolist()
-    metrics = args.metrics
-    if 'all' in metrics:
-        metrics = [
-            'bray-curtis',
-            'jaccard',
-            'euclidean',
-            'weighted-unifrac',
-            'unweighted-unifrac'
-        ]
 
-    # Prepare tree only if needed for UniFrac
-    tree = None
-    if any(m in metrics for m in ['weighted-unifrac', 'unweighted-unifrac']):
-        if not args.tree:
-            raise ValueError("A Newick tree (--tree) is required for UniFrac metrics.")
-        tree = load_tree(args.tree)
-
-        # Keep only taxa present in both table and tree tips
-        tip_names = set(tip.name for tip in tree.tips())
-        common_taxa = set(table.columns).intersection(tip_names)
-        dropped = set(table.columns) - common_taxa
-        if dropped:
-            print("Dropping taxa not found in tree:", dropped)
-        table = table[list(common_taxa)]
-
-    # Precompute distance matrices
     dist_matrices = {}
 
-    if 'bray-curtis' in metrics:
-        bc = squareform(pdist(table.values, metric='braycurtis'))
-        dist_matrices['bray-curtis'] = pd.DataFrame(bc, index=sample_ids, columns=sample_ids)
+    # 1. Standard Metrics
+    std_metrics = ['bray-curtis', 'jaccard', 'euclidean']
+    logging.info(f"Calculating {std_metrics}...")
+    std_results = Parallel(n_jobs=n_jobs)(
+        delayed(calculate_standard_metric)(m, table, sample_ids) for m in std_metrics
+    )
+    for name, df in zip(std_metrics, std_results):
+        dist_matrices[name] = df
 
-    if 'jaccard' in metrics:
-        presence = (table.values > 0).astype(int)
-        jc = squareform(pdist(presence, metric='jaccard'))
-        dist_matrices['jaccard'] = pd.DataFrame(jc, index=sample_ids, columns=sample_ids)
+    # 2. UniFrac Metrics (Chunked Parallelization)
+    for m_name in ['weighted-unifrac', 'unweighted-unifrac']:
+        logging.info(f"Calculating {m_name} (Parallelized in {n_jobs} chunks)...")
+        indices = np.arange(len(sample_ids))
+        chunks = np.array_split(indices, n_jobs)
 
-    if 'euclidean' in metrics:
-        eu = squareform(pdist(table.values, metric='euclidean'))
-        dist_matrices['euclidean'] = pd.DataFrame(eu, index=sample_ids, columns=sample_ids)
+        chunk_results = Parallel(n_jobs=n_jobs)(
+            delayed(unifrac_worker)(c, table, tree, m_name)
+            for c in tqdm(chunks, desc=f"Processing {m_name}")
+        )
+        dist_matrices[m_name] = pd.concat(chunk_results)
 
-    if 'weighted-unifrac' in metrics:
-        dist_matrices['weighted-unifrac'] = beta_diversity(
-            metric='weighted_unifrac',
-            counts=table.values,
-            ids=sample_ids,
-            tree=tree,
-            taxa=table.columns.values
-        ).to_data_frame()
+    # 3. Melt FULL matrix (symmetric output)
+    logging.info("Extracting full pairwise distances (symmetric)...")
+    final_df = None
 
-    if 'unweighted-unifrac' in metrics:
-        presence = (table.values > 0).astype(int)
-        dist_matrices['unweighted-unifrac'] = beta_diversity(
-            metric='unweighted_unifrac',
-            counts=presence,
-            ids=sample_ids,
-            tree=tree,
-            taxa=table.columns.values
-        ).to_data_frame()
+    for name, df in dist_matrices.items():
+        # Ensure column order matches index order
+        df = df.reindex(index=sample_ids, columns=sample_ids)
 
-    # Build long-format table with ALL pairwise permutations (including self)
-    rows = []
+        # Melt into long format
+        long_df = df.stack().reset_index()
+        long_df.columns = ['source', 'target', name]
 
-    # self-pairs (distance = 0)
-    for i in sample_ids:
-        row = {'source': i, 'target': i}
-        for m in metrics:
-            row[m] = 0.0
-        rows.append(row)
+        # Remove self-comparisons (diagonal)
+        long_df = long_df[long_df['source'] != long_df['target']]
 
-    # all pairwise permutations
-    for i, j in permutations(sample_ids, 2):
-        row = {'source': i, 'target': j}
-        for m in metrics:
-            row[m] = dist_matrices[m].loc[i, j]
-        rows.append(row)
+        if final_df is None:
+            final_df = long_df
+        else:
+            final_df = pd.merge(final_df, long_df, on=['source', 'target'])
 
-    out_df = pd.DataFrame(rows)
-    save(out_df, out_path)
-    print(f"Beta diversity table saved to: {out_path}")
+    # 4. Save
+    logging.info(f"Saving {len(final_df)} pairwise combinations to {out_path}...")
 
+    # Ensure directory exists
+    out_dir = os.path.dirname(os.path.abspath(out_path))
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
+    final_df.to_csv(out_path, sep='\t', index=False)
+    logging.info("Process finished successfully.")
 
 if __name__ == '__main__':
     main()
-

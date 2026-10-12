@@ -1,46 +1,121 @@
 ### abund.py
 ```
-                                                                                                                                                                                                                                                                             
- Usage: abund.py [OPTIONS] INPUT                                                                                                                                                                                                                                             
-                                                                                                                                                                                                                                                                             
- Plot stacked bar chart of abundances.                                                                                                                                                                                                                                       
-                                                                                                                                                                                                                                                                             
-╭─ Arguments ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ *    input      PATH  TSV file with samples as rows, features as columns [required]                                                                                                                                                                                       │
-╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ --output              -o                    PATH              Output file path [default: abund.svg]                                                                                                                                                                       │
-│ --figsize                                   <FLOAT FLOAT>...  Figure size, e.g. --figsize 6.0 5.0 [default: 4.0, 4.0]                                                                                                                                                     │
-│ --order                   --no-order                          Sort categories by average abundance [default: no-order]                                                                                                                                                    │
-│ --max-categories                            INTEGER           Number of top categories to keep before combining 'others' [default: 20]                                                                                                                                    │
-│ --normalize               --no-normalize                      Normalize rows to relative abundance [default: normalize]                                                                                                                                                   │
-│ --install-completion                                          Install completion for the current shell.                                                                                                                                                                   │
-│ --show-completion                                             Show completion for the current shell, to copy it or customize the installation.                                                                                                                            │
-│ --help                                                        Show this message and exit.                                                                                                                                                                                 │
-╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+usage: abund.py [-h] [--meta META] [-o OUTPUT] [--figsize FIGSIZE FIGSIZE]
+                [--order] [--max-categories MAX_CATEGORIES] [--no-normalize]
+                [--log1p] [--species SPECIES]
+                [--group-cols GROUP_COLS [GROUP_COLS ...]]
+                [--category-order CATEGORY_ORDER [CATEGORY_ORDER ...]]
+                [--y-max Y_MAX]
+                input
+
+Plot stacked bar chart of abundances or species prevalence from a TSV file.
+
+positional arguments:
+  input                 TSV file with samples as rows, features as columns
+
+options:
+  -h, --help            show this help message and exit
+  --meta META           Optional metadata table to merge by index
+  -o OUTPUT, --output OUTPUT
+                        Output file path
+  --figsize FIGSIZE FIGSIZE
+                        Figure size: width height
+  --order               Sort stacked categories by mean abundance
+  --max-categories MAX_CATEGORIES
+                        Top categories to keep
+  --no-normalize        Do not normalize rows to relative abundance
+  --log1p               Apply log1p transformation
+  --species SPECIES     Species column to plot prevalence for
+  --group-cols GROUP_COLS [GROUP_COLS ...]
+                        Metadata columns defining bar groups
+  --category-order CATEGORY_ORDER [CATEGORY_ORDER ...]
+                        Explicit ordering of x-axis categories
+  --y-max Y_MAX         Set maximum y-axis value
+```
+
+### adonis2.R
+```
+Usage: metatoolkit//adonis2.R [options]
+
+
+Options:
+	--distances=DISTANCES
+		Long-format distance TSV.
+
+	--metadata=METADATA
+		Metadata TSV.
+
+	--formula=FORMULA
+		Model formula RHS (e.g. 'Intervention * timepoint + Age').
+
+	--source_col=SOURCE_COL
+		
+
+	--target_col=TARGET_COL
+		
+
+	--dist_col=DIST_COL
+		
+
+	--sample_id_col=SAMPLE_ID_COL
+		
+
+	--outdir=OUTDIR
+		
+
+	--strata=STRATA
+		
+
+	--reference=REFERENCE
+		Set reference: 'Variable,Level'. Repeatable.
+
+	--seed=SEED
+		
+
+	--permutations=PERMUTATIONS
+		
+
+	-h, --help
+		Show this help message and exit
+
 
 ```
 
 ### adonis.R
 ```
-Usage: metatoolkit/metatoolkit//adonis.R [options]
+Usage: metatoolkit//adonis.R [options]
 
 
 Options:
-	-i INPUT, --input=INPUT
-		Feature/abundance TSV file (samples x features)
+	--input=INPUT
+		Abundance TSV file.
 
-	-m METADATA, --metadata=METADATA
-		Metadata TSV file
+	--metadata=METADATA
+		Metadata TSV file.
 
-	-f FORMULA, --formula=FORMULA
-		Model formula, e.g. "Intervention * timepoint + Age"
+	--formula=FORMULA
+		PERMANOVA formula (R syntax, RHS only).
 
-	-d DISTANCE, --distance=DISTANCE
-		Distance metric for vegdist (bray, jaccard, euclidean, etc). [default: bray]
+	--distance=DISTANCE
+		Distance metric (default: bray).
 
-	-o OUTPUT, --output=OUTPUT
-		Output TSV file for PERMANOVA results
+	--strata=STRATA
+		Optional strata column.
+
+	--timepoint_col=TIMEPOINT_COL
+		Timepoint column name.
+
+	--timepoint_a=TIMEPOINT_A
+		First timepoint value.
+
+	--timepoint_b=TIMEPOINT_B
+		Second timepoint value.
+
+	--sample_id_col=SAMPLE_ID_COL
+		Sample ID column name.
+
+	--output=OUTPUT
+		Output TSV file.
 
 	-h, --help
 		Show this help message and exit
@@ -51,11 +126,11 @@ Options:
 ### alpha_diversity.py
 ```
 usage: alpha_diversity.py [-h] [-t TREE] [-o OUTFILE]
-                          [--metrics {shannon,richness,faiths,all} [{shannon,richness,faiths,all} ...]]
+                          [--metrics {shannon,richness,evenness,faiths,all} [{shannon,richness,evenness,faiths,all} ...]]
                           [--tax_level TAX_LEVEL]
                           table
 
-Calculate alpha diversity metrics (Shannon, Richness, Faith's PD) per sample.
+Calculate alpha diversity metrics per sample.
 
 positional arguments:
   table                 Input abundance table (TSV, samples x taxa)
@@ -66,7 +141,7 @@ options:
   -o OUTFILE, --outfile OUTFILE
                         Output file name (default: alpha_diversity.tsv in same
                         directory as input table)
-  --metrics {shannon,richness,faiths,all} [{shannon,richness,faiths,all} ...]
+  --metrics {shannon,richness,evenness,faiths,all} [{shannon,richness,evenness,faiths,all} ...]
                         Which alpha diversity metrics to calculate (default:
                         all).
   --tax_level TAX_LEVEL
@@ -76,7 +151,7 @@ options:
 
 ### ancombc2.R
 ```
-Error in library(ANCOMBC) : there is no package called ‘ANCOMBC’
+Error in library(data.table) : there is no package called ‘data.table’
 Calls: suppressPackageStartupMessages -> withCallingHandlers -> library
 Execution halted
 ```
@@ -108,14 +183,14 @@ options:
 
 ### ask_ollama.sh
 ```
-Usage: metatoolkit/metatoolkit//ask_ollama.sh <prompt> <input_file> <output_log>
+Usage: metatoolkit//ask_ollama.sh <prompt> <file1> [file2 ...] -o <output_log> [-m model]
 ```
 
 ### assign.py
 ```
-usage: assign.py [-h] [-o OUTPUT] -a ASSIGN input
+usage: assign.py [-h] [-o OUTPUT] -a ASSIGN [--mode {dataframe,global}] input
 
-Assign a new column using pandas assign syntax.
+Assign new columns to a TSV using expressions.
 
 positional arguments:
   input                 Path to input TSV file
@@ -123,10 +198,13 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -o OUTPUT, --output OUTPUT
-                        Output TSV file name
+                        Path to output TSV file (default: assigned.tsv)
   -a ASSIGN, --assign ASSIGN
-                        Expression for new column, e.g. 'pregnant = (status ==
-                        1) | (status == 2)'
+                        Assignment expression (can be repeated), e.g. -a
+                        "newcol = colA + colB"
+  --mode {dataframe,global}
+                        Evaluation mode: dataframe → pandas df.eval (column
+                        names only) global → full Python eval (df available)
 ```
 
 ### aucroc_curve.py
@@ -157,7 +235,7 @@ options:
 
 ### bar.R
 ```
-Usage: metatoolkit/metatoolkit//bar.R [options] subject
+Usage: metatoolkit//bar.R [options] subject
 
 
 Options:
@@ -194,38 +272,75 @@ options:
                         Output TSV file path
 ```
 
+### bash_fmt.py
+```
+-h \
+```
+
 ### beta_diversity.py
 ```
-usage: beta_diversity.py [-h] [-t TREE] [-o OUTFILE]
-                         [--metrics {bray-curtis,jaccard,euclidean,weighted-unifrac,unweighted-unifrac,all} [{bray-curtis,jaccard,euclidean,weighted-unifrac,unweighted-unifrac,all} ...]]
-                         [--tax-level TAX_LEVEL]
+usage: beta_diversity.py [-h] -t TREE [-o OUTFILE] [--threads THREADS]
+                         [--tax-level TAX_LEVEL] [-v]
                          table
 
-Calculate pairwise beta diversity metrics (Bray–Curtis, Jaccard, Euclidean,
-Weighted/Unweighted UniFrac).
+Parallel Beta Diversity (Full Symmetric Output)
 
 positional arguments:
-  table                 Input abundance table (TSV, samples x taxa)
+  table                 Input abundance table (TSV)
 
 options:
   -h, --help            show this help message and exit
-  -t TREE, --tree TREE  Newick tree file (required only for UniFrac)
+  -t TREE, --tree TREE  Newick tree file
   -o OUTFILE, --outfile OUTFILE
-                        Output file name (default: beta_diversity.tsv in same
-                        directory as input table)
-  --metrics {bray-curtis,jaccard,euclidean,weighted-unifrac,unweighted-unifrac,all} [{bray-curtis,jaccard,euclidean,weighted-unifrac,unweighted-unifrac,all} ...]
-                        Which beta diversity metrics to calculate (default:
-                        all).
+                        Output file name
+  --threads THREADS     Number of threads/chunks (default: all cores)
   --tax-level TAX_LEVEL
-                        Taxonomic prefix of interest in column names (default:
-                        t__).
+                        Taxonomic prefix (default: t__)
+  -v, --verbose
+```
+
+### beta_diversity_stats.R
+```
+Usage: metatoolkit//beta_diversity_stats.R [options]
+
+
+Options:
+	-i INPUT, --input=INPUT
+		Input Abundance TSV (Samples x Taxa or Taxa x Samples)
+
+	-m METADATA, --metadata=METADATA
+		Metadata TSV (first column = sample ID)
+
+	-f FORMULA, --formula=FORMULA
+		Formula (e.g. 'timepoint * group + sex')
+
+	-s STRATA, --strata=STRATA
+		Strata/Block variable for restricted permutations (e.g. subjectID)
+
+	-d DISTANCE, --distance=DISTANCE
+		Distance metric (bray, jaccard, euclidean, robust.aitchison)
+
+	-o OUTPUT, --output=OUTPUT
+		Output TSV file
+
+	--baseline=BASELINE
+		Baseline levels: var=level,var=level
+
+	--order=ORDER
+		Factor order: var=level1,level2,...;var=level1,level2
+
+	-h, --help
+		Show this help message and exit
+
+
 ```
 
 ### box.py
 ```
 usage: box.py [-h] [-x X] [-y Y] [--hue HUE] [--order ORDER] [--logy] [--show]
               [--figsize FIGSIZE] [-o OUTPUT] [--meta META [META ...]]
-              [--rc RC] [--horizontal] [--ymin YMIN] [--ymax YMAX]
+              [--rc RC] [--horizontal] [--ymin YMIN] [--ymax YMAX] [--row ROW]
+              [--col COL] [--sharey {all,none,row,col}] [--palette PALETTE]
               subject
 
 Produces a Boxplot of a given dataset
@@ -242,7 +357,7 @@ options:
                         y-axis if horizontal)
   --logy                Set y-axis to log scale (or x-axis if horizontal)
   --show                Display the plot window
-  --figsize FIGSIZE     Figure size as width,height
+  --figsize FIGSIZE     Figure size per facet as width,height
   -o OUTPUT, --output OUTPUT
                         Output filename without extension
   --meta META [META ...]
@@ -252,14 +367,21 @@ options:
   --horizontal          Plot horizontally (swap x and y axes)
   --ymin YMIN           Minimum value for y-axis
   --ymax YMAX           Maximum value for y-axis
+  --row ROW             Column name to facet across rows
+  --col COL             Column name to facet across columns
+  --sharey {all,none,row,col}
+                        Whether to share the y-axis across facets. Options:
+                        all (default), none, row, col
+  --palette PALETTE     Seaborn color palette for the boxplot (default:
+                        pastel)
 ```
 
 ### box.R
 ```
-usage: metatoolkit/metatoolkit//box.R [-h] [-x X] [-y Y] [--hue HUE] [--logy]
-                                      [--show] [--figsize FIGSIZE] [-o OUTPUT]
-                                      [--meta META [META ...]] [--rc RC]
-                                      subject
+usage: metatoolkit//box.R [-h] [-x X] [-y Y] [--hue HUE] [--logy] [--show]
+                          [--figsize FIGSIZE] [-o OUTPUT]
+                          [--meta META [META ...]] [--rc RC]
+                          subject
 
 Produces a Boxplot of a given dataset
 
@@ -281,15 +403,58 @@ options:
   --rc RC               Path to ggplot2 theme file (RDS with theme)
 ```
 
+### brms_censored.R
+```
+Usage: metatoolkit//brms_censored.R [options]
+
+
+Options:
+	-i INPUT, --input=INPUT
+		Input TSV file (first column = sample ID)
+
+	-m METADATA, --metadata=METADATA
+		Metadata TSV file (first column = sample ID)
+
+	-f FORMULA, --formula=FORMULA
+		Fixed effects formula (e.g. 'timepoint * group + sex')
+
+	-g GROUP, --group=GROUP
+		Random effect grouping variable (e.g. subjectID)
+
+	-o OUTPUT, --output=OUTPUT
+		Output TSV file
+
+	--lod=LOD
+		Limit of detection (numeric, on original scale)
+
+	--baseline=BASELINE
+		Baseline levels: var=level,var=level
+
+	--order=ORDER
+		Factor order: var=level1,level2,...;var=level1,level2
+
+	--iter=ITER
+		Total MCMC iterations (default: 4000)
+
+	--chains=CHAINS
+		Number of chains (default: 4)
+
+	-h, --help
+		Show this help message and exit
+
+
+```
+
 ### cca.py
 ```
 usage: cca.py [-h] [-o OUTPUT] [--scale] [--n_permutations N_PERMUTATIONS]
+              [--min_samples MIN_SAMPLES]
               inputs [inputs ...]
 
-Pairwise Canonical Correlation Analysis (CCA)
+Pairwise Canonical Correlation Analysis (CCA) with missingness logging
 
 positional arguments:
-  inputs                List of dataset TSVs (rows=samples, cols=features)
+  inputs                Input TSVs, directories, or glob patterns
 
 options:
   -h, --help            show this help message and exit
@@ -298,32 +463,45 @@ options:
   --scale               Standardize features before CCA
   --n_permutations N_PERMUTATIONS
                         Number of permutations for significance testing
+  --min_samples MIN_SAMPLES
+                        Minimum complete samples required after filtering
 ```
 
 ### change.py
 ```
 usage: change.py [-h] -df2 DF2 [-c COLUMNS [COLUMNS ...]]
                  [-a {mww,fc,diffmean,summary} [{mww,fc,diffmean,summary} ...]]
+                 [-o OUTPUT] [--quiet]
                  subject
 
 Change - Bivariate analysis of feature changes
 
 positional arguments:
-  subject               Path to dataset file or subject name
+  subject               Path to dataset file or subject name (resolved as
+                        results/{name}.tsv)
 
 options:
   -h, --help            show this help message and exit
   -df2 DF2, --df2 DF2   Path to metadata/one-hot-encoded file or subject name
   -c COLUMNS [COLUMNS ...], --columns COLUMNS [COLUMNS ...]
-                        Which columns of df2 to use for splitting (default:
-                        all)
+                        Metadata columns to split by (default: all)
   -a {mww,fc,diffmean,summary} [{mww,fc,diffmean,summary} ...], --analysis {mww,fc,diffmean,summary} [{mww,fc,diffmean,summary} ...]
                         Methods of analysis to perform
+  -o OUTPUT, --output OUTPUT
+                        Output TSV file (default:
+                        results/{subject}_change.tsv)
+  --quiet               Suppress printed DataFrame output
 ```
 
 ### check_db.py
 ```
-SQLite database integrity check passed.
+Traceback (most recent call last):
+  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//check_db.py", line 19, in <module>
+    check_sqlite_integrity(db_file)
+  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//check_db.py", line 7, in check_sqlite_integrity
+    con = sqlite3.connect(db_file)
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: unable to open database file
 ```
 
 ### chisquared.py
@@ -349,7 +527,8 @@ usage: clustermap.py [-h] [--sig SIG] [--effect EFFECT]
                      [--sig_thresh SIG_THRESH] [--no-cluster]
                      [--no-row-cluster] [--no-col-cluster]
                      [--row-order ROW_ORDER] [--col-order COL_ORDER]
-                     [--filter-sig {none,source,target,both}] [-o OUTPUT]
+                     [--filter-sig {none,source,target,both}]
+                     [--zscore {row,col,none}] [--log1p] [-o OUTPUT]
                      [--figsize FIGSIZE FIGSIZE] [--square]
                      subject
 
@@ -373,6 +552,11 @@ options:
   --col-order COL_ORDER
                         Comma-separated list specifying column order
   --filter-sig {none,source,target,both}
+  --zscore {row,col,none}
+                        Z-score the effect matrix by row or column before
+                        plotting
+  --log1p               Apply sign-preserving log1p transform to effect matrix
+                        before plotting
   -o OUTPUT, --output OUTPUT
   --figsize FIGSIZE FIGSIZE
   --square
@@ -380,10 +564,16 @@ options:
 
 ### compute_theoretical_variance.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//compute_theoretical_variance.py", line 5, in <module>
-    import sympy as sp
-ModuleNotFoundError: No module named 'sympy'
+usage: compute_theoretical_variance.py [-h] [--input INPUT]
+                                       [--output_dir OUTPUT_DIR]
+
+Compute expected variance contribution from formula terms.
+
+options:
+  -h, --help            show this help message and exit
+  --input INPUT         Path to input formula file
+  --output_dir OUTPUT_DIR
+                        Output directory to save TSV files
 ```
 
 ### contingency.py
@@ -405,27 +595,49 @@ options:
 
 ### corr.py
 ```
-usage: corr.py [-h] [-m] [-o OUTPUT] [--dropna] files [files ...]
+usage: corr.py [-h] [-m] [-o OUTPUT] [-p THREADS] [--dropna] files [files ...]
 
-Compute Spearman correlations efficiently.
+Compute Spearman correlations in parallel.
 
 positional arguments:
-  files                 One or two input files (TSV format with index column).
+  files                 One or two input TSV files.
 
 options:
   -h, --help            show this help message and exit
-  -m, --mult            Apply FDR correction (q-values).
+  -m, --mult            Apply FDR correction.
   -o OUTPUT, --output OUTPUT
                         Path for output TSV.
-  --dropna              Drop rows with any missing values before correlation.
+  -p THREADS, --threads THREADS
+                        Number of threads (-1 for all).
+  --dropna              Drop rows with any NaNs.
+```
+
+### cox_model.py
+```
+usage: cox_model.py [-h] --input INPUT --meta META [--index INDEX]
+                    [--subject SUBJECT] --time TIME --event EVENT --covariates
+                    COVARIATES [COVARIATES ...] [--output OUTPUT]
+
+Generic Cox Proportional Hazards CLI
+
+options:
+  -h, --help            show this help message and exit
+  --input INPUT         Path to primary data file
+  --meta META           Path to metadata file
+  --index INDEX
+  --subject SUBJECT
+  --time TIME           Time column
+  --event EVENT         Event column (1/0)
+  --covariates COVARIATES [COVARIATES ...]
+                        List of columns to include (e.g., Condition Sex
+                        Ethnicity)
+  --output OUTPUT       Path to save coefficients (TSV)
 ```
 
 ### create_datasets.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//create_datasets.py", line 4, in <module>
-    import sympy as sp
-ModuleNotFoundError: No module named 'sympy'
+Error: Formula file 'conf/formula.txt' not found.
+Please create 'conf/formula.txt' with your desired formula (e.g., '2*x + 3*y + 1*x*y + noise').
 ```
 
 ### create_network.py
@@ -460,10 +672,69 @@ options:
 
 ### create_toy_dataset.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//create_toy_dataset.py", line 5, in <module>
-    import sympy as sp
-ModuleNotFoundError: No module named 'sympy'
+usage: create_toy_dataset.py [-h] [--output OUTPUT] [--target TARGET]
+                             [--seed SEED] [-n N]
+                             input
+
+Generate a toy dataset from a symbolic formula.
+
+positional arguments:
+  input            Path to formula file
+
+options:
+  -h, --help       show this help message and exit
+  --output OUTPUT  Path to output dataset file
+  --target TARGET  Name of target output column (default: y)
+  --seed SEED      Random seed for reproducibility
+  -n N             Number of samples to generate
+```
+
+### dbrda.R
+```
+Usage: metatoolkit//dbrda.R [options]
+
+
+Options:
+	--distances=DISTANCES
+		Long-format distance TSV.
+
+	--metadata=METADATA
+		Metadata TSV.
+
+	--formula=FORMULA
+		Model formula RHS.
+
+	--source_col=SOURCE_COL
+		
+
+	--target_col=TARGET_COL
+		
+
+	--dist_col=DIST_COL
+		
+
+	--sample_id_col=SAMPLE_ID_COL
+		
+
+	--outdir=OUTDIR
+		
+
+	--strata=STRATA
+		
+
+	--reference=REFERENCE
+		Set reference: 'Variable,Level'. Repeatable.
+
+	--seed=SEED
+		
+
+	--permutations=PERMUTATIONS
+		
+
+	-h, --help
+		Show this help message and exit
+
+
 ```
 
 ### density_scatterplot.py
@@ -472,157 +743,9 @@ ModuleNotFoundError: No module named 'sympy'
 
 ### descriptive_stats.sh
 ```
+⚠️  No venv found at venv/bin/activate
 mkdir: missing operand
 Try 'mkdir --help' for more information.
-usage: filter.py [-h] [-o OUTPUT] [-fdf FILTER_DF] [-fdfx FILTER_DF_AXIS]
-                 [--column COLUMN] [-rf ROWFILT] [-cf COLFILT] [-p PREVAIL]
-                 [-a ABUND] [--nonzero] [--min_nonzero_rows MIN_NONZERO_ROWS]
-                 [--min_nonzero_cols MIN_NONZERO_COLS] [--numeric_only]
-                 [-q QUERY]
-                 input
-
-Filter a TSV file by another TSV’s index or specific column(s).
-
-positional arguments:
-  input                 Path to input TSV file
-
-options:
-  -h, --help            show this help message and exit
-  -o OUTPUT, --output OUTPUT
-                        Path to output TSV file (default: adds _filter suffix)
-  -fdf FILTER_DF, --filter_df FILTER_DF
-                        Path to TSV with index to filter by
-  -fdfx FILTER_DF_AXIS, --filter_df_axis FILTER_DF_AXIS
-                        Axis to filter (0=row, 1=column)
-  --column COLUMN       Column(s) to match filter_df index against, comma-
-                        separated (default: index)
-  -rf ROWFILT, --rowfilt ROWFILT
-                        Regex for filtering rows (index)
-  -cf COLFILT, --colfilt COLFILT
-                        Regex for filtering columns
-  -p PREVAIL, --prevail PREVAIL
-                        Prevalence threshold (0–1)
-  -a ABUND, --abund ABUND
-                        Minimum mean abundance threshold
-  --nonzero             Remove all-zero rows and columns
-  --min_nonzero_rows MIN_NONZERO_ROWS
-                        Minimum number of non-zero values per row
-  --min_nonzero_cols MIN_NONZERO_COLS
-                        Minimum number of non-zero values per column
-  --numeric_only        Keep numeric columns only
-  -q QUERY, --query QUERY
-                        Pandas query string(s)
-usage: filter.py [-h] [-o OUTPUT] [-fdf FILTER_DF] [-fdfx FILTER_DF_AXIS]
-                 [--column COLUMN] [-rf ROWFILT] [-cf COLFILT] [-p PREVAIL]
-                 [-a ABUND] [--nonzero] [--min_nonzero_rows MIN_NONZERO_ROWS]
-                 [--min_nonzero_cols MIN_NONZERO_COLS] [--numeric_only]
-                 [-q QUERY]
-                 input
-
-Filter a TSV file by another TSV’s index or specific column(s).
-
-positional arguments:
-  input                 Path to input TSV file
-
-options:
-  -h, --help            show this help message and exit
-  -o OUTPUT, --output OUTPUT
-                        Path to output TSV file (default: adds _filter suffix)
-  -fdf FILTER_DF, --filter_df FILTER_DF
-                        Path to TSV with index to filter by
-  -fdfx FILTER_DF_AXIS, --filter_df_axis FILTER_DF_AXIS
-                        Axis to filter (0=row, 1=column)
-  --column COLUMN       Column(s) to match filter_df index against, comma-
-                        separated (default: index)
-  -rf ROWFILT, --rowfilt ROWFILT
-                        Regex for filtering rows (index)
-  -cf COLFILT, --colfilt COLFILT
-                        Regex for filtering columns
-  -p PREVAIL, --prevail PREVAIL
-                        Prevalence threshold (0–1)
-  -a ABUND, --abund ABUND
-                        Minimum mean abundance threshold
-  --nonzero             Remove all-zero rows and columns
-  --min_nonzero_rows MIN_NONZERO_ROWS
-                        Minimum number of non-zero values per row
-  --min_nonzero_cols MIN_NONZERO_COLS
-                        Minimum number of non-zero values per column
-  --numeric_only        Keep numeric columns only
-  -q QUERY, --query QUERY
-                        Pandas query string(s)
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit/corr.py", line 127, in <module>
-    main()
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit/corr.py", line 105, in main
-    df = pd.read_csv(args.files[0], sep="\t", index_col=0)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-                   ^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-             ^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/numbers.tsv'
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit/mannwhitneyu.py", line 103, in <module>
-    main()
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit/mannwhitneyu.py", line 82, in main
-    df_num = load(args.numeric)
-             ^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit/mannwhitneyu.py", line 11, in load
-    return pd.read_csv(path, sep="\t", index_col=0)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-                   ^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-             ^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/numbers.tsv'
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit/fisher.py", line 70, in <module>
-    main()
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit/fisher.py", line 53, in main
-    df = pd.read_csv(args.file, sep="\t", index_col=0)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-                   ^^^^^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-             ^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: '/categories.tsv'
-⚠️ No files matched: /corr.tsv
-⚠️ No files matched: /mwu.tsv
-⚠️ No files matched: /fisher.tsv
-❌ No valid input files found.
 ```
 
 ### distance.py
@@ -663,122 +786,47 @@ options:
 
 ### ebm.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//ebm.py", line 9, in <module>
-    from interpret.glassbox import ExplainableBoostingClassifier, ExplainableBoostingRegressor
-ModuleNotFoundError: No module named 'interpret'
+usage: ebm.py [-h] --input_dir INPUT_DIR --output_model OUTPUT_MODEL --task
+              {classification,regression} [--max_bins MAX_BINS]
+              [--max_interaction_bins MAX_INTERACTION_BINS]
+              [--interactions INTERACTIONS] [--learning_rate LEARNING_RATE]
+              [--validation_size VALIDATION_SIZE]
+              [--random_state RANDOM_STATE]
+
+Train an Explainable Boosting Machine (EBM) using pre-split data
+
+options:
+  -h, --help            show this help message and exit
+  --input_dir INPUT_DIR
+                        Directory containing X_train.tsv and y_train.tsv
+  --output_model OUTPUT_MODEL
+                        Path to save the trained model (.joblib)
+  --task {classification,regression}
+                        Type of task to perform
+  --max_bins MAX_BINS   Maximum number of bins per feature (default: 256)
+  --max_interaction_bins MAX_INTERACTION_BINS
+                        Maximum bins for interactions (default: 32)
+  --interactions INTERACTIONS
+                        Number of pairwise interactions to include (default:
+                        0)
+  --learning_rate LEARNING_RATE
+                        Learning rate (default: 0.01)
+  --validation_size VALIDATION_SIZE
+                        Fraction of training data used for validation
+                        (default: 0.15)
+  --random_state RANDOM_STATE
+                        Random seed (default: 42)
+```
+
+### edit.py
+```
+✔ Sent -h to a new window with environment loaded.
 ```
 
 ### enterotype.R
 ```
-'getOption("repos")' replaces Bioconductor standard repositories, see
-'help("repositories", package = "BiocManager")' for details.
-Replacement repositories:
-    CRAN: https://cloud.r-project.org
-Bioconductor version 3.21 (BiocManager 1.30.26), R 4.5.2 (2025-10-31)
-Installation paths not writeable, unable to update packages
-  path: /usr/lib/R/library
-  packages:
-    lattice, spatial
-  path: /usr/local/lib/R/site-library
-  packages:
-    bayesm, Biobase, BiocVersion, biomformat, compositions, DEoptimR, digest,
-    emmeans, GenomeInfoDbData, ggbeeswarm, hms, igraph, IRanges, isoband,
-    litedown, magrittr, multtest, patchwork, pillar, purrr, RcppArmadillo,
-    readr, reshape2, rhdf5, rhdf5filters, Rhdf5lib, robustbase, S4Vectors,
-    stringr, vroom, xfun, XVector, zlibbioc
-Old packages: 'argparse', 'BiocGenerics', 'BiocManager', 'BiocParallel',
-  'boot', 'broom', 'checkmate', 'circlize', 'collections', 'colorspace',
-  'credentials', 'curl', 'devtools', 'doBy', 'downlit', 'evaluate', 'fansi',
-  'forcats', 'future', 'future.apply', 'GenomeInfoDb', 'gert', 'GetoptLong',
-  'ggcyto', 'ggplot2', 'ggpubr', 'ggridges', 'ggsci', 'ggthemes', 'glmmTMB',
-  'GlobalOptions', 'gplots', 'hardhat', 'harmony', 'here', 'Hmisc',
-  'htmltools', 'httr2', 'knn.covertree', 'later', 'latticeExtra', 'lava',
-  'limma', 'lintr', 'listenv', 'lme4', 'maaslin3', 'Matrix', 'mclust', 'mgcv',
-  'multcomp', 'openCyto', 'openssl', 'pkgdown', 'pkgload', 'progressr',
-  'promises', 'proxy', 'ragg', 'rbibutils', 'reformulas', 'reticulate',
-  'rmarkdown', 'roxygen2', 'rprojroot', 'rstatix', 'rversions', 'shiny',
-  'sparsevctrs', 'statmod', 'styler', 'svglite', 'systemfonts', 'testthat',
-  'textshaping', 'TH.data', 'timeDate', 'tinytex', 'TMB', 'usethis', 'uwot',
-  'vegan', 'VIM', 'XML', 'xml2', 'yaml', 'yulab.utils'
-Warning message:
-package(s) not installed when version(s) same as or greater than current; use
-  `force = TRUE` to re-install: 'DirichletMultinomial' 
-Loading required package: DirichletMultinomial
-Loading required package: S4Vectors
-Loading required package: stats4
-Loading required package: BiocGenerics
-Loading required package: generics
-
-Attaching package: ‘generics’
-
-The following objects are masked from ‘package:base’:
-
-    as.difftime, as.factor, as.ordered, intersect, is.element, setdiff,
-    setequal, union
-
-
-Attaching package: ‘BiocGenerics’
-
-The following objects are masked from ‘package:stats’:
-
-    IQR, mad, sd, var, xtabs
-
-The following objects are masked from ‘package:base’:
-
-    anyDuplicated, aperm, append, as.data.frame, basename, cbind,
-    colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
-    get, grep, grepl, is.unsorted, lapply, Map, mapply, match, mget,
-    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
-    rbind, Reduce, rownames, sapply, saveRDS, table, tapply, unique,
-    unsplit, which.max, which.min
-
-
-Attaching package: ‘S4Vectors’
-
-The following object is masked from ‘package:utils’:
-
-    findMatches
-
-The following objects are masked from ‘package:base’:
-
-    expand.grid, I, unname
-
-Loading required package: IRanges
-Loading required package: dplyr
-
-Attaching package: ‘dplyr’
-
-The following objects are masked from ‘package:IRanges’:
-
-    collapse, desc, intersect, setdiff, slice, union
-
-The following objects are masked from ‘package:S4Vectors’:
-
-    first, intersect, rename, setdiff, setequal, union
-
-The following objects are masked from ‘package:BiocGenerics’:
-
-    combine, intersect, setdiff, setequal, union
-
-The following object is masked from ‘package:generics’:
-
-    explain
-
-The following objects are masked from ‘package:stats’:
-
-    filter, lag
-
-The following objects are masked from ‘package:base’:
-
-    intersect, setdiff, setequal, union
-
-Loading required package: parallel
-Error in file(file, "rt") : cannot open the connection
-Calls: read.table -> file
-In addition: Warning message:
-In file(file, "rt") :
-  cannot open file 'results/genus.tsv': No such file or directory
+Error in loadNamespace(x) : there is no package called ‘BiocManager’
+Calls: loadNamespace -> withRestarts -> withOneRestart -> doWithOneRestart
 Execution halted
 ```
 
@@ -906,23 +954,27 @@ options:
 
 ### fdr.py
 ```
-usage: fdr.py [-h] [-o OUTFILE] [-p PCOL] [-m METHOD] [-a ALPHA] input
+usage: fdr.py [-h] [-o OUTFILE] [-p PCOL] [-m METHOD] [-a ALPHA] [-c COLNAME]
+              [--replace]
+              input
 
-Apply FDR correction to p-values in a TSV file.
+Apply FDR correction (Benjamini-Hochberg) to p-values in a TSV file.
 
 positional arguments:
-  input                 Input TSV file with p-values.
+  input                 Input TSV file.
 
 options:
   -h, --help            show this help message and exit
   -o OUTFILE, --outfile OUTFILE
-                        Output file path. Default: results/{basename}_fdr.tsv
-  -p PCOL, --pcol PCOL  Column name containing p-values. Default: 'pval'
+                        Output file path.
+  -p PCOL, --pcol PCOL  Column with p-values (default: 'pval').
   -m METHOD, --method METHOD
-                        Correction method (e.g., bonferroni, fdr_bh). Default:
-                        fdr_bh
+                        Correction method (e.g., bonferroni, fdr_bh).
   -a ALPHA, --alpha ALPHA
-                        FDR significance level. Default: 0.05
+                        Significance level (default: 0.05).
+  -c COLNAME, --colname COLNAME
+                        New column name (default: 'fdr').
+  --replace             Overwrite the original p-value column.
 ```
 
 ### fillna.py
@@ -948,12 +1000,13 @@ options:
 ```
 usage: filter.py [-h] [-o OUTPUT] [-fdf FILTER_DF] [-fdfx FILTER_DF_AXIS]
                  [--column COLUMN] [-rf ROWFILT] [-cf COLFILT] [-p PREVAIL]
-                 [-a ABUND] [--nonzero] [--min_nonzero_rows MIN_NONZERO_ROWS]
+                 [-a ABUND] [--dropna {rows,cols,both}] [--nonzero]
+                 [--min_nonzero_rows MIN_NONZERO_ROWS]
                  [--min_nonzero_cols MIN_NONZERO_COLS] [--numeric_only]
-                 [-q QUERY]
+                 [--dtype DTYPE] [-q QUERY]
                  input
 
-Filter a TSV file by another TSV’s index or specific column(s).
+Filter a TSV file by missing values, index, or numeric thresholds.
 
 positional arguments:
   input                 Path to input TSV file
@@ -966,8 +1019,7 @@ options:
                         Path to TSV with index to filter by
   -fdfx FILTER_DF_AXIS, --filter_df_axis FILTER_DF_AXIS
                         Axis to filter (0=row, 1=column)
-  --column COLUMN       Column(s) to match filter_df index against, comma-
-                        separated (default: index)
+  --column COLUMN       Column(s) to match filter_df index against
   -rf ROWFILT, --rowfilt ROWFILT
                         Regex for filtering rows (index)
   -cf COLFILT, --colfilt COLFILT
@@ -976,12 +1028,16 @@ options:
                         Prevalence threshold (0–1)
   -a ABUND, --abund ABUND
                         Minimum mean abundance threshold
+  --dropna {rows,cols,both}
+                        Drop rows or columns containing any NA/NaN values
   --nonzero             Remove all-zero rows and columns
   --min_nonzero_rows MIN_NONZERO_ROWS
                         Minimum number of non-zero values per row
   --min_nonzero_cols MIN_NONZERO_COLS
                         Minimum number of non-zero values per column
   --numeric_only        Keep numeric columns only
+  --dtype DTYPE         Keep only columns matching this dtype (e.g. 'float',
+                        'int', 'bool')
   -q QUERY, --query QUERY
                         Pandas query string(s)
 ```
@@ -1008,32 +1064,77 @@ Error: Usage: Rscript format_headers.R <input_file.tsv> <output_dir>
 Execution halted
 ```
 
+### format_means.py
+```
+usage: format_means.py [-h] -o OUTPUT [--sep SEP] [--decimals DECIMALS] input
+
+Merge mean/std columns into publication format.
+
+positional arguments:
+  input                 Input TSV/CSV file
+
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Output file
+  --sep SEP             Input/output separator (default: tab)
+  --decimals DECIMALS   Number of decimal places (default: 1)
+```
+
+### from_baseline.sh
+```
+⚠️  No venv found at venv/bin/activate
+Usage:
+  from_baseline.sh <input.tsv> <meta.tsv> <output_dir> [options]
+
+Positional arguments:
+  input.tsv        Beta diversity (or similar) table
+  meta.tsv         Metadata table
+  output_dir       Output directory
+
+Options:
+  -s, --sample-col COL     Sample ID column in metadata (default: sampleID)
+  -j, --subject-col COL    Subject ID column in metadata (default: subjectID)
+  -t, --timepoint-col COL  Timepoint column in metadata (default: timepoint)
+  -b, --baseline TP        Baseline timepoint value (default: PCV2)
+  -h, --help               Show this help message
+```
+
 ### glmm.R
 ```
-Usage: metatoolkit/metatoolkit//glmm.R [options]
+Usage: metatoolkit//glmm.R [options]
 
 
 Options:
 	-i INPUT, --input=INPUT
-		Alpha diversity TSV file
+		Input TSV file (first column = sample ID)
 
 	-m METADATA, --metadata=METADATA
-		Metadata TSV file
+		Metadata TSV file (first column = sample ID)
 
 	-f FORMULA, --formula=FORMULA
-		Fixed effects formula e.g. 'Timepoint * Treatment + Age'
+		Fixed effects formula (e.g. 'timepoint * group + sex')
 
 	-g GROUP, --group=GROUP
-		Random effect grouping variable (e.g. SubjectID)
+		Random effect grouping variable (e.g. subjectID)
 
 	-o OUTPUT, --output=OUTPUT
-		Output TSV
+		Output TSV file
 
 	--family=FAMILY
 		Family: gaussian | poisson | negbin (default: gaussian)
 
 	--zscore
-		Z-score scale the response variable(s)
+		Z-score scale the response variable
+
+	--baseline=BASELINE
+		Baseline levels: var=level,var=level
+
+	--order=ORDER
+		Factor order: var=level1,level2,...;var=level1,level2
+
+	--save-models=SAVE-MODELS
+		Optional RDS file to save fitted model objects
 
 	-h, --help
 		Show this help message and exit
@@ -1044,27 +1145,25 @@ Options:
 ### group.py
 ```
 usage: group.py [-h] [--group_by GROUP_BY [GROUP_BY ...]] --func FUNC
-                [FUNC ...] [--axis AXIS] [-o OUTPUT] [--meta META]
+                [FUNC ...] -o OUTPUT [--meta META]
                 subject
 
-Group - Groups a dataset
+Group and aggregate datasets.
 
 positional arguments:
-  subject               Path to the input data file or subject name
+  subject               Input dataset (path or name)
 
 options:
   -h, --help            show this help message and exit
   --group_by GROUP_BY [GROUP_BY ...]
-                        Columns to group by (+ nargs), or 'all' to aggregate
-                        all samples together
+                        Columns to group by. If omitted, all rows are
+                        aggregated into a single group ('all').
   --func FUNC [FUNC ...]
-                        Aggregation function(s), e.g. mean median sum
-  --axis AXIS           Axis to apply function on, 0 for rows and 1 for
-                        columns
+                        Aggregation functions: mean, median, sum, std, first,
+                        last, q25, q75, iqr, n_nonzero, n_total, prev, count
   -o OUTPUT, --output OUTPUT
-                        Path to save the output file
-  --meta META           Path to metadata file to inner-join with subject data
-                        before grouping
+                        Output TSV file
+  --meta META           Optional metadata TSV to join
 ```
 
 ### hbar.py
@@ -1104,29 +1203,77 @@ options:
 
 ### heatmap.py
 ```
-usage: heatmap.py [-h] subject
+usage: heatmap.py [-h] [--sig SIG] [--effect EFFECT] [--source-col SOURCE_COL]
+                  [--target-col TARGET_COL] [--sig_thresh SIG_THRESH]
+                  [--row ROW] [--col COL] [--row-order ROW_ORDER]
+                  [--col-order COL_ORDER]
+                  [--filter-sig {none,source,target,both}]
+                  [--zscore {row,col,none}] [--log1p] [-o OUTPUT]
+                  [--figsize FIGSIZE] [--show]
+                  subject
 
-Heatmap - Produces a heatmap of a given dataset
+Produces a faceted heatmap from an edgelist
 
 positional arguments:
-  subject
+  subject               Path to dataset file
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help            show this help message and exit
+  --sig SIG             Column name for significance values (optional)
+  --effect EFFECT       Column name for effect size
+  --source-col SOURCE_COL
+                        Column name for y-axis features
+  --target-col TARGET_COL
+                        Column name for x-axis features
+  --sig_thresh SIG_THRESH
+                        Threshold for drawing significance markers
+  --row ROW             Column name to facet across rows
+  --col COL             Column name to facet across columns
+  --row-order ROW_ORDER
+                        Comma-separated list specifying row order
+  --col-order COL_ORDER
+                        Comma-separated list specifying column order
+  --filter-sig {none,source,target,both}
+                        Drop rows/cols across all facets if they never reach
+                        significance (requires --sig)
+  --zscore {row,col,none}
+                        Z-score the effect matrix by row or column before
+                        plotting
+  --log1p               Apply sign-preserving log1p transform to effect matrix
+                        before plotting
+  -o OUTPUT, --output OUTPUT
+                        Output filepath
+  --figsize FIGSIZE     Figure size per facet as width,height (default: 3,3)
+  --show                Display the plot window
 ```
 
 ### hist.py
 ```
-usage: hist.py [-h] [-c COLUMN] subject
+usage: hist.py [-h] [-c COLUMN] [--bins BINS] [--log-scale] [--kde]
+               [--facet FACET] [--meta META [META ...]] [--theme {paper,talk}]
+               [-o OUTPUT]
+               subject
 
-Hist - Produces a Histplot of a given dataset
+Produce a histogram plot from a TSV dataset.
 
 positional arguments:
-  subject
+  subject               Subject name or path to TSV file
 
 options:
   -h, --help            show this help message and exit
   -c COLUMN, --column COLUMN
+                        Column to plot (default: sig)
+  --bins BINS           Number of histogram bins
+  --log-scale           Apply log10 scale to x-axis
+  --kde                 Overlay KDE on histogram
+  --facet FACET         Column name to facet by (can come from metadata)
+  --meta META [META ...]
+                        Path(s) to metadata TSV file(s) to inner-join before
+                        plotting
+  --theme {paper,talk}  Plot theme (default: paper)
+  -o OUTPUT, --output OUTPUT
+                        Output image file (default:
+                        results/<subject>_hist.svg)
 ```
 
 ### hyperparameter_tune.py
@@ -1174,14 +1321,14 @@ options:
 
 ### __init__.py
 ```
-metatoolkit/metatoolkit//__init__.py: line 4: $'\nMetatoolkit\nThis package contains scripts for the processing, plotting, and analysis of multiomics datasets.\n': command not found
+metatoolkit//__init__.py: line 4: $'\nMetatoolkit\nThis package contains scripts for the processing, plotting, and analysis of multiomics datasets.\n': command not found
 ```
 
 ### join.py
 ```
 usage: join.py [-h] [-o OUTPUT] [--how {inner,outer,left,right,cross}]
                [--on ON] [--left_on LEFT_ON] [--right_on RIGHT_ON]
-               [--suffixes SUFFIXES]
+               [--suffixes SUFFIXES] [-q]
                file1 file2
 
 Join two dataframes using pandas merge.
@@ -1200,12 +1347,14 @@ options:
   --left_on LEFT_ON     Left join key(s) (comma-separated).
   --right_on RIGHT_ON   Right join key(s) (comma-separated).
   --suffixes SUFFIXES   Suffixes for overlapping columns (comma-separated).
+  -q, --quiet           Suppress join summary output.
 ```
 
 ### kmeans.py
 ```
-usage: kmeans.py [-h] [--clusters CLUSTERS] [--random-state RANDOM_STATE]
-                 [-o OUTPUT]
+usage: kmeans.py [-h] [--clusters CLUSTERS] [--min-clusters MIN_CLUSTERS]
+                 [--max-clusters MAX_CLUSTERS] [--random-state RANDOM_STATE]
+                 -o OUTPUT
                  subject
 
 kmeans_cluster - Apply K-means clustering to your dataset
@@ -1215,12 +1364,54 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --clusters CLUSTERS   Number of clusters for K-means (default: 3)
+  --clusters CLUSTERS   Force number of clusters (overrides Silhouette method)
+  --min-clusters MIN_CLUSTERS
+                        Minimum number of clusters to test (default: 2)
+  --max-clusters MAX_CLUSTERS
+                        Maximum number of clusters to test (default: 10)
   --random-state RANDOM_STATE
                         Random state for K-means initialization (default: 0)
   -o OUTPUT, --output OUTPUT
-                        Output filename (without extension). Default:
-                        {subject}_clusters
+                        Output .tsv file path (directories will be created if
+                        needed)
+```
+
+### km_plot.py
+```
+usage: km_plot.py [-h] --input INPUT --meta META [--index INDEX]
+                  [--subject SUBJECT] --time TIME --event EVENT
+                  [--group GROUP] [--output OUTPUT] [--no-ci]
+                  [--figsize FIGSIZE]
+
+Generic Kaplan-Meier Survival Analysis CLI
+
+options:
+  -h, --help         show this help message and exit
+  --input INPUT      Path to primary data file (TSV/CSV)
+  --meta META        Path to metadata file (TSV/CSV)
+  --index INDEX      Column to join files on
+  --subject SUBJECT  Column identifying unique subjects
+  --time TIME        Column for time/duration (e.g., timepoint)
+  --event EVENT      Column for the event (1=event, 0=censored)
+  --group GROUP      Column to stratify by (e.g., Condition)
+  --output OUTPUT    Output file path (e.g., results/plot.svg)
+  --no-ci            Disable confidence intervals
+  --figsize FIGSIZE  Figure size as width,height (default=3,3)
+```
+
+### kneaddata_summary.py
+```
+usage: kneaddata_summary.py [-h] -o OUTPUT input
+
+Summarize KneadData output with read depth and percentage filtered.
+
+positional arguments:
+  input                 Input kneaddata_summary.tsv file
+
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Output TSV file
 ```
 
 ### kruskal.py
@@ -1242,9 +1433,9 @@ options:
 ### leiden_clustering.py
 ```
 Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//leiden_clustering.py", line 5, in <module>
-    import igraph as ig
-ModuleNotFoundError: No module named 'igraph'
+  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//leiden_clustering.py", line 6, in <module>
+    import leidenalg as la
+ModuleNotFoundError: No module named 'leidenalg'
 ```
 
 ### line.py
@@ -1309,6 +1500,70 @@ options:
   --profile PROFILE     Input profile file
   -o OUTFILE, --outfile OUTFILE
                         Output file name
+```
+
+### logrank.py
+```
+usage: logrank.py [-h] --input INPUT --meta META [--index INDEX]
+                  [--subject SUBJECT] --time TIME --event EVENT --group GROUP
+                  [--output OUTPUT]
+
+Log-rank test CLI
+
+options:
+  -h, --help         show this help message and exit
+  --input INPUT      Primary data file (tsv/csv)
+  --meta META        Metadata file (tsv/csv)
+  --index INDEX      Column used to merge tables
+  --subject SUBJECT  Subject identifier column
+  --time TIME        Time column (numeric)
+  --event EVENT      Event column (1=event, 0=censored)
+  --group GROUP      Grouping column
+  --output OUTPUT    Output TSV file (default stdout)
+```
+
+### maaslin_sig_summary.py
+```
+usage: maaslin_sig_summary.py [-h] [-p PVAL] [-c CHANGE] [-s SIG]
+                              [-g GROUP_COLS [GROUP_COLS ...]] -o OUTPUT
+                              subject
+
+Summarise MaAsLin results with optional grouping by metadata/model.
+
+positional arguments:
+  subject               Input MaAsLin results TSV.
+
+options:
+  -h, --help            show this help message and exit
+  -p PVAL, --pval PVAL  P-value or q-value threshold [default: 0.25].
+  -c CHANGE, --change CHANGE
+                        Column name for change effect [default: coef].
+  -s SIG, --sig SIG     Column name for significance [default:
+                        qval_individual].
+  -g GROUP_COLS [GROUP_COLS ...], --group-cols GROUP_COLS [GROUP_COLS ...]
+                        Column(s) to group by before summarising (e.g. name
+                        model). If omitted, summarises entire table.
+  -o OUTPUT, --output OUTPUT
+                        Output file path for summary TSV.
+```
+
+### make_excel.py
+```
+usage: make_excel.py [-h] -l TABLE_LIST [TABLE_LIST ...] [--toc TOC]
+                     [--glossary GLOSSARY] [-o OUTPUT]
+
+Generate a formatted Excel workbook from multiple TSV tables.
+
+options:
+  -h, --help            show this help message and exit
+  -l TABLE_LIST [TABLE_LIST ...], --table-list TABLE_LIST [TABLE_LIST ...]
+                        Table inputs: list file(s), TSV file(s), and/or
+                        wildcards (e.g. tables/*.tsv)
+  --toc TOC             Optional table-of-contents TSV file
+  --glossary GLOSSARY   Optional glossary TSV file
+  -o OUTPUT, --output OUTPUT
+                        Path to output Excel file (default:
+                        results/output.xlsx)
 ```
 
 ### makesupptable.py
@@ -1427,18 +1682,66 @@ Report bugs at <https://bugs.R-project.org>.
 
 ### mefisto_preprocess.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//mefisto_preprocess.py", line 4, in <module>
-    import anndata as ad
-ModuleNotFoundError: No module named 'anndata'
+usage: mefisto_preprocess.py [-h] -i INPUTS [INPUTS ...] -t TIME_METADATA -o
+                             OUTPUT [--skip_log_transform]
+
+Preprocess multiple microbiome count datasets for MEFISTO analysis.
+
+options:
+  -h, --help            show this help message and exit
+  -i INPUTS [INPUTS ...], --inputs INPUTS [INPUTS ...]
+                        Paths to the raw count data CSV files. Samples in
+                        columns, features in rows.
+  -t TIME_METADATA, --time_metadata TIME_METADATA
+                        Path to the time metadata CSV file. Samples in rows,
+                        features in columns.
+  -o OUTPUT, --output OUTPUT
+                        Path to save the output AnnData file (.h5ad).
+  --skip_log_transform  Skips the log1p transformation, useful for data with
+                        negative values (e.g., EEG).
 ```
 
 ### mefisto_visualize.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//mefisto_visualize.py", line 8, in <module>
-    import mofapy2
-ModuleNotFoundError: No module named 'mofapy2'
+usage: mefisto_visualize.py [-h] --input INPUT --input_h5ad INPUT_H5AD
+                            --output_dir OUTPUT_DIR --time_col TIME_COL
+
+Visualize results from a trained MEFISTO model.
+
+options:
+  -h, --help            show this help message and exit
+  --input INPUT         Path to the trained MEFISTO model file (.hdf5) from
+                        mefisto_run.
+  --input_h5ad INPUT_H5AD
+                        Path to the preprocessed AnnData file (.h5ad) used for
+                        training.
+  --output_dir OUTPUT_DIR
+                        Directory to save the output plots.
+  --time_col TIME_COL   Column in the metadata containing timepoint
+                        information (e.g., 'timepoint').
+```
+
+### melt.py
+```
+usage: melt.py [-h] [-o OUTPUT] -i ID_VARS [-vn VAR_NAME] [-val VALUE_NAME]
+               input
+
+Melt a TSV file from wide to long format.
+
+positional arguments:
+  input                 Path to input TSV file
+
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Path to output TSV file (default: adds _melt suffix)
+  -i ID_VARS, --id_vars ID_VARS
+                        Column(s) to use as identifier variables (comma-
+                        separated)
+  -vn VAR_NAME, --var_name VAR_NAME
+                        Name for the new 'variable' column (default: feature)
+  -val VALUE_NAME, --value_name VALUE_NAME
+                        Name for the new 'value' column (default: value)
 ```
 
 ### merge_networks.py
@@ -1488,73 +1791,103 @@ options:
 
 ### mixedlm.py
 ```
-usage: mixedlm.py [-h] -i RESPONSE_DATA -m METADATA -f FORMULA -g
-                  GROUPING_VARIABLE -o OUTPUT
+['metatoolkit//mixedlm.py', '-h']
+usage: mixedlm.py [-h] -i RESPONSE_DATA -m METADATA [-f FORMULA]
+                  [-g GROUPING_VARIABLE] -o OUTPUT
 
-General Linear Mixed Effects Models (LMM) for multiple response variables.
+General Linear / Linear Mixed Models for multiple response variables.
 
 options:
   -h, --help            show this help message and exit
   -i RESPONSE_DATA, --response_data RESPONSE_DATA
                         Input TSV/CSV with samples as rows and response
-                        variables as columns (e.g., genes, metabolites,
-                        diversity metrics).
+                        variables as columns.
   -m METADATA, --metadata METADATA
-                        Metadata TSV/CSV file containing predictors and
-                        grouping variables (index_col=0).
+                        Metadata TSV/CSV file containing predictors
+                        (index_col=0).
   -f FORMULA, --formula FORMULA
-                        Formula Right-Hand Side (e.g. 'Timepoint * Treatment +
-                        Age'). Do not include the dependent variable name.
+                        Right-hand side formula. If omitted, uses ALL metadata
+                        columns: col1 + col2 + ...
   -g GROUPING_VARIABLE, --grouping_variable GROUPING_VARIABLE
-                        Column name for the Random Effect (e.g. SubjectID,
-                        PatientID).
+                        Optional Random Effect grouping variable. If omitted,
+                        uses OLS.
   -o OUTPUT, --output OUTPUT
-                        Output filename for results (TSV).
+                        Output filename (TSV).
 ```
 
 ### mofa_export.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//mofa_export.py", line 3, in <module>
-    import mofax as mofa
-ModuleNotFoundError: No module named 'mofax'
+/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/muon/_core/preproc.py:31: FutureWarning: `__version__` is deprecated, use `importlib.metadata.version('scanpy')` instead
+  if Version(scanpy.__version__) < Version("1.10"):
+usage: mofa_export.py [-h] [--model MODEL] [--mdata MDATA] [--outdir OUTDIR]
+
+Export MOFA+ factors and loadings
+
+options:
+  -h, --help       show this help message and exit
+  --model MODEL
+  --mdata MDATA
+  --outdir OUTDIR
 ```
 
 ### mofa_load_data.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//mofa_load_data.py", line 4, in <module>
-    import scanpy as sc
-ModuleNotFoundError: No module named 'scanpy'
+/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/muon/_core/preproc.py:31: FutureWarning: `__version__` is deprecated, use `importlib.metadata.version('scanpy')` instead
+  if Version(scanpy.__version__) < Version("1.10"):
+usage: mofa_load_data.py [-h] [--t1-dir T1_DIR] [--meta-file META_FILE]
+                         [--output OUTPUT]
+
+Load modalities and metadata into MuData object
+
+options:
+  -h, --help            show this help message and exit
+  --t1-dir T1_DIR       Directory containing T1 (baseline) data files
+  --meta-file META_FILE
+  --output OUTPUT
 ```
 
 ### mofa_plots.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//mofa_plots.py", line 3, in <module>
-    import mofax as mofa
-ModuleNotFoundError: No module named 'mofax'
+usage: mofa_plots.py [-h] [--model MODEL]
+
+Visualize R² from MOFA+ model
+
+options:
+  -h, --help     show this help message and exit
+  --model MODEL
 ```
 
 ### mofa_run.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//mofa_run.py", line 3, in <module>
-    import muon as mu
-ModuleNotFoundError: No module named 'muon'
+/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/muon/_core/preproc.py:31: FutureWarning: `__version__` is deprecated, use `importlib.metadata.version('scanpy')` instead
+  if Version(scanpy.__version__) < Version("1.10"):
+usage: mofa_run.py [-h] [--input INPUT] [--output OUTPUT] [--factors FACTORS]
+
+Run MOFA+ on MuData object
+
+options:
+  -h, --help         show this help message and exit
+  --input INPUT
+  --output OUTPUT
+  --factors FACTORS
+```
+
+### mofa.sh
+```
+Unknown argument: --help
 ```
 
 ### monocle.R
 ```
-metatoolkit/metatoolkit//monocle.R: line 1: syntax error near unexpected token `igraph'
-metatoolkit/metatoolkit//monocle.R: line 1: `require(igraph)'
+metatoolkit//monocle.R: line 1: syntax error near unexpected token `igraph'
+metatoolkit//monocle.R: line 1: `require(igraph)'
 ```
 
 ### multiline.py
 ```
 usage: multiline.py [-h] --subject SUBJECT --meta META --x X --y Y --hue HUE
                     --id ID [--output OUTPUT] [--logy]
-                    [--figsize WIDTH HEIGHT]
+                    [--figsize WIDTH HEIGHT] [--x_order X_ORDER [X_ORDER ...]]
 
 Single-panel pastel lineplot with individual subject lines.
 
@@ -1570,6 +1903,9 @@ options:
   --logy                Use log scale for Y-axis
   --figsize WIDTH HEIGHT
                         Figure size in inches, e.g., --figsize 4 4
+  --x_order X_ORDER [X_ORDER ...]
+                        Explicit order for X-axis categories (e.g., --x_order
+                        Baseline wk6 wk12)
 ```
 
 ### newcorr.py
@@ -1644,6 +1980,67 @@ options:
                         Null hypothesis mean value
 ```
 
+### outliers.py
+```
+usage: outliers.py [-h] [-o OUTPUT] [--columns COLUMNS]
+                   [--outlier_iqr OUTLIER_IQR]
+                   [--outlier_zscore OUTLIER_ZSCORE] [--drop_outlier_na]
+                   input
+
+Mask or remove numeric outliers in a TSV file using IQR (default) or Z-score
+methods.
+
+positional arguments:
+  input                 Path to input TSV file
+
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Path to output TSV file (default: adds _outliers
+                        suffix)
+  --columns COLUMNS     Comma-separated list of numeric columns to filter
+                        (default: all)
+  --outlier_iqr OUTLIER_IQR
+                        Mask outliers using IQR*k (default: 1.5)
+  --outlier_zscore OUTLIER_ZSCORE
+                        Mask outliers with |z| > threshold
+  --drop_outlier_na     Drop rows/cols that become all-NaN after masking
+```
+
+### pam.py
+```
+
+A module that was compiled using NumPy 1.x cannot be run in
+NumPy 2.4.4 as it may crash. To support both 1.x and 2.x
+versions of NumPy, modules must be compiled with NumPy 2.0.
+Some module may need to rebuild instead e.g. with 'pybind11>=2.12'.
+
+If you are a user of the module, the easiest solution will be to
+downgrade to 'numpy<2' or try to upgrade the affected module.
+We expect that some modules will need time to support NumPy 2.
+
+Traceback (most recent call last):  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//pam.py", line 11, in <module>
+    from sklearn_extra.cluster import KMedoids
+  File "/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/sklearn_extra/__init__.py", line 1, in <module>
+    from . import kernel_approximation, kernel_methods  # noqa
+  File "/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/sklearn_extra/kernel_approximation/__init__.py", line 1, in <module>
+    from ._fastfood import Fastfood
+  File "/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/sklearn_extra/kernel_approximation/_fastfood.py", line 11, in <module>
+    from ..utils._cyfht import fht2 as cyfht
+Traceback (most recent call last):
+  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//pam.py", line 11, in <module>
+    from sklearn_extra.cluster import KMedoids
+  File "/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/sklearn_extra/__init__.py", line 1, in <module>
+    from . import kernel_approximation, kernel_methods  # noqa
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/sklearn_extra/kernel_approximation/__init__.py", line 1, in <module>
+    from ._fastfood import Fastfood
+  File "/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/sklearn_extra/kernel_approximation/_fastfood.py", line 11, in <module>
+    from ..utils._cyfht import fht2 as cyfht
+  File "sklearn_extra/utils/_cyfht.pyx", line 1, in init sklearn_extra.utils._cyfht
+ImportError: numpy.core.multiarray failed to import (auto-generated because you didn't call 'numpy.import_array()' after cimporting numpy; use '<void>numpy._import_array' to disable if you are certain you don't need it).
+```
+
 ### pca.py
 ```
 usage: pca.py [-h] -i INPUT [-o OUTPUT] [--n-components N_COMPONENTS]
@@ -1677,41 +2074,71 @@ options:
 
 ### pcoa.py
 ```
-usage: pcoa.py [-h] -i INPUT -o OUTPUT [-d DISTANCE]
+usage: pcoa.py [-h] -o OUTPUT [--source-col SOURCE_COL]
+               [--target-col TARGET_COL] [--distance-col DISTANCE_COL]
+               [--dims DIMS]
+               input
 
 Perform PCoA on a distance edge list (source, target, distance)
 
+positional arguments:
+  input                 Input edge list file (TSV)
+
 options:
   -h, --help            show this help message and exit
-  -i INPUT, --input INPUT
-                        Input edge list file (TSV) with columns: source,
-                        target, DIST
   -o OUTPUT, --output OUTPUT
                         Output file path (TSV)
-  -d DISTANCE, --distance DISTANCE
-                        Distance column to use (default: bray-curtis)
+  --source-col SOURCE_COL
+                        Column name for source node (default: source)
+  --target-col TARGET_COL
+                        Column name for target node (default: target)
+  --distance-col DISTANCE_COL
+                        Column name for distance value (default: bray-curtis)
+  --dims DIMS           Number of PCoA dimensions to compute (default: 2)
 ```
 
-### percentage_filtered_kneaddata.py
+### pivot.py
 ```
-usage: percentage_filtered_kneaddata.py [-h] input output
+usage: pivot.py [-h] [-o OUTPUT] -i INDEX [-c COLUMNS] [-v VALUES]
+                [-a AGGFUNC] [-f FILL_VALUE] [-m] [--flatten]
+                [--index_col INDEX_COL]
+                input
 
-Calculate percentage of reads removed by KneadData.
+Pivot a TSV file from long to wide format.
 
 positional arguments:
-  input       Input TSV file with KneadData summary
-  output      Output TSV file with results
+  input                 Path to input TSV file
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Path to output TSV file (default: adds _pivot suffix)
+  -i INDEX, --index INDEX
+                        Column(s) to make the new index (comma-separated)
+  -c COLUMNS, --columns COLUMNS
+                        Column(s) to make the new columns (comma-separated)
+  -v VALUES, --values VALUES
+                        Column(s) to populate the new values (comma-separated)
+  -a AGGFUNC, --aggfunc AGGFUNC
+                        Aggregation function (e.g., mean, sum, max, min,
+                        count, first). Default: mean
+  -f FILL_VALUE, --fill_value FILL_VALUE
+                        Value to replace missing (NA) values in the pivoted
+                        table
+  -m, --margins         Add row/column margins (subtotals / grand totals)
+  --flatten             Flatten hierarchical columns created by multiple
+                        values/columns
+  --index_col INDEX_COL
+                        Column index to use as row labels on load (default:
+                        None)
 ```
 
 ### plot_circos.py
 ```
 Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//plot_circos.py", line 11, in <module>
+  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//plot_circos.py", line 11, in <module>
     from pycircos import pycircos
-ModuleNotFoundError: No module named 'pycircos'
+ImportError: cannot import name 'pycircos' from 'pycircos' (/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/pycircos/__init__.py). Did you mean: 'Circos'?
 ```
 
 ### plot_network.py
@@ -1843,20 +2270,27 @@ options:
                         4,4).
 ```
 
-### PPCA.py
+### predict.sh
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//PPCA.py", line 8, in <module>
-    from ppca import PPCA
-ModuleNotFoundError: No module named 'ppca'
+⚠️  No venv found at venv/bin/activate
+Unknown argument: --help
 ```
 
 ### print_formula.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//print_formula.py", line 5, in <module>
-    import sympy as sp
-ModuleNotFoundError: No module named 'sympy'
+usage: print_formula.py [-h] [--formula_file FORMULA_FILE] [--latex]
+                        [--save_latex SAVE_LATEX]
+
+Display symbolic formula from file using SymPy.
+
+options:
+  -h, --help            show this help message and exit
+  --formula_file FORMULA_FILE
+                        Path to the file containing the formula string
+                        (default: formula.txt)
+  --latex               Display the formula as LaTeX
+  --save_latex SAVE_LATEX
+                        Optional path to save LaTeX output (e.g. formula.tex)
 ```
 
 ### random_forest.py
@@ -1932,7 +2366,7 @@ options:
 
 ### rda.R
 ```
-Usage: metatoolkit/metatoolkit//rda.R [options]
+Usage: metatoolkit//rda.R [options]
 
 
 Options:
@@ -1983,15 +2417,16 @@ options:
 usage: rename.py [-h] [--df2 DF2] [--axis {columns,index}] [--output OUTPUT]
                  subject level
 
-Rename dataframe columns or index using a metadata column.
+Rename dataframe columns or index using a metadata column or index.
 
 positional arguments:
   subject               Input dataframe file or identifier.
-  level                 Column in metadata to use for renaming.
+  level                 Metadata column name or index name to use for
+                        renaming.
 
 options:
   -h, --help            show this help message and exit
-  --df2 DF2             Metadata dataframe file or identifier.
+  --df2 DF2             Metadata dataframe file or identifier (default: meta).
   --axis {columns,index}
                         Axis to rename (default: index).
   --output OUTPUT       Output filename for the renamed dataframe
@@ -2049,6 +2484,7 @@ options:
 ### scale.py
 ```
 usage: scale.py [-h] [--output OUTPUT] [--refcol REFCOL] [--axis {0,1}]
+                [--columns COLUMNS]
                 analysis subject
 
 Apply a transformation to a dataset.
@@ -2066,19 +2502,22 @@ options:
   --refcol REFCOL       Reference column for ALR (default: last column)
   --axis {0,1}          Apply transform by columns (0, default) or rows (1)
                         where applicable.
+  --columns COLUMNS     Comma-separated list of columns (or rows if axis=1) to
+                        transform (default: all)
 ```
 
 ### scree.py
 ```
 Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//scree.py", line 8, in <module>
+  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//scree.py", line 8, in <module>
     from kneed import KneeLocator
 ModuleNotFoundError: No module named 'kneed'
 ```
 
-### select.py
+### select_features.py
 ```
-usage: select.py [-h] [-r ROWS] [-c COLS] [-o OUTPUT] [--drop-index] input
+usage: select_features.py [-h] [-r ROWS] [-c COLS] [-o OUTPUT] [--drop-index]
+                          input
 
 Select specific rows and/or columns from a TSV file using pandas .loc[] with
 wildcard and multiline support
@@ -2192,6 +2631,7 @@ options:
 
 ### shap_plots.sh
 ```
+⚠️  No venv found at venv/bin/activate
 mkdir: missing operand
 Try 'mkdir --help' for more information.
 Generating summary plot...
@@ -2258,11 +2698,11 @@ options:
 ### shap_residuals.py
 ```
 Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//shap_residuals.py", line 107, in <module>
+  File "/home/tpor598/gutbugs-bigrats/metatoolkit/metatoolkit//shap_residuals.py", line 107, in <module>
     y = np.int0(np.sqrt(x1**2 + x2**2) < 1)
         ^^^^^^^
-  File "/home/tpor598/nipper/venv/lib/python3.12/site-packages/numpy/__init__.py", line 414, in __getattr__
-    raise AttributeError("module {!r} has no attribute "
+  File "/home/tpor598/gutbugs-bigrats/venv/lib/python3.12/site-packages/numpy/__init__.py", line 792, in __getattr__
+    raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
 AttributeError: module 'numpy' has no attribute 'int0'. Did you mean: 'int8'?
 ```
 
@@ -2287,21 +2727,22 @@ options:
 
 ### sig_summary.py
 ```
-usage: sig_summary.py [-h] [-i INPUT] [-o OUTPUT] [-p PVAL] [-c CHANGE]
-                      [-s SIG]
+usage: sig_summary.py [-h] [-p PVAL] [-c CHANGE] [-s SIG] -o OUTPUT subject
 
-Summarize significant changes from a results table.
+Produces a summary report of analysis based on change and significance
+thresholds.
+
+positional arguments:
+  subject               Input dataframe file (TSV).
 
 options:
   -h, --help            show this help message and exit
-  -i INPUT, --input INPUT
-                        Input TSV file (default: qval_joined.tsv)
-  -o OUTPUT, --output OUTPUT
-                        Output TSV file (default: summary.tsv)
-  -p PVAL, --pval PVAL  Significance threshold (default: 0.25)
+  -p PVAL, --pval PVAL  P-value or q-value threshold [default: 0.25].
   -c CHANGE, --change CHANGE
-                        Column name for change values (default: coef)
-  -s SIG, --sig SIG     Column name for significance values (default: qval)
+                        Column name for change effect [default: coef].
+  -s SIG, --sig SIG     Column name for significance [default: qval].
+  -o OUTPUT, --output OUTPUT
+                        Output file path for summary TSV.
 ```
 
 ### sort.py
@@ -2328,8 +2769,10 @@ options:
 
 ### spindle.py
 ```
-usage: spindle.py [-h] --meta META --group-col GROUP_COL [--x X] [--y Y]
-                  [--figsize WIDTH HEIGHT] [-o OUTPUT]
+usage: spindle.py [-h] [--meta META] [--group-col GROUP_COL] [--x X] [--y Y]
+                  [--figsize WIDTH HEIGHT] [-o OUTPUT] [--ellipses]
+                  [--ellipse-level ELLIPSE_LEVEL] [--palette PALETTE]
+                  [--group-order GROUP_ORDER] [--title-from-subject]
                   subject
 
 Spindle - Produce a spindle plot
@@ -2345,9 +2788,16 @@ options:
   --x X                 Column to use for x-axis (default: first column)
   --y Y                 Column to use for y-axis (default: second column)
   --figsize WIDTH HEIGHT
-                        Figure size in inches, e.g. --figsize 3 3
+                        Figure size in inches
   -o OUTPUT, --output OUTPUT
                         Output image filename (default: spindle.svg)
+  --ellipses            Draw confidence ellipses per group
+  --ellipse-level ELLIPSE_LEVEL
+                        Confidence level for ellipses (default: 0.95)
+  --palette PALETTE     Seaborn palette name or comma-separated list of colors
+  --group-order GROUP_ORDER
+                        Comma-separated group order (default: alphabetical)
+  --title-from-subject  Use basename of subject file as figure title
 ```
 
 ### splitter.py
@@ -2374,7 +2824,7 @@ options:
 
 ### sqlview.sh
 ```
-metatoolkit/metatoolkit//sqlview.sh: line 9: schemacrawler: command not found
+metatoolkit//sqlview.sh: line 9: schemacrawler: command not found
 ```
 
 ### stacked_bar.py
@@ -2435,19 +2885,23 @@ options:
 
 ### taxo_summary.py
 ```
-/home/tpor598/nipper/metatoolkit/metatoolkit//taxo_summary.py:25: SyntaxWarning: invalid escape sequence '\|'
-  count = df.columns.str.replace(".*\|", "", regex=True).str[0].value_counts().to_frame('all_count')
-/home/tpor598/nipper/metatoolkit/metatoolkit//taxo_summary.py:30: SyntaxWarning: invalid escape sequence '\|'
-  output.append(fsamp.index.str.replace(".*\|", "", regex=True).str[0].value_counts())
-usage: taxo_summary.py [-h] subject
+usage: taxo_summary.py [-h] -o OUTPUT
+                       [--presence-threshold PRESENCE_THRESHOLD]
+                       input
 
-Describe - Produces a summary report of taxonomic breakdown
+Summarize a taxonomic abundance table by rank-level presence.
 
 positional arguments:
-  subject     Path to the subject file or subject identifier
+  input                 Input taxonomy abundance TSV file (rows=samples,
+                        columns=features)
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Output TSV file
+  --presence-threshold PRESENCE_THRESHOLD
+                        Minimum abundance to consider a feature present
+                        (default: >0.0)
 ```
 
 ### test_train_split.py
@@ -2519,15 +2973,31 @@ options:
 
 ### volcano.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//volcano.py", line 11, in <module>
-    from adjustText import adjust_text
-ModuleNotFoundError: No module named 'adjustText'
+usage: volcano.py [-h] [--change CHANGE] [--sig SIG] [--fc FC] [--pval PVAL]
+                  [--annot | --no-annot] [--figsize FIGSIZE FIGSIZE]
+                  [--output OUTPUT]
+                  subject
+
+Volcano - Produces a Volcano plot of a given dataset
+
+positional arguments:
+  subject               Path to the input TSV file
+
+options:
+  -h, --help            show this help message and exit
+  --change CHANGE       Column name for log2 fold change
+  --sig SIG             Column name for significance values (p/q)
+  --fc FC               Fold change threshold
+  --pval PVAL           P-value threshold
+  --annot, --no-annot   Annotate significant points
+  --figsize FIGSIZE FIGSIZE
+                        Figure size in inches (width height)
+  --output OUTPUT       Output path for the SVG file
 ```
 
 ### volcano.R
 ```
-Usage: metatoolkit/metatoolkit//volcano.R [options] input.tsv
+Usage: metatoolkit//volcano.R [options] input.tsv
 
 
 Options:
@@ -2554,9 +3024,35 @@ Options:
 
 ### xgboost_model.py
 ```
-Traceback (most recent call last):
-  File "/home/tpor598/nipper/metatoolkit/metatoolkit//xgboost_model.py", line 8, in <module>
-    from xgboost import XGBClassifier, XGBRegressor
-ModuleNotFoundError: No module named 'xgboost'
+usage: xgboost_model.py [-h] --input_dir INPUT_DIR --output_model OUTPUT_MODEL
+                        --task {classification,regression}
+                        [--n_estimators N_ESTIMATORS] [--max_depth MAX_DEPTH]
+                        [--learning_rate LEARNING_RATE]
+                        [--subsample SUBSAMPLE]
+                        [--colsample_bytree COLSAMPLE_BYTREE]
+                        [--random_state RANDOM_STATE]
+
+Train an XGBoost model (classifier or regressor) using pre-split data
+
+options:
+  -h, --help            show this help message and exit
+  --input_dir INPUT_DIR
+                        Directory containing X_train.tsv and y_train.tsv
+  --output_model OUTPUT_MODEL
+                        Path to save the trained model (.joblib)
+  --task {classification,regression}
+                        Task type
+  --n_estimators N_ESTIMATORS
+                        Number of boosting rounds
+  --max_depth MAX_DEPTH
+                        Maximum tree depth
+  --learning_rate LEARNING_RATE
+                        Learning rate (eta)
+  --subsample SUBSAMPLE
+                        Subsample ratio of training instances
+  --colsample_bytree COLSAMPLE_BYTREE
+                        Subsample ratio of columns when constructing each tree
+  --random_state RANDOM_STATE
+                        Random seed
 ```
 

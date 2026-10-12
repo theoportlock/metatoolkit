@@ -7,20 +7,18 @@ import numpy as np
 from skbio import TreeNode
 from skbio.diversity.alpha import shannon, faith_pd, pielou_e
 
+
 def load_table(table_path, tax_level):
-    """
-    Load the abundance table (TSV).
-    Rows = samples, columns = taxa.
-    Keeps only columns containing the chosen taxonomic prefix (e.g. t__ or s__).
-    Extracts the numeric/ID suffix after the prefix.
-    """
     df = pd.read_csv(table_path, sep='\t', index_col=0)
 
-    # Only keep taxa columns of interest
-    df = df.loc[:, df.columns.str.contains(fr'{tax_level}')]
-
-    # Extract numeric SGB ID (remove everything before the prefix)
-    df.columns = df.columns.str.replace(fr'.*{tax_level}SGB', '', regex=True)
+    # If tax_level is provided, filter; otherwise keep all columns
+    if tax_level is not None:
+        cols = df.columns[df.columns.str.contains(fr'{tax_level}', regex=True)]
+        if len(cols) == 0:
+            print(f"[WARNING] No columns matched tax_level='{tax_level}'. Using all columns instead.")
+        else:
+            df = df[cols]
+            df.columns = df.columns.str.replace(fr'.*{tax_level}SGB', '', regex=True)
 
     return df
 
@@ -29,12 +27,11 @@ def load_tree(tree_path):
     tree = TreeNode.read(tree_path)
     for n in tree.traverse():
         if n.length is None:
-            n.length = 0.0   # or 1.0 (see below)
+            n.length = 0.0
     return tree
 
 
 def save(df, path):
-    """Save the dataframe as TSV."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     df.to_csv(path, sep='\t')
 
@@ -44,22 +41,25 @@ def parse_args():
         description="Calculate alpha diversity metrics per sample."
     )
     parser.add_argument('table', help='Input abundance table (TSV, samples x taxa)')
-    parser.add_argument('-t', '--tree', help="Newick tree file (required only for Faith's PD)")
+    parser.add_argument(
+        '-t', '--tree',
+        help="Newick tree file (optional; required only for Faith's PD)"
+    )
     parser.add_argument(
         '-o', '--outfile', type=str,
-        help='Output file name (default: alpha_diversity.tsv in same directory as input table)'
+        help='Output file name (default: alpha_diversity.tsv in same directory)'
     )
     parser.add_argument(
         '--metrics',
         nargs='+',
         choices=['shannon', 'richness', 'evenness', 'faiths', 'all'],
         default=['all'],
-        help='Which alpha diversity metrics to calculate (default: all).'
+        help='Metrics to calculate (default: all)'
     )
     parser.add_argument(
         '--tax_level',
         default='t__',
-        help='Taxonomic prefix of interest in column names (default: t__).'
+        help='Taxonomic prefix in column names (default: t__)'
     )
     return parser.parse_args()
 
@@ -80,20 +80,29 @@ def main():
     if 'all' in metrics:
         metrics = ['shannon', 'richness', 'evenness', 'faiths']
 
-    # Prepare tree and filtered table ONLY for Faith's PD
+    # --- Handle optional tree ---
     tree = None
     table_for_faith = None
+    common_taxa = set()
+
     if 'faiths' in metrics:
-        tree = load_tree(args.tree)
-        tip_names = {tip.name for tip in tree.tips()}
-        common_taxa = set(table.columns).intersection(tip_names)
-        dropped = set(table.columns) - common_taxa
-        if dropped:
-            print("Dropping taxa not found in tree:", dropped)
-        table_for_faith = table[list(common_taxa)]
+        if args.tree is None:
+            print("[WARNING] Faith's PD requested but no tree provided. Skipping Faith's PD.")
+            metrics = [m for m in metrics if m != 'faiths']
+        else:
+            tree = load_tree(args.tree)
+            tip_names = {tip.name for tip in tree.tips()}
+            common_taxa = set(table.columns).intersection(tip_names)
 
-    print('len(common_taxa):', len(common_taxa))
+            dropped = set(table.columns) - common_taxa
+            if dropped:
+                print(f"Dropping {len(dropped)} taxa not found in tree")
 
+            table_for_faith = table[list(common_taxa)]
+
+            print('len(common_taxa):', len(common_taxa))
+
+    # --- Compute metrics ---
     results = {}
 
     for sample_id, counts in table.iterrows():
@@ -114,7 +123,6 @@ def main():
                 faith_values = table_for_faith.loc[sample_id].values
                 faith_taxa = table_for_faith.columns.values
 
-                # Faith's PD is presence/absence
                 binary_counts = (faith_values > 0).astype(int)
 
                 row['Faiths_PD'] = faith_pd(
@@ -136,4 +144,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

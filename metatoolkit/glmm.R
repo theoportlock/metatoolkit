@@ -1,77 +1,55 @@
 #!/usr/bin/env Rscript
 
-# GLMM using lmerTest / lme4
-# Supports:
-#   - multiple response variables
-#   - explicit factor ordering
-#   - explicit baseline (reference) levels
-#   - gaussian / poisson / negbin families
-#   - optional saving of fitted model objects (for posthoc contrasts)
-
 suppressPackageStartupMessages({
   library(optparse)
   library(lmerTest)
   library(lme4)
   library(broom.mixed)
   library(dplyr)
+  library(MASS)
 })
 
 # -------------------------
 # CLI options
 # -------------------------
 option_list <- list(
-  make_option(c("-i", "--input"), type = "character",
-              help = "Input TSV file (first column = sample ID)"),
-  make_option(c("-m", "--metadata"), type = "character",
-              help = "Metadata TSV file (first column = sample ID)"),
-  make_option(c("-f", "--formula"), type = "character",
-              help = "Fixed effects formula (e.g. 'timepoint * group + sex')"),
-  make_option(c("-g", "--group"), type = "character",
-              help = "Random effect grouping variable (e.g. subjectID)"),
-  make_option(c("-o", "--output"), type = "character",
-              help = "Output TSV file"),
-  make_option(c("--family"), type = "character", default = "gaussian",
-              help = "Family: gaussian | poisson | negbin (default: gaussian)"),
-  make_option(c("--zscore"), action = "store_true", default = FALSE,
-              help = "Z-score scale the response variable"),
-  make_option(c("--baseline"), type = "character", default = NULL,
-              help = "Baseline levels: var=level,var=level"),
-  make_option(c("--order"), type = "character", default = NULL,
-              help = "Factor order: var=level1,level2,...;var=level1,level2"),
-  make_option(c("--save-models"), dest = "save_models",
-	      type = "character", default = NULL,
-	      help = "Optional RDS file to save fitted model objects")
+  make_option(c("-i", "--input"), type = "character"),
+  make_option(c("-m", "--metadata"), type = "character"),
+  make_option(c("-f", "--formula"), type = "character", default = NULL),
+  make_option(c("-g", "--group"), type = "character", default = NULL),
+  make_option(c("-o", "--output"), type = "character"),
+  make_option(c("--family"), type = "character", default = "gaussian"),
+  make_option(c("--zscore"), action = "store_true", default = FALSE),
+  make_option(c("--baseline"), type = "character", default = NULL),
+  make_option(c("--order"), type = "character", default = NULL),
+  make_option(c("--save-models"), type = "character", default = NULL)
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
 
 # -------------------------
-# Factor control helper
+# Helpers
 # -------------------------
+build_default_formula <- function(df_meta) {
+  paste(colnames(df_meta), collapse = " + ")
+}
+
 apply_factor_controls <- function(df, baseline = NULL, order = NULL) {
 
-  # ---- Apply explicit ordering ----
   if (!is.null(order)) {
     var_specs <- strsplit(order, ";")[[1]]
-
     for (spec in var_specs) {
       parts <- strsplit(spec, "=")[[1]]
       var   <- parts[1]
       lvls  <- strsplit(parts[2], ",")[[1]]
 
       if (var %in% colnames(df)) {
-
         df[[var]] <- trimws(as.character(df[[var]]))
 
         missing <- setdiff(unique(df[[var]]), lvls)
         if (length(missing) > 0) {
-          stop(
-            paste0(
-              "Variable '", var,
-              "' contains values not listed in --order: ",
-              paste(missing, collapse = ", ")
-            )
-          )
+          stop(paste0("Variable '", var, "' contains values not listed in --order: ",
+                      paste(missing, collapse = ", ")))
         }
 
         df[[var]] <- factor(df[[var]], levels = lvls)
@@ -79,10 +57,8 @@ apply_factor_controls <- function(df, baseline = NULL, order = NULL) {
     }
   }
 
-  # ---- Apply baseline (reference) levels ----
   if (!is.null(baseline)) {
     specs <- strsplit(baseline, ",")[[1]]
-
     for (spec in specs) {
       parts <- strsplit(spec, "=")[[1]]
       var   <- parts[1]
@@ -95,17 +71,10 @@ apply_factor_controls <- function(df, baseline = NULL, order = NULL) {
         }
 
         if (!ref %in% levels(df[[var]])) {
-          stop(
-            paste0(
-              "Baseline level '", ref,
-              "' not found in variable '", var,
-              "'. Levels are: ",
-              paste(levels(df[[var]]), collapse = ", ")
-            )
-          )
+          stop(paste0("Baseline level '", ref, "' not found in variable '", var, "'"))
         }
 
-        df[[var]] <- relevel(df[[var]], ref = ref)
+        df[[var]] <- stats::relevel(df[[var]], ref = ref)
       }
     }
   }
@@ -122,70 +91,174 @@ df_meta <- read.delim(opt$metadata, stringsAsFactors = FALSE, check.names = FALS
 data_id_col <- colnames(df_data)[1]
 meta_id_col <- colnames(df_meta)[1]
 
-data <- merge(
-  df_meta,
-  df_data,
-  by.x = meta_id_col,
-  by.y = data_id_col
-)
+data <- merge(df_meta, df_data,
+              by.x = meta_id_col,
+              by.y = data_id_col)
 
-response_vars <- setdiff(colnames(df_data), data_id_col)
-results <- list()
-models  <- list()
+# -------------------------
+# Formula handling
+# -------------------------
+if (is.null(opt$formula)) {
+  opt$formula <- build_default_formula(df_meta[, -1, drop = FALSE])
+  cat("No formula supplied → using all metadata columns:\n  ", opt$formula, "\n")
+}
+
+# -------------------------
+# Group handling
+# -------------------------
+has_group <- !is.null(opt$group) && opt$group %in% colnames(data)
+
+if (!is.null(opt$group) && !has_group) {
+  stop("Grouping variable not found: ", opt$group)
+}
+
+if (has_group) {
+  cat("Using Random Effect grouping variable:", opt$group, "\n")
+} else {
+  cat("No grouping variable supplied → using fixed-effects model\n")
+}
 
 # -------------------------
 # Model loop
 # -------------------------
+response_vars <- setdiff(colnames(df_data), data_id_col)
+results <- list()
+models  <- list()
+
 for (resp in response_vars) {
 
-  df <- data %>%
-    select(any_of(c(colnames(df_meta), resp, opt$group))) %>%
-    rename(response = all_of(resp)) %>%
-    filter(!is.na(response))
+  cols_to_keep <- c(colnames(df_meta), resp)
+  if (has_group) cols_to_keep <- c(cols_to_keep, opt$group)
 
-  if (!(opt$group %in% colnames(df))) {
-    stop("Grouping variable not found: ", opt$group)
+  df <- data %>%
+    dplyr::select(dplyr::any_of(cols_to_keep))
+
+  if (!(resp %in% colnames(df))) {
+    results[[resp]] <- data.frame(
+      response_variable = resp,
+      term = NA, estimate = NA, std.error = NA,
+      statistic = NA, p.value = NA,
+      conf.low = NA, conf.high = NA,
+      n_obs = NA, n_groups = NA,
+      status = "ERROR: response missing after merge/select"
+    )
+    next
   }
 
-  # Apply factor controls
-  df <- apply_factor_controls(
-    df,
-    baseline = opt$baseline,
-    order    = opt$order
-  )
+  df <- df %>%
+    dplyr::rename(response = dplyr::all_of(resp))
+
+  # Factor controls
+  df <- tryCatch({
+    apply_factor_controls(df, opt$baseline, opt$order)
+  }, error = function(e) {
+    results[[resp]] <<- data.frame(
+      response_variable = resp,
+      term = NA, estimate = NA, std.error = NA,
+      statistic = NA, p.value = NA,
+      conf.low = NA, conf.high = NA,
+      n_obs = NA, n_groups = NA,
+      status = paste("ERROR:", e$message)
+    )
+    return(NULL)
+  })
+  if (is.null(df)) next
+
+  # NA filtering
+  vars_in_formula <- all.vars(stats::as.formula(paste0("~", opt$formula)))
+  cols_to_check <- c("response", vars_in_formula)
+  if (has_group) cols_to_check <- c(cols_to_check, opt$group)
+
+  df <- df %>%
+    dplyr::filter(dplyr::if_all(dplyr::any_of(cols_to_check), ~ !is.na(.)))
+
+  if (nrow(df) == 0) {
+    results[[resp]] <- data.frame(
+      response_variable = resp,
+      term = NA, estimate = NA, std.error = NA,
+      statistic = NA, p.value = NA,
+      conf.low = NA, conf.high = NA,
+      n_obs = NA, n_groups = NA,
+      status = "ERROR: No data after NA filtering"
+    )
+    next
+  }
 
   if (opt$zscore) {
     df$response <- as.numeric(scale(df$response))
   }
 
-  model_formula <- as.formula(
-    paste0("response ~ ", opt$formula, " + (1|", opt$group, ")")
-  )
+  # Build formula
+  if (has_group) {
+    model_formula <- stats::as.formula(
+      paste0("response ~ ", opt$formula, " + (1|", opt$group, ")")
+    )
+  } else {
+    model_formula <- stats::as.formula(
+      paste0("response ~ ", opt$formula)
+    )
+  }
 
-  model <- switch(
-    opt$family,
-    gaussian = lmer(model_formula, data = df, REML = FALSE),
-    poisson = glmer(model_formula, data = df, family = poisson(link = "log")),
-    negbin  = glmer.nb(model_formula, data = df),
-    stop("Unsupported family: ", opt$family)
-  )
+  # Fit model safely
+  model <- tryCatch({
+
+    if (opt$family == "gaussian") {
+      if (has_group) {
+        lmer(model_formula, data = df, REML = FALSE)
+      } else {
+        stats::lm(model_formula, data = df)
+      }
+
+    } else if (opt$family == "poisson") {
+      if (has_group) {
+        glmer(model_formula, data = df, family = stats::poisson(link = "log"))
+      } else {
+        stats::glm(model_formula, data = df, family = stats::poisson(link = "log"))
+      }
+
+    } else if (opt$family == "negbin") {
+      if (has_group) {
+        glmer.nb(model_formula, data = df)
+      } else {
+        MASS::glm.nb(model_formula, data = df)
+      }
+
+    } else {
+      stop("Unsupported family: ", opt$family)
+    }
+
+  }, error = function(e) {
+    results[[resp]] <<- data.frame(
+      response_variable = resp,
+      term = NA, estimate = NA, std.error = NA,
+      statistic = NA, p.value = NA,
+      conf.low = NA, conf.high = NA,
+      n_obs = NA, n_groups = NA,
+      status = paste("ERROR:", e$message)
+    )
+    return(NULL)
+  })
+
+  if (is.null(model)) next
 
   models[[resp]] <- model
 
-  n_obs    <- nrow(df)
-  n_groups <- dplyr::n_distinct(df[[opt$group]], na.rm = TRUE)
+  model_type <- ifelse(has_group, "GLMM", "LM/GLM")
 
   tidy_out <- broom.mixed::tidy(
     model,
     effects  = "fixed",
     conf.int = TRUE
   ) %>%
-    mutate(
+    dplyr::mutate(
       response_variable = resp,
-      n_obs    = n_obs,
-      n_groups = n_groups
+      n_obs    = nrow(df),
+      n_groups = ifelse(has_group,
+                        dplyr::n_distinct(df[[opt$group]], na.rm = TRUE),
+                        NA),
+      status = paste("Converged (", model_type, ")", sep = "")
     ) %>%
-    select(
+    dplyr::select(
       response_variable,
       term,
       estimate,
@@ -195,29 +268,24 @@ for (resp in response_vars) {
       conf.low,
       conf.high,
       n_obs,
-      n_groups
+      n_groups,
+      status
     )
 
   results[[resp]] <- tidy_out
 }
 
 # -------------------------
-# Write outputs
+# Write output
 # -------------------------
-final <- bind_rows(results)
+final <- dplyr::bind_rows(results)
 
 out_dir <- dirname(opt$output)
 if (!dir.exists(out_dir)) {
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 }
 
-write.table(
-  final,
-  opt$output,
-  sep = "\t",
-  row.names = FALSE,
-  quote = FALSE
-)
+write.table(final, opt$output, sep = "\t", row.names = FALSE, quote = FALSE)
 
 if (!is.null(opt$save_models)) {
   saveRDS(models, opt$save_models)
@@ -226,4 +294,3 @@ if (!is.null(opt$save_models)) {
 
 cat("GLMM analysis complete.\n")
 cat("Results written to:", opt$output, "\n")
-

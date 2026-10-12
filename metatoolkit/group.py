@@ -37,12 +37,9 @@ def group(df, group_by=None, funcs=None):
     """
     Group and aggregate a data table.
 
-    - Numeric aggregations operate on numeric columns
-    - 'count' returns number of rows per group
+    If group_by is None:
+        -> all rows are treated as a single group ("all")
     """
-
-    if not group_by:
-        raise ValueError("group_by must be provided")
 
     if not funcs:
         raise ValueError("At least one aggregation function must be provided")
@@ -57,7 +54,21 @@ def group(df, group_by=None, funcs=None):
     # ---- numeric columns only ----
     value_cols = df.select_dtypes(include="number").columns
 
-    grouped = None
+    # ---- perform grouping ----
+    if not group_by:
+        # Global aggregation across all rows
+        agg = df[value_cols].agg(agg_funcs)
+
+        # Flatten to single row with MultiIndex columns
+        grouped = agg.stack().to_frame().T
+
+        grouped.index = ["all"]
+    else:
+        grouped = (
+            df
+            .groupby(group_by)[value_cols]
+            .agg(agg_funcs)
+        )
 
     # ---- numeric aggregations ----
     if agg_funcs:
@@ -94,7 +105,7 @@ def group(df, group_by=None, funcs=None):
 def merge_meta(df, meta_path, group_by):
     meta = pd.read_csv(meta_path, sep="\t", index_col=0)
 
-    if group_by and not (len(group_by) == 1 and group_by[0].lower() == "all"):
+    if group_by:
         missing = [c for c in group_by if c not in meta.columns]
         if missing:
             raise ValueError(f"Metadata missing required columns: {missing}")
@@ -111,12 +122,24 @@ def load_data(path_or_name):
     return pd.read_csv(path, sep="\t", index_col=0)
 
 def main():
-    parser = argparse.ArgumentParser(description="Group and aggregate datasets.")
-    parser.add_argument("subject")
-    parser.add_argument("--group_by", nargs="+", required=True)
-    parser.add_argument("--func", nargs="+", required=True)
-    parser.add_argument("-o", "--output", required=True)
-    parser.add_argument("--meta")
+    parser = argparse.ArgumentParser(
+        description="Group and aggregate datasets."
+    )
+    parser.add_argument("subject", help="Input dataset (path or name)")
+    parser.add_argument(
+        "--group_by",
+        nargs="+",
+        help="Columns to group by. If omitted, all rows are aggregated into a single group ('all')."
+    )
+    parser.add_argument(
+        "--func",
+        nargs="+",
+        required=True,
+        help=f"Aggregation functions: {', '.join(AGG_MAP.keys())}"
+    )
+    parser.add_argument("-o", "--output", required=True, help="Output TSV file")
+    parser.add_argument("--meta", help="Optional metadata TSV to join")
+
     args = parser.parse_args()
 
     df = load_data(args.subject)
@@ -129,8 +152,9 @@ def main():
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(output, sep="\t")
+
     print(out)
+
 
 if __name__ == "__main__":
     main()
-

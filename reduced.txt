@@ -1,0 +1,134 @@
+abund.py: Plot stacked bar chart of abundances/prevalence. Args: input(TSV), --meta, -o/--output, --figsize(w h), --order(sort by mean), --max-categories, --no-normalize, --log1p, --species(col), --group-cols, --category-order, --y-max.
+adonis2.R: Args: --distances(TSV), --metadata, --formula(RHS), --source_col, --target_col, --dist_col, --sample_id_col, --outdir, --strata, --reference(Var,Level), --seed, --permutations.
+adonis.R: PERMANOVA. Args: --input(TSV), --metadata, --formula(RHS), --distance(metric), --strata, --timepoint_col, --timepoint_a, --timepoint_b, --sample_id_col, --output.
+alpha_diversity.py: Calc alpha diversity metrics. Args: table, -t/--tree, -o/--outfile, --metrics{shannon,richness,evenness,faiths,all}, --tax_level.
+ancombc2.R: [Execution Error: missing 'data.table' package]
+anthro.R: [Execution Error: missing 'anthro' package]
+arrange_svgs.py: Arrange SVGs in grid preserving aspect/fonts. Args: input_svgs, --rows, --cols, -o/--output.
+assign.py: Assign new TSV cols via expressions. Args: input, -o/--output, -a/--assign(expr), --mode{dataframe,global}.
+aucroc_curve.py: Plot multiple AUCROC curves. Args: subject(data name/path).
+bar.py: Barplot dataset. Args: subject.
+bar.R: Args: -c/--column(plot col).
+baseline_distance.py: Filter beta div to within-subject dists from baseline. Args: beta(TSV), meta(TSV), -m/--metric, -b/--baseline, -o/--output.
+beta_diversity.py: Parallel Beta Diversity. Args: table, -t/--tree, -o/--outfile, --threads, --tax-level, -v/--verbose.
+beta_diversity_stats.R: Args: -i/--input, -m/--metadata, -f/--formula, -s/--strata, -d/--distance, -o/--output, --baseline, --order.
+box.py: Boxplot dataset. Args: subject, -x, -y, --hue, --order, --logy, --show, --figsize, -o/--output, --meta, --rc(style), --horizontal, --ymin, --ymax, --row, --col, --sharey{all,none,row,col}, --palette.
+box.R: Boxplot dataset. Args: subject, -x, -y, --hue, --logy, --show, --figsize, -o/--output, --meta, --rc(theme RDS).
+brms_censored.R: Args: -i/--input, -m/--metadata, -f/--formula, -g/--group, -o/--output, --lod(limit), --baseline, --order, --iter, --chains.
+cca.py: Pairwise CCA with missingness logging. Args: inputs, -o/--output, --scale, --n_permutations, --min_samples.
+change.py: Bivariate feature change analysis. Args: subject, -df2/--df2, -c/--columns, -a/--analysis{mww,fc,diffmean,summary}, -o/--output, --quiet.
+check_db.py: [Execution Error: unable to open db]
+chisquared.py: Chi-Sq & Cramer's V for categorical cols. Args: input, -o/--output.
+clustermap.py: Clustered heatmap from edgelist. Args: subject, --sig, --effect, --source-col, --target-col, --sig_thresh, --no-cluster, --no-row-cluster, --no-col-cluster, --row-order, --col-order, --filter-sig{none,source,target,both}, --zscore{row,col,none}, --log1p, -o/--output, --figsize, --square.
+compute_theoretical_variance.py: Expected variance from formula. Args: --input, --output_dir.
+contingency.py: Contingency matrix of 2 cols. Args: file(CSV), column1, column2, -o/--output.
+corr.py: Parallel Spearman corrs. Args: files, -m/--mult(FDR), -o/--output, -p/--threads, --dropna.
+cox_model.py: Cox Proportional Hazards. Args: --input, --meta, --index, --subject, --time, --event, --covariates, --output.
+create_datasets.py: [Execution Error: formula.txt not found]
+create_network.py: Graph from node/edge files. Args: --nodes, --edges, --output(GraphML), --source_col, --target_col.
+createsupptables.py: Combine tables for excel supp table. Args: -i/--input, -o/--output.
+create_toy_dataset.py: Toy dataset from formula. Args: input, --output, --target, --seed, -n(samples).
+dbrda.R: Args: --distances, --metadata, --formula, --source_col, --target_col, --dist_col, --sample_id_col, --outdir, --strata, --reference, --seed, --permutations.
+distance.py: Distance edgelist from table. Args: subject, -m/--metric, -o/--outfile.
+drop.py: Drop TSV rows/cols. Args: --infile, --outfile, --labels, --axis{0,1}, --index-col.
+ebm.py: Train Explainable Boosting Machine. Args: --input_dir, --output_model, --task{class,regress}, --max_bins, --max_interaction_bins, --interactions, --learning_rate, --validation_size, --random_state.
+edit.py: Args: -h (loads env window).
+enterotype.R: [Execution Error: missing 'BiocManager' package]
+evaluate_model.py: Evaluate trained model. Args: --model, --input_dir, --task{class,regress}, --report_file.
+explain_variance.py: Explained Variance via PERMANOVA. Args: dfs, --df_cats, -o/--outfile, -s/--suffix, --from_beta, --explainor.
+extract_codeblocks.py: Extract MD code blocks. Args: input_file, -o/--output_dir.
+extract_taxa.py: Extract taxa from MetaPhlAn. Args: input, -l/--level, -o/--output, --keep-parent.
+factor_rotation.py: Rotate factor loadings. Args: input, -o/--output, --sep, --method{varimax,etc}, --normalize, --maxiter, --tol.
+faith_pd.py: Faith's PD per sample. Args: table, tree, -o/--outfile.
+fdr.py: FDR correction (Benjamini-Hochberg). Args: input, -o/--outfile, -p/--pcol, -m/--method, -a/--alpha, -c/--colname, --replace.
+fillna.py: Fill missing TSV vals. Args: -i/--input, -c/--column, -v/--value, -o/--output.
+filter.py: Filter TSV by NA/index/thresholds. Args: input, -o/--output, -fdf/--filter_df, -fdfx/--filter_df_axis, --column, -rf/--rowfilt, -cf/--colfilt, -p/--prevail, -a/--abund, --dropna{rows,cols,both}, --nonzero, --min_nonzero_rows, --min_nonzero_cols, --numeric_only, --dtype, -q/--query.
+fisher.py: Fisher exact test log odds. Args: file, -o/--output, --dropna.
+format_headers.R: [Execution Error: requires <input_file> <output_dir>]
+format_means.py: Merge mean/std for pub format. Args: input, -o/--output, --sep, --decimals.
+from_baseline.sh: Args: input.tsv, meta.tsv, output_dir, -s/--sample-col, -j/--subject-col, -t/--timepoint-col, -b/--baseline.
+glmm.R: Args: -i/--input, -m/--metadata, -f/--formula, -g/--group, -o/--output, --family{gauss,pois,negbin}, --zscore, --baseline, --order, --save-models.
+group.py: Group/agg datasets. Args: subject, --group_by, --func{mean,median,sum,etc}, -o/--output, --meta.
+hbar.py: Horizontal bar plot from coefficients. Args: input, -o/--output, --coef-col, --hue-col, --index-col, --separator, --xscale, --xlabel, --ylabel, --title, --figsize.
+heatmap.py: Faceted heatmap from edgelist. Args: subject, --sig, --effect, --source-col, --target-col, --sig_thresh, --row, --col, --row-order, --col-order, --filter-sig, --zscore, --log1p, -o/--output, --figsize, --show.
+hist.py: Histogram from TSV. Args: subject, -c/--column, --bins, --log-scale, --kde, --facet, --meta, --theme, -o/--output.
+hyperparameter_tune.py: Tune via GridSearchCV/RandomizedSearchCV. Args: --input_dir, --task, --search_grid, --output_model, --report_file, --search{grid,random}, --cv, --n_iter.
+importance_pie.py: Nested SHAP donut. Args: --input, --output, --threshold.
+join.py: Pandas merge. Args: file1, file2, -o/--output, --how, --on, --left_on, --right_on, --suffixes, -q/--quiet.
+kmeans.py: K-means clustering. Args: subject, --clusters, --min-clusters, --max-clusters, --random-state, -o/--output.
+km_plot.py: Kaplan-Meier Survival. Args: --input, --meta, --index, --subject, --time, --event, --group, --output, --no-ci, --figsize.
+kneaddata_summary.py: Summarize KneadData output. Args: input, -o/--output.
+kruskal.py: Kruskal-Wallis numeric vs cat. Args: numeric, categorical, -o/--output.
+leiden_clustering.py: [Execution Error: missing 'leidenalg' module]
+line.py: Lineplot. Args: subject, -df2/--df2, -x, -y, --hue, --units, --logy.
+lmplot.py: lmplot with meta/facets. Args: subject, -x, -y, --hue, --col, --row, --logy, --logx, --show, --figsize, -o/--output, --meta.
+log1p.py: log1p adjustment. Args: --profile, -o/--outfile.
+logrank.py: Log-rank test. Args: --input, --meta, --index, --subject, --time, --event, --group, --output.
+maaslin_sig_summary.py: Summarise MaAsLin results. Args: subject, -p/--pval, -c/--change, -s/--sig, -g/--group-cols, -o/--output.
+make_excel.py: Excel workbook from TSVs. Args: -l/--table-list, --toc, --glossary, -o/--output.
+makesupptable.py: Excel supp tables. Args: -s/--supp-table-list, -c/--contents, -g/--glossary, -o/--output.
+mannwhitneyu.py: Mann-Whitney U test. Args: numeric, categorical, -o/--output, --dropna.
+mediation.R: R startup wrapper/options. Args include: --version, --vanilla, -q, -s, --interactive, --args, -f/--file, -e(expr).
+mefisto_preprocess.py: Preprocess microbiome for MEFISTO. Args: -i/--inputs, -t/--time_metadata, -o/--output, --skip_log_transform.
+mefisto_visualize.py: Visualize trained MEFISTO model. Args: --input, --input_h5ad, --output_dir, --time_col.
+melt.py: Melt TSV wide to long. Args: input, -o/--output, -i/--id_vars, -vn/--var_name, -val/--value_name.
+merge_networks.py: Merge GraphMLs without node overlap. Args: graphml_files, --output, --xgap, --directed.
+merge.py: Merge TSVs horizontally/vertically. Args: datasets, -j/--join{inner,outer}, -a/--append, --add-filename, --filename-format, --add-prefix, --sep, -o/--output.
+mixedlm.py: GLM/Mixed Models. Args: -i/--response_data, -m/--metadata, -f/--formula, -g/--grouping_variable, -o/--output.
+mofa_export.py: Export MOFA+ factors/loadings. Args: --model, --mdata, --outdir.
+mofa_load_data.py: Load modalities into MuData. Args: --t1-dir, --meta-file, --output.
+mofa_plots.py: Visualize R² from MOFA+. Args: --model.
+mofa_run.py: Run MOFA+ on MuData. Args: --input, --output, --factors.
+monocle.R: [Execution Error: syntax error near 'igraph']
+multiline.py: Single-panel pastel lineplot. Args: --subject, --meta, --x, --y, --hue, --id, --output, --logy, --figsize, --x_order.
+newcorr.py: Spearman correlations. Args: subject, df2, -m/--mult(FDR).
+onehot.py: One-hot encode categorical cols. Args: subject, -o/--output, --include-cols, --exclude-cols, --prefix-sep, --sanitize-headers, --min-prevalence, --drop-onehot-values, --dtype.
+one_sample_test.py: One-sample t-test. Args: subject, -c/--column, -v/--value.
+outliers.py: Mask/remove numeric outliers. Args: input, -o/--output, --columns, --outlier_iqr, --outlier_zscore, --drop_outlier_na.
+pam.py: [Execution Error: NumPy 1.x vs 2.x version conflict]
+pca.py: Perform PCA. Args: -i/--input, -o/--output, --n-components.
+pcoa_biplot.py: PCoA biplot from species profiles. Args: -i/--input, -o/--output.
+pcoa.py: PCoA on distance edgelist. Args: input, -o/--output, --source-col, --target-col, --distance-col, --dims.
+pivot.py: Pivot TSV long to wide. Args: input, -o/--output, -i/--index, -c/--columns, -v/--values, -a/--aggfunc, -f/--fill_value, -m/--margins, --flatten, --index_col.
+plot_circos.py: [Execution Error: cannot import pycircos]
+plot_network.py: Network graph PDF/SVG. Args: graphml_file, --output_file, --edge_color_attr, --node_color_attr, --cmap, --layout, --node_size, --font_size, --max_label_width, --figsize.
+plot_regression_residuals.py: Generate residual plots. Args: --model, --input_dir, --output_dir.
+plot_shap.py: SHAP plot wrapper. Args: --input, --output, --plot_type, --sample_index, --max_display.
+pointheatmap.py: Pointheatmap dataset. Args: subject.
+pointplot.py: Pastel pointplot with subject overlay. Args: subject, -m/--meta, -x, -y, --hue, --id, --logy, --xorder, -o/--output, --figsize.
+polar.py: Radar chart from dataset. Args: input, -o/--output, --figsize.
+print_formula.py: Display symbolic formula via SymPy. Args: --formula_file, --latex, --save_latex.
+random_forest.py: Train RF model. Args: --input_dir, --output_model, --task{class,regress}, --n_estimators, --max_depth, --min_samples_split, --min_samples_leaf, --random_state.
+rda_edges.py: RDA variance components. Args: -r/--response_data, -m/--metadata, -f/--fixed_effects, -o/--output.
+rda.py: RDA via scikit-bio. Args: -t/--taxonomic_data, -m/--metadata, -f/--fixed_effects, -o/--output.
+rda.R: RDA. Args: -y/--response, -x/--explanatory, -f/--fixed_effects, -o/--output.
+regplot.py: Regplot. Args: subject, -o/--output, -x, -y, --hue, --logy, --logx, --show, --figsize.
+rename.py: Rename df cols/index via metadata. Args: subject, level, --df2, --axis{cols,index}, --output.
+rename_regex.py: Rename via regex/map. Args: subject, --match, --replace, --map, --axis{cols,index}, -o/--output.
+replace.py: Pandas replace values. Args: input, --to_replace, --value, --regex, --inplace, -o/--output.
+scale.py: Dataset transforms (CLR, zscore, minmax, etc). Args: analysis, subject, --output/-o, --refcol, --axis{0,1}, --columns.
+scree.py: [Execution Error: missing 'kneed' module]
+select_features.py: Select rows/cols via .loc. Args: input, -r/--rows, -c/--cols, -o/--output, --drop-index.
+shap_interpret.py: Compute SHAP/interaction scores. Args: --model, --input_dir, --output_dir, --shap_val, --shap_interact.
+shap_plot_bar.py: Args: --input, --output, --max_display.
+shap_plot_decision.py: Args: --input, --output, --sample_index.
+shap_plot_force.py: Args: --input, --output, --sample_index.
+shap_plot_heatmap.py: Args: --input, --output, --max_display.
+shap_plot_scatter.py: Args: --input, --output, --feature, --interaction.
+shap_plot_summary.py: Args: --input, --output, --max_display.
+shap_plot_waterfall.py: Args: --input, --output, --sample_index.
+shap_residuals.py: [Execution Error: module 'numpy' has no attribute 'int0']
+shortest_path.py: Shortest path in GraphML. Args: graphml, source, target, output, --weight.
+sig_summary.py: Summary report of change/significance. Args: subject, -p/--pval, -c/--change, -s/--sig, -o/--output.
+sort.py: Sort dataset. Args: subject, --axis{0,1}, --ascending, --df2, --df2_axis{0,1}, -o/--output.
+spindle.py: Spindle plot. Args: subject, --meta, --group-col, --x, --y, --figsize, -o/--output, --ellipses, --ellipse-level, --palette, --group-order, --title-from-subject.
+splitter.py: Split/reindex dataframes. Args: subject, -col/--column, -m/--df2, --outdir, --reindex, --drop-index.
+stacked_bar.py: Grouped stacked bars. Args: input, --bars, --color, --vals, -o/--output, --sig, --sig-threshold, --figsize, --horizontal, --ylabel, --max-categories, --order-bars, --max, --log.
+stratify.py: Stratify df via metadata. Args: subject, level, --df2, -o/--output.
+taxo_summary.py: Summarize taxonomic abundance. Args: input, -o/--output, --presence-threshold.
+test_train_split.py: Train/test splitter. Args: --input, --output_dir, --y_col, --test_size, --random_state, --smote, --scaler, --y_file, --meta, --dropna, --keepna.
+transpose.py: Transpose TSV. Args: subject, -o/--output.
+upset.py: UpSet plot. Args: subject, --id, --group, -o/--output, --show-percentages, --no-show-percentages, --sort-by-cardinality.
+volcano.py: Volcano plot. Args: subject, --change, --sig, --fc, --pval, --annot, --no-annot, --figsize, --output.
+volcano.R: Volcano plot. Args: -c/--change, -s/--sig, --fc, --pval, --no_annot.
+xgboost_model.py: Train XGBoost model. Args: --input_dir, --output_model, --task{classification,regression}, --n_estimators, --max_depth, --learning_rate, --subsample, --colsample_bytree, --random_state.
