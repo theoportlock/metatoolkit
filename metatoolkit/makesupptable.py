@@ -41,6 +41,23 @@ def parse_args():
     return parser.parse_args()
 
 
+def float_number_format(value):
+    """
+    Display format for a float: at most 3 d.p., no trailing zeros.
+    Values that round to a whole number use "0" to avoid Excel
+    showing a dangling decimal point (e.g. "2.").
+    """
+    return "0" if round(value, 3).is_integer() else "0.###"
+
+
+def display_len(cell):
+    """Length of the value as displayed (floats shown to at most 3 d.p.)."""
+    v = cell.value
+    if isinstance(v, float):
+        return len(f"{v:.3f}".rstrip("0").rstrip("."))
+    return len(str(v))
+
+
 def main():
     args = parse_args()
 
@@ -72,11 +89,15 @@ def main():
     for sheet_name in workbook.sheetnames:
         sheet = workbook[sheet_name]
 
-        # clear formatting
+        # clear formatting and apply number format to floats
         for row in sheet.iter_rows():
             for cell in row:
                 cell.font = Font(bold=False)
                 cell.border = Border()
+
+                # display floats to at most 3 d.p. (values are not rounded)
+                if isinstance(cell.value, float):
+                    cell.number_format = float_number_format(cell.value)
 
         # apply header formatting
         for cell in sheet[1]:
@@ -84,9 +105,9 @@ def main():
             cell.alignment = Alignment(horizontal="center")
             cell.border = thin_border
 
-        # auto column width
+        # auto column width (based on displayed length)
         for col in sheet.columns:
-            max_length = max((len(str(cell.value)) for cell in col if cell.value), default=0) + 2
+            max_length = max((display_len(cell) for cell in col if cell.value), default=0) + 2
             col_idx = col[0].column if col[0].column is not None else 1
             col_letter = get_column_letter(col_idx)
             sheet.column_dimensions[col_letter].width = max(max_length, 12)
@@ -96,4 +117,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
