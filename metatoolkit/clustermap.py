@@ -18,7 +18,11 @@ def parse_arguments():
         description='Plot - Produces a clustered heatmap from edgelist'
     )
     parser.add_argument('subject')
-    parser.add_argument('--sig', default='qval')
+
+    # NOW OPTIONAL
+    parser.add_argument('--sig', default=None,
+                        help="Significance column (optional). If not provided or missing, no filtering/annotation is applied.")
+
     parser.add_argument('--effect', default='cor')
     parser.add_argument('--source-col', default='source')
     parser.add_argument('--target-col', default='target')
@@ -40,7 +44,6 @@ def parse_arguments():
                         choices=['none', 'source', 'target', 'both'],
                         default='none')
 
-    # Z-scoring option
     parser.add_argument(
         '--zscore',
         choices=['row', 'col', 'none'],
@@ -48,7 +51,6 @@ def parse_arguments():
         help='Z-score the effect matrix by row or column before plotting'
     )
 
-    # NEW: log1p transform option
     parser.add_argument(
         '--log1p',
         action='store_true',
@@ -76,42 +78,51 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
         index=source_col, columns=target_col, values=effect_col
     ).fillna(0)
 
-    sig_df = df.reset_index().pivot(
-        index=source_col, columns=target_col, values=sig_col
-    ).fillna(1)
+    # ---- HANDLE OPTIONAL SIGNIFICANCE ----
+    if sig_col and sig_col in df.reset_index().columns:
+        sig_df = df.reset_index().pivot(
+            index=source_col, columns=target_col, values=sig_col
+        ).fillna(1)
 
-    mask = sig_df < sig_thresh
-
-    if filter_sig in ('source', 'both'):
-        keep_rows = mask.any(axis=1)
+        mask = sig_df < sig_thresh
     else:
-        keep_rows = slice(None)
+        sig_df = None
+        mask = None
 
-    if filter_sig in ('target', 'both'):
-        keep_cols = mask.any(axis=0)
-    else:
-        keep_cols = slice(None)
+    # ---- FILTERING ----
+    if mask is not None:
+        if filter_sig in ('source', 'both'):
+            keep_rows = mask.any(axis=1)
+        else:
+            keep_rows = slice(None)
 
-    cor = cor.loc[keep_rows, keep_cols]
-    sig_df = sig_df.loc[keep_rows, keep_cols]
+        if filter_sig in ('target', 'both'):
+            keep_cols = mask.any(axis=0)
+        else:
+            keep_cols = slice(None)
 
-    # Apply custom row ordering
+        cor = cor.loc[keep_rows, keep_cols]
+
+        if sig_df is not None:
+            sig_df = sig_df.loc[keep_rows, keep_cols]
+
+    # ---- ORDERING ----
     if row_order:
         row_list = [r for r in row_order if r in cor.index]
         cor = cor.reindex(row_list)
-        sig_df = sig_df.reindex(row_list)
+        if sig_df is not None:
+            sig_df = sig_df.reindex(row_list)
 
-    # Apply custom column ordering
     if col_order:
         col_list = [c for c in col_order if c in cor.columns]
         cor = cor.reindex(columns=col_list)
-        sig_df = sig_df.reindex(columns=col_list)
+        if sig_df is not None:
+            sig_df = sig_df.reindex(columns=col_list)
 
-    # --- NEW: sign-preserving log1p transform ---
+    # ---- TRANSFORMS ----
     if log1p:
         cor = np.sign(cor) * np.log1p(np.abs(cor))
 
-    # Optional z-scoring for coloring (and clustering)
     if zscore == 'row':
         cor = cor.sub(cor.mean(axis=1), axis=0)
         cor = cor.div(cor.std(axis=1).replace(0, np.nan), axis=0)
@@ -131,22 +142,22 @@ def clustermap(df, effect_col, sig_col, source_col, target_col, sig_thresh,
         xticklabels=True
     )
 
-    # Reindex significance matrix to match clustering order
-    sig_df = sig_df.reindex(
-        index=g.data2d.index, columns=g.data2d.columns
-    )
-
     g.ax_heatmap.set_aspect('equal')
 
-    # Overlay significance markers
-    for i, row in enumerate(sig_df.index):
-        for j, col in enumerate(sig_df.columns):
-            if sig_df.loc[row, col] < sig_thresh:
-                g.ax_heatmap.text(
-                    j + 0.5, i + 0.5, "*",
-                    ha="center", va="center", fontsize=7,
-                    transform=g.ax_heatmap.transData
-                )
+    # ---- SIGNIFICANCE OVERLAY ----
+    if sig_df is not None:
+        sig_df = sig_df.reindex(
+            index=g.data2d.index, columns=g.data2d.columns
+        )
+
+        for i, row in enumerate(sig_df.index):
+            for j, col in enumerate(sig_df.columns):
+                if sig_df.loc[row, col] < sig_thresh:
+                    g.ax_heatmap.text(
+                        j + 0.5, i + 0.5, "*",
+                        ha="center", va="center", fontsize=7,
+                        transform=g.ax_heatmap.transData
+                    )
 
     g.ax_heatmap.set_xticklabels(
         g.ax_heatmap.get_xticklabels(), rotation=40, ha='right'
@@ -184,14 +195,24 @@ def main():
     df_index_name = df.index.name
     reset_cols = set(df.reset_index().columns)
 
+    # ---- REQUIRED COLUMNS ----
     required = {
         args.source_col,
         args.target_col,
         args.effect,
-        args.sig
     }
 
+    # Only require sig if explicitly provided
+    if args.sig:
+        required.add(args.sig)
+
     missing = required - reset_cols
+
+    # If sig missing, downgrade to optional instead of error
+    if args.sig and args.sig not in reset_cols:
+        print(f"[WARN] Significance column '{args.sig}' not found. Proceeding without significance.")
+        args.sig = None
+        missing.discard(args.sig)
 
     if missing:
         msg = [
@@ -201,10 +222,15 @@ def main():
             f"  --source-col : '{args.source_col}'",
             f"  --target-col : '{args.target_col}'",
             f"  --effect     : '{args.effect}'",
-            f"  --sig        : '{args.sig}'",
+        ]
+
+        if args.sig:
+            msg.append(f"  --sig        : '{args.sig}'")
+
+        msg.extend([
             "",
             "Missing columns:"
-        ]
+        ])
 
         for col in sorted(missing):
             hints = []
@@ -226,7 +252,7 @@ def main():
 
         raise ValueError("\n".join(msg))
 
-    # Determine clustering behavior
+    # ---- CLUSTERING FLAGS ----
     if args.no_cluster:
         row_cluster = False
         col_cluster = False
