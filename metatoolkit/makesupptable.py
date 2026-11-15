@@ -11,32 +11,41 @@ from openpyxl.styles import Font, Alignment, Border, Side
 
 def parse_args():
     """Parse command-line arguments."""
+    # Use $CONF / $WORK as config / output directories if set; otherwise fall back to defaults
+    conf_dir = os.environ.get("CONF") or "conf"
+    work_dir = os.environ.get("WORK") or "results"
+
+    default_supp = os.path.join(conf_dir, "suppTableList.txt")
+    default_contents = os.path.join(conf_dir, "contents.tsv")
+    default_glossary = os.path.join(conf_dir, "glossary.tsv")
+    default_output = os.path.join(work_dir, "suppTables.xlsx")
+
     parser = argparse.ArgumentParser(
         description="Generate a formatted Excel file of supplementary tables."
     )
     parser.add_argument(
         "-s",
         "--supp-table-list",
-        default="conf/suppTableList.txt",
-        help="Path to list of supplementary tables (default: conf/suppTableList.txt)"
+        default=default_supp,
+        help=f"Path to list of supplementary tables (default: {default_supp})"
     )
     parser.add_argument(
         "-c",
         "--contents",
-        default="conf/contents.tsv",
-        help="Path to contents file (default: conf/contents.tsv)"
+        default=default_contents,
+        help=f"Path to contents file (default: {default_contents})"
     )
     parser.add_argument(
         "-g",
         "--glossary",
-        default="conf/glossary.tsv",
-        help="Path to glossary file (default: conf/glossary.tsv)"
+        default=default_glossary,
+        help=f"Path to glossary file (default: {default_glossary})"
     )
     parser.add_argument(
         "-o",
         "--output",
-        default="results/suppTables.xlsx",
-        help="Path to output Excel file (default: results/suppTables.xlsx)"
+        default=default_output,
+        help=f"Path to output Excel file (default: {default_output})"
     )
     return parser.parse_args()
 
