@@ -42,6 +42,9 @@ dependencies = [
     "upsetplot",
 ]
 
+[project.scripts]
+mtk = "metatoolkit.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/theoportlock/metatoolkit"
 Source = "https://github.com/theoportlock/metatoolkit"
