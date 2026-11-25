@@ -2,34 +2,19 @@ name: metatoolkit
 channels:
   - conda-forge
   - bioconda
-  - defaults
+  - nodefaults
 dependencies:
-  # --- Python Core ---
   - python=3.10
-  - pandas
-  - numpy
-  - scipy
-  - matplotlib
-  - seaborn
-  - scikit-learn
-  - statsmodels
-  - networkx
-  - sympy               # Fixes compute_theoretical_variance.py
   - pip
-  
-  # --- R Core & Stats ---
   - r-base=4.3
   - r-essentials
-  - r-optparse          # For argument parsing in R scripts
-  - r-vegan             # For adonis/distance (beta diversity)
-  - r-ggplot2           # For R plotting
-  - r-anthro            # Fixes anthro.R
-  
-  # --- Bioconductor (via Bioconda) ---
-  - bioconductor-ancombc # Fixes ancombc2.R error
+  - r-optparse
+  - r-vegan
+  - r-ggplot2
+  - r-anthro
+  - bioconductor-ancombc
   - bioconductor-phyloseq
-
-  # --- Python Pip Specifics ---
   - pip:
-    - interpret         # Fixes ebm.py (Explainable Boosting Machine)
-    - typer             # Modern CLI building
+      - metatoolkit @ git+https://github.com/theoportlock/metatoolkit.git@<commit-or-tag>
+      # for the mofa/single-cell scripts use this line instead:
+      # - metatoolkit[full] @ git+https://github.com/theoportlock/metatoolkit.git@<commit-or-tag>

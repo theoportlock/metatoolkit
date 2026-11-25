@@ -1,37 +1,24 @@
-# Use Mambaforge as base (lightweight, fast, pre-configured for conda-forge)
-FROM condaforge/mambaforge:latest
+# Pin by digest once built: docker pull condaforge/miniforge3:latest
+#   && docker inspect --format '{{index .RepoDigests 0}}' condaforge/miniforge3:latest
+FROM condaforge/miniforge3:latest
 
-# Label metadata
 LABEL maintainer="Theo Portlock"
 LABEL description="Hybrid Python/R Metatoolkit for Microbiome Analysis"
 
-# 1. Install system tools required for plotting (matplotlib/R) and Ollama connectivity
-# libgl1 is often needed for Python graphics backends
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    libgl1-mesa-glx \
+# git is needed for the pip git+https installs (metatoolkit, workforce)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl git libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Set working directory
+# conda env from the lock file (includes the pip layer)
 WORKDIR /app
+COPY conda-lock.yml .
+RUN mamba install -y -n base -c conda-forge conda-lock \
+    && conda-lock install -n metatoolkit conda-lock.yml \
+    && mamba clean -afy
+ENV PATH=/opt/conda/envs/metatoolkit/bin:${PATH}
 
-# 3. Copy environment file first (better caching)
-COPY environment.yml .
+# Smoke test: fails the build if either command is missing
+RUN mtk --help > /dev/null && which workforce
 
-# 4. Create the environment
-# We install into the base environment to avoid needing 'conda activate' inside Docker
-RUN mamba env update -n base -f environment.yml && \
-    mamba clean --all -f -y
-
-# 5. Copy your scripts into the container
-# Assuming your scripts are in a folder named 'scripts' or 'metatoolkit'
-COPY . /app/metatoolkit
-
-# 6. Make scripts executable and add to PATH
-# This allows you to run 'abund.py' from anywhere in the container
-RUN chmod +x /app/metatoolkit/*.py /app/metatoolkit/*.R /app/metatoolkit/*.sh
-ENV PATH="/app/metatoolkit:${PATH}"
-
-# 7. Default command (optional, can be a shell)
 CMD ["/bin/bash"]

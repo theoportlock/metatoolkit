@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]   # `license = "MIT"` (SPDX string) needs setuptools>=77
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -40,6 +40,22 @@ dependencies = [
     "lifelines",
     "statsmodels",
     "upsetplot",
+    "sympy",
+    "interpret",
+    "typer",
+    "workforce",
+]
+
+[project.optional-dependencies]
+full = [
+    "adjustText",
+    "anndata",
+    "igraph",
+    "imbalanced-learn",
+    "mofapy2",
+    "mofax",
+    "muon",
+    "scanpy",
 ]
 
 [project.scripts]
