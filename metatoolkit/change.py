@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# change.py
 
 import argparse
 from pathlib import Path
@@ -9,6 +10,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import mannwhitneyu
 from statsmodels.stats.multitest import fdrcorrection
+
+
+ALL_ANALYSES = ["mww", "fc", "diffmean", "smd", "summary"]
 
 
 # ---------------- CLI ---------------- #
@@ -38,8 +42,8 @@ def parse_arguments():
     parser.add_argument(
         "-a", "--analysis",
         nargs="+",
-        choices=["mww", "fc", "diffmean", "summary"],
-        default=["mww", "fc", "diffmean", "summary"],
+        choices=ALL_ANALYSES,
+        default=ALL_ANALYSES,
         help="Methods of analysis to perform"
     )
 
@@ -115,6 +119,26 @@ def diffmean(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(diff, columns=["diffmean"])
 
 
+def smd(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    """Standardized mean difference (Cohen's d) using the pooled SD.
+
+    SMD = (mean1 - mean2) / sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
+
+    Features with zero (or undefined) pooled SD return NaN.
+    """
+    n1, n2 = len(df1), len(df2)
+    dof = n1 + n2 - 2
+
+    if dof <= 0:
+        return pd.DataFrame(np.nan, index=df1.columns, columns=["SMD"])
+
+    pooled_var = ((n1 - 1) * df1.var(ddof=1) + (n2 - 1) * df2.var(ddof=1)) / dof
+    pooled_sd = np.sqrt(pooled_var).replace(0, np.nan)
+
+    d = (df1.mean() - df2.mean()) / pooled_sd
+    return pd.DataFrame(d, columns=["SMD"])
+
+
 def summary(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
     def stat_str(df: pd.DataFrame):
         m = df.mean().round(2).astype(str)
@@ -139,9 +163,15 @@ def change_analysis(
     if columns is None:
         columns = meta.columns.tolist()
     if analyses is None:
-        analyses = ["mww", "fc", "diffmean", "summary"]
+        analyses = list(ALL_ANALYSES)
 
-    methods = {"mww": mww, "fc": fc, "diffmean": diffmean, "summary": summary}
+    methods = {
+        "mww": mww,
+        "fc": fc,
+        "diffmean": diffmean,
+        "smd": smd,
+        "summary": summary,
+    }
     results = []
 
     for col in columns:
@@ -199,4 +229,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
