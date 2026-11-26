@@ -18,6 +18,10 @@ RUN mamba install -y -n base -c conda-forge conda-lock \
     && mamba clean -afy
 ENV PATH=/opt/conda/envs/metatoolkit/bin:${PATH}
 
+# R packages that aren't on conda, pinned by CRAN snapshot date.
+# install.packages() only warns on failure, so stopifnot makes the build fail instead.
+RUN Rscript -e 'options(repos = c(CRAN = "https://packagemanager.posit.co/cran/2024-03-01")); install.packages("anthro"); stopifnot(requireNamespace("anthro", quietly = TRUE))'
+
 # Smoke test: fails the build if either command is missing
 RUN mtk --help > /dev/null && which workforce
 
